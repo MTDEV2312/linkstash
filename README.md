@@ -73,6 +73,9 @@ cd LinkStash
 
 ### 2. Configurar Backend
 ```bash
+# Navegar al directorio del backend
+cd backend
+
 # Instalar dependencias del backend
 npm install
 
@@ -87,7 +90,7 @@ npm run dev
 ### 3. Configurar Frontend
 ```bash
 # Navegar al directorio del cliente
-cd client
+cd frontend
 
 # Instalar dependencias
 npm install
@@ -203,12 +206,6 @@ LinkStash/
 ## 📝 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## 👤 Autor
-
-**Tu Nombre**
-- GitHub: [@tu-usuario](https://github.com/tu-usuario)
-- Email: tu-email@ejemplo.com
 
 ---
 
