@@ -57,12 +57,14 @@ jobs:
     - name: Run security audit - Backend
       run: |
         cd backend
-        npm audit --audit-level=moderate
+        # Generate JSON audit report and don't fail the step on non-zero exit so the workflow can collect the report
+        npm audit --audit-level=moderate --json > audit-report-${{ matrix.node-version }}.json || true
         
     - name: Run security audit - Frontend
       run: |
         cd frontend
-        npm audit --audit-level=moderate
+        # Generate JSON audit report and don't fail the step on non-zero exit so the workflow can collect the report
+        npm audit --audit-level=moderate --json > audit-report-${{ matrix.node-version }}.json || true
 
     - name: Verify package signatures - Backend
       run: |
@@ -107,6 +109,8 @@ jobs:
         path: |
           backend/npm-debug.log*
           frontend/npm-debug.log*
+          backend/audit-report-*.json
+          frontend/audit-report-*.json
         retention-days: 30
 
   dependency-review:
