@@ -42,6 +42,11 @@ class LinkService {
     const response = await api.post(`/links/${id}/click`)
     return response.data
   }
+  // Alternar archivado
+  async toggleArchive(id) {
+    const response = await api.post(`/links/${id}/archive`)
+    return response.data
+  }
 
   // Validar URL
   isValidUrl(string) {

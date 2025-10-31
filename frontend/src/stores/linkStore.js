@@ -165,6 +165,31 @@ export const useLinkStore = create((set, get) => ({
     }
   },
 
+  // Alternar archivado
+  toggleArchive: async (id) => {
+    try {
+      const response = await linkService.toggleArchive(id)
+      const { archived } = response.data
+
+      // Actualizar en la lista
+      set(state => ({
+        links: state.links.map(link => 
+          link._id === id ? { ...link, isArchived: archived } : link
+        ),
+        currentLink: state.currentLink?._id === id 
+          ? { ...state.currentLink, isArchived: archived }
+          : state.currentLink
+      }))
+
+      toast.success(archived ? 'Enlace archivado' : 'Enlace desarchivado')
+      return { success: true, archived }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Error al actualizar archivado'
+      toast.error(message)
+      return { success: false, message }
+    }
+  },
+
   // Incrementar contador de clics
   incrementClickCount: async (id) => {
     try {
