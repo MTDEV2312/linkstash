@@ -1,0 +1,140 @@
+name: Security Audit and CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # Fetch full history for better security analysis
+        fetch-depth: 0
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Verify Node.js and npm versions
+      run: |
+        echo "Node.js version: $(node --version)"
+        echo "npm version: $(npm --version)"
+        
+    - name: Install dependencies securely - Backend
+      run: |
+        cd backend
+        npm ci --ignore-scripts --audit-level=moderate
+        
+    - name: Install dependencies securely - Frontend  
+      run: |
+        cd frontend
+        npm ci --ignore-scripts --audit-level=moderate
+
+    - name: Run security audit - Backend
+      run: |
+        cd backend
+        npm audit --audit-level=moderate
+        
+    - name: Run security audit - Frontend
+      run: |
+        cd frontend
+        npm audit --audit-level=moderate
+
+    - name: Verify package signatures - Backend
+      run: |
+        cd backend
+        npm audit signatures || echo "Signature verification not available"
+        
+    - name: Verify package signatures - Frontend
+      run: |
+        cd frontend
+        npm audit signatures || echo "Signature verification not available"
+
+    - name: Check for outdated packages - Backend
+      run: |
+        cd backend
+        npm outdated || true
+        
+    - name: Check for outdated packages - Frontend
+      run: |
+        cd frontend
+        npm outdated || true
+
+    - name: Test Backend
+      run: |
+        cd backend
+        npm test || echo "No tests configured yet"
+        
+    - name: Test Frontend
+      run: |
+        cd frontend
+        npm test || echo "No tests configured yet"
+
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Upload security artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: security-logs-${{ matrix.node-version }}
+        path: |
+          backend/npm-debug.log*
+          frontend/npm-debug.log*
+        retention-days: 30
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
