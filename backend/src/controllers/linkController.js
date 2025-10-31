@@ -377,6 +377,39 @@ const updateTagsCount = async (userId, tags, operation) => {
   }
 };
 
+// @desc    Alternar archivado
+// @route   POST /api/links/:id/archive
+// @access  Private
+const toggleArchive = async (req, res) => {
+  try{
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const link = await Link.findOne({ _id: id, userId });
+    if (!link) {
+      return res.status(404).json({
+        success: false,
+        message: 'Enlace no encontrado'
+      });
+    }
+
+    await link.toggleArchive();
+
+    res.json({
+      success: true,
+      message: `Enlace ${link.isArchived ? 'archivado' : 'desarchivado'} exitosamente`,
+      data: { archived: link.isArchived }
+    });
+
+  }catch(error){
+    console.error('Error en toggleArchive:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+}
+
 export {
   saveLink,
   getLinks,
@@ -384,5 +417,6 @@ export {
   updateLink,
   deleteLink,
   incrementClickCount,
-  toggleFavorite
+  toggleFavorite,
+  toggleArchive
 };

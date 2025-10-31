@@ -6,7 +6,8 @@ import {
   updateLink,
   deleteLink,
   incrementClickCount,
-  toggleFavorite
+  toggleFavorite,
+  toggleArchive
 } from '../controllers/linkController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
@@ -31,5 +32,6 @@ router.route('/:id')
 // Rutas adicionales
 router.post('/:id/click', incrementClickCount);
 router.post('/:id/favorite', toggleFavorite);
+router.post('/:id/archive', toggleArchive);
 
 export default router;
