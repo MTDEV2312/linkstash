@@ -11,20 +11,6 @@ LinkStash/
 ├── .gitignore       # Archivos ignorados por Git
 └── README.md        # Este archivo
 ```
-
-## 🔒 Seguridad
-
-Este proyecto implementa las **mejores prácticas de seguridad npm** según el repositorio [npm-security-best-practices](https://github.com/bodadotsh/npm-security-best-practices):
-
-### ✅ Prácticas de Seguridad Implementadas
-
-1. **📌 Versiones de dependencias fijadas**: Sin operadores `^` o `~`
-2. **🚫 Scripts de ciclo de vida deshabilitados**: Previene ejecución de código malicioso
-3. **🔒 Archivos lockfiles incluidos**: Para builds reproducibles
-4. **⚖️ Overrides de dependencias**: Control sobre dependencias transitivas
-5. **🛡️ Provenance statements**: Para paquetes publicados
-6. **🔍 Auditorías regulares**: Escaneo de vulnerabilidades
-
 ### 🔧 Configuración de Seguridad
 
 Cada sub-proyecto (backend y frontend) incluye:
@@ -186,14 +172,6 @@ LinkStash/
 }
 ```
 
-## 🎯 Roadmap
-
-- [ ] Implementar búsqueda full-text
-- [ ] Agregar categorías predefinidas
-- [ ] Exportar/importar enlaces
-- [ ] Modo oscuro
-- [ ] Favoritos y archivado
-- [ ] API pública con rate limiting
 
 ## 🤝 Contribución
 
