@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageFile, setImageFile] = useState(null)
+  const [serverError, setServerError] = useState(null)
   const [imageUrl, setImageUrl] = useState(link?.image || '')
   const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
   const [imagePreview, setImagePreview] = useState(link?.image || '')
@@ -206,9 +207,10 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         toast.success('Enlace actualizado exitosamente')
         onUpdate?.()
         onClose()
+        setServerError(null)
       }
     } catch (error) {
-      console.error('Error al actualizar enlace:', error)
+      setServerError('Error inesperado al actualizar el enlace')
       toast.error('Error inesperado al actualizar el enlace')
     } finally {
       setIsSubmitting(false)
@@ -247,6 +249,11 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+          {serverError && (
+            <div>
+              <p className="mt-2 text-sm text-red-600">{serverError}</p>
+            </div>
+          )}
           {/* URL */}
           <div>
             <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
@@ -259,7 +266,8 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
               <input
                 {...register('url', {
                   required: 'La URL es obligatoria',
-                  validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida'
+                    validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida',
+                    onChange: () => serverError && setServerError(null)
                 })}
                 type="text"
                 className="input pl-10"
@@ -296,6 +304,8 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                     value: 200,
                     message: 'El título no puede exceder 200 caracteres'
                   }
+                    ,
+                    onChange: () => serverError && setServerError(null)
                 })}
                 type="text"
                 className="input pl-10"
@@ -318,6 +328,8 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                   value: 500,
                   message: 'La descripción no puede exceder 500 caracteres'
                 }
+                  ,
+                  onChange: () => serverError && setServerError(null)
               })}
               ref={(e) => {
                 textareaRef.current = e

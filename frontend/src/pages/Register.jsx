@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
 import { Mail, Lock, User, Eye, EyeOff, UserPlus } from 'lucide-react'
+import FormError from '../components/FormError'
+import extractServerMessage from '../utils/errorUtils'
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false)
@@ -21,11 +23,20 @@ const Register = () => {
 
   const onSubmit = async (data) => {
     const { confirmPassword, ...userData } = data
-    const result = await registerUser(userData)
-    if (result.success) {
-      navigate('/dashboard')
+    setServerError(null)
+    try {
+      const result = await registerUser(userData)
+      if (result.success) {
+        navigate('/dashboard')
+      } else {
+        setServerError(result.message || 'Error al crear la cuenta')
+      }
+    } catch (err) {
+      setServerError(extractServerMessage(err))
     }
   }
+
+  const [serverError, setServerError] = useState(null)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -49,6 +60,7 @@ const Register = () => {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          {serverError && <FormError message={serverError} />}
           <div className="space-y-4">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -73,7 +85,9 @@ const Register = () => {
                       value: /^[a-zA-Z0-9_-]+$/,
                       message: 'Solo se permiten letras, números, guiones y guiones bajos'
                     }
-                  })}
+          ,
+            onChange: () => serverError && setServerError(null)
+          })}
                   type="text"
                   className="input pl-10"
                   placeholder="mi_usuario"
@@ -99,6 +113,8 @@ const Register = () => {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                       message: 'Email inválido'
                     }
+                  ,
+                    onChange: () => serverError && setServerError(null)
                   })}
                   type="email"
                   className="input pl-10"
@@ -125,6 +141,8 @@ const Register = () => {
                       value: 6,
                       message: 'La contraseña debe tener al menos 6 caracteres'
                     }
+                  ,
+                    onChange: () => serverError && setServerError(null)
                   })}
                   type={showPassword ? 'text' : 'password'}
                   className="input pl-10 pr-10"
@@ -160,6 +178,8 @@ const Register = () => {
                     required: 'Debes confirmar la contraseña',
                     validate: value =>
                       value === password || 'Las contraseñas no coinciden'
+                  ,
+                    onChange: () => serverError && setServerError(null)
                   })}
                   type={showConfirmPassword ? 'text' : 'password'}
                   className="input pl-10 pr-10"

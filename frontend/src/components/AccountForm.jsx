@@ -8,6 +8,7 @@ const AccountForm = ({ mode = 'profile' }) => {
   const [form, setForm] = useState({ username: '', email: '' })
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [serverError, setServerError] = useState(null)
 
   useEffect(() => {
     if (mode === 'profile' && user) {
@@ -18,11 +19,13 @@ const AccountForm = ({ mode = 'profile' }) => {
   const handleChange = (e) => {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
+    if (serverError) setServerError(null)
   }
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target
     setPasswords((p) => ({ ...p, [name]: value }))
+    if (serverError) setServerError(null)
   }
 
   const submitProfile = async (e) => {
@@ -34,12 +37,15 @@ const AccountForm = ({ mode = 'profile' }) => {
 
     setSubmitting(true)
     try {
+      setServerError(null)
       const res = await updateProfile({ username: form.username.trim(), email: form.email.trim() })
       if (res && res.success) {
         toast.success('Perfil actualizado')
+      } else {
+        setServerError(res.message || 'Error al actualizar el perfil')
       }
     } catch (err) {
-      console.error(err)
+      setServerError('Error inesperado al actualizar el perfil')
     } finally {
       setSubmitting(false)
     }
@@ -58,13 +64,16 @@ const AccountForm = ({ mode = 'profile' }) => {
 
     setSubmitting(true)
     try {
+      setServerError(null)
       const res = await changePassword({ currentPassword: passwords.currentPassword, newPassword: passwords.newPassword })
       if (res && res.success) {
         toast.success('Contraseña actualizada')
         setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        setServerError(res.message || 'Error al cambiar la contraseña')
       }
     } catch (err) {
-      console.error(err)
+      setServerError('Error inesperado al cambiar la contraseña')
     } finally {
       setSubmitting(false)
     }
@@ -75,6 +84,7 @@ const AccountForm = ({ mode = 'profile' }) => {
       <div className="card p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil</h3>
         <form onSubmit={submitProfile}>
+          {serverError && <p className="mb-3 text-sm text-red-600">{serverError}</p>}
           <label className="block mb-2 text-sm font-medium">Nombre de usuario</label>
           <input
             name="username"

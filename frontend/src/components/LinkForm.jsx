@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 const LinkForm = ({ onSave, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [serverError, setServerError] = useState(null)
   const [urlPreview, setUrlPreview] = useState(null)
   const [imageFile, setImageFile] = useState(null)
   const [imageUrl, setImageUrl] = useState('')
@@ -140,10 +141,14 @@ const LinkForm = ({ onSave, onCancel }) => {
       const result = await saveLink(linkData)
 
       if (result.success) {
+        setServerError(null)
         onSave?.(result.link)
+      } else {
+        setServerError(result.message || 'Error al guardar el enlace')
       }
     } catch (error) {
-      console.error('Error al guardar enlace:', error)
+      // Mostrar mensaje inline y toast
+      setServerError('Error inesperado al guardar el enlace')
       toast.error('Error inesperado al guardar el enlace')
     } finally {
       setIsSubmitting(false)
@@ -152,6 +157,7 @@ const LinkForm = ({ onSave, onCancel }) => {
 
   return (
     <div className="space-y-6">
+      {serverError && <div><p className="mt-2 text-sm text-red-600">{serverError}</p></div>}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-gray-900">
           Agregar nuevo enlace
@@ -177,7 +183,8 @@ const LinkForm = ({ onSave, onCancel }) => {
             <input
               {...register('url', {
                 required: 'La URL es obligatoria',
-                validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida'
+                  validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida',
+                  onChange: () => serverError && setServerError(null)
               })}
               type="text"
               className="input pl-10"
@@ -224,6 +231,8 @@ const LinkForm = ({ onSave, onCancel }) => {
                   value: 200,
                   message: 'El título no puede exceder 200 caracteres'
                 }
+                ,
+                onChange: () => serverError && setServerError(null)
               })}
               type="text"
               className="input pl-10"
@@ -249,6 +258,8 @@ const LinkForm = ({ onSave, onCancel }) => {
                 value: 500,
                 message: 'La descripción no puede exceder 500 caracteres'
               }
+              ,
+              onChange: () => serverError && setServerError(null)
             })}
             rows={3}
             className="input resize-none"

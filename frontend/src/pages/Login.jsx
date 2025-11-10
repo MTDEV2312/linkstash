@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading } = useAuthStore()
   const navigate = useNavigate()
+  const [serverError, setServerError] = useState(null)
   
   const {
     register,
@@ -16,9 +18,23 @@ const Login = () => {
   } = useForm()
 
   const onSubmit = async (data) => {
-    const result = await login(data)
-    if (result.success) {
-      navigate('/dashboard')
+    setServerError(null)
+    try {
+      const result = await login(data)
+      if (result && result.success) {
+        setServerError(null)
+        navigate('/dashboard')
+      } else {
+        // Mostrar error devuelto por el store debajo del formulario
+        const msg = result?.message || 'Error al iniciar sesión'
+        setServerError(msg)
+        try { toast.error(msg) } catch (_) { /* ignore toast errors */ }
+      }
+    } catch (err) {
+      // Manejo defensivo: si login lanzara por alguna razón, mostrar mensaje
+      const msg = err?.response?.data?.message || err?.message || 'Error al iniciar sesión'
+      setServerError(msg)
+      try { toast.error(msg) } catch (_) { /* ignore toast errors */ }
     }
   }
 
@@ -60,6 +76,8 @@ const Login = () => {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                       message: 'Email inválido'
                     }
+                    ,
+                    onChange: () => serverError && setServerError(null)
                   })}
                   type="email"
                   className="input pl-10"
@@ -86,6 +104,8 @@ const Login = () => {
                       value: 6,
                       message: 'La contraseña debe tener al menos 6 caracteres'
                     }
+                    ,
+                    onChange: () => serverError && setServerError(null)
                   })}
                   type={showPassword ? 'text' : 'password'}
                   className="input pl-10 pr-10"
@@ -110,6 +130,9 @@ const Login = () => {
           </div>
 
           <div>
+            {serverError && (
+              <p className="mt-2 text-sm text-red-600">{serverError}</p>
+            )}
             <button
               type="submit"
               disabled={isLoading}
