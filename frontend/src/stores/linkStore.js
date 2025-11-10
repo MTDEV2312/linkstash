@@ -42,7 +42,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al obtener los enlaces'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -65,7 +68,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al guardar el enlace'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -86,7 +92,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al obtener el enlace'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -112,7 +121,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al actualizar el enlace'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -138,7 +150,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al actualizar el enlace'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -161,7 +176,10 @@ export const useLinkStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al eliminar el enlace'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -186,7 +204,10 @@ export const useLinkStore = create((set, get) => ({
       return { success: true, isFavorite }
     } catch (error) {
       const message = error.response?.data?.message || 'Error al actualizar favorito'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -211,7 +232,10 @@ export const useLinkStore = create((set, get) => ({
       return { success: true, archived }
     } catch (error) {
       const message = error.response?.data?.message || 'Error al actualizar archivado'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },

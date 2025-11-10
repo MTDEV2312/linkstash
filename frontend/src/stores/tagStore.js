@@ -15,7 +15,10 @@ const useTagStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error?.response?.data?.message || 'Error al cargar etiquetas'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -30,7 +33,10 @@ const useTagStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error?.response?.data?.message || 'No fue posible crear la etiqueta'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -45,7 +51,10 @@ const useTagStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error?.response?.data?.message || 'No fue posible actualizar la etiqueta'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   },
@@ -60,7 +69,10 @@ const useTagStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false })
       const message = error?.response?.data?.message || 'Error al eliminar etiqueta'
-      toast.error(message)
+      try {
+        const status = error?.response?.status
+        if (!status || status >= 500) toast.error(message)
+      } catch (t) {}
       return { success: false, message }
     }
   }

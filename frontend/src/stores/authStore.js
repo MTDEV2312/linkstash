@@ -16,7 +16,8 @@ export const useAuthStore = create(
         set({ isLoading: true })
         try {
           const response = await authService.login(credentials)
-          const { token, user } = response.data
+          // El backend devuelve { success, message, data: { token, user } }
+          const { token, user } = response.data.data
           
           set({
             user,
@@ -32,8 +33,16 @@ export const useAuthStore = create(
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
-          const message = error.response?.data?.message || 'Error al iniciar sesión'
-          toast.error(message)
+          const message = error?.response?.data?.message || error?.message || 'Error al iniciar sesión'
+          // Only show toast for server (5xx) or network errors; client errors (4xx) are handled inline by components
+          try {
+            const status = error?.response?.status
+            if (!status || status >= 500) {
+              toast.error(message)
+            }
+          } catch (t) {
+            // ignore toast errors
+          }
           return { success: false, message }
         }
       },
@@ -43,7 +52,7 @@ export const useAuthStore = create(
         set({ isLoading: true })
         try {
           const response = await authService.register(userData)
-          const { token, user } = response.data
+          const { token, user } = response.data.data
           
           set({
             user,
@@ -60,7 +69,12 @@ export const useAuthStore = create(
         } catch (error) {
           set({ isLoading: false })
           const message = error.response?.data?.message || 'Error al crear la cuenta'
-          toast.error(message)
+          try {
+            const status = error?.response?.status
+            if (!status || status >= 500) {
+              toast.error(message)
+            }
+          } catch (t) {}
           return { success: false, message }
         }
       },
@@ -95,7 +109,7 @@ export const useAuthStore = create(
           
           // Verificar si el token es válido
           const response = await authService.getProfile()
-          const user = response.data.user
+          const user = response.data.data.user
           
           set({
             user,
@@ -119,7 +133,7 @@ export const useAuthStore = create(
         set({ isLoading: true })
         try {
           const response = await authService.updateProfile(profileData)
-          const user = response.data.user
+          const user = response.data.data.user
           
           set({
             user,
@@ -131,7 +145,12 @@ export const useAuthStore = create(
         } catch (error) {
           set({ isLoading: false })
           const message = error.response?.data?.message || 'Error al actualizar el perfil'
-          toast.error(message)
+          try {
+            const status = error?.response?.status
+            if (!status || status >= 500) {
+              toast.error(message)
+            }
+          } catch (t) {}
           return { success: false, message }
         }
       },
@@ -148,7 +167,12 @@ export const useAuthStore = create(
         } catch (error) {
           set({ isLoading: false })
           const message = error.response?.data?.message || 'Error al cambiar la contraseña'
-          toast.error(message)
+          try {
+            const status = error?.response?.status
+            if (!status || status >= 500) {
+              toast.error(message)
+            }
+          } catch (t) {}
           return { success: false, message }
         }
       }

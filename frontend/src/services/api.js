@@ -31,18 +31,26 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    // Si el token ha expirado, limpiar el almacenamiento y redirigir
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth-token')
-      localStorage.removeItem('auth-storage')
-      
-      // Si no estamos ya en login, redirigir
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+      // Si el token ha expirado, limpiar el almacenamiento y redirigir
+      // Evitar redirect automático para endpoints públicos de auth (login/register/refresh)
+      const status = error.response?.status
+      const reqUrl = error.config?.url || ''
+
+      if (status === 401) {
+        const isAuthEndpoint = reqUrl.includes('/auth/login') || reqUrl.includes('/auth/register') || reqUrl.includes('/auth/refresh') || reqUrl.includes('/auth/me')
+
+        if (!isAuthEndpoint) {
+          // Logout automático y redirección sólo para rutas protegidas
+          localStorage.removeItem('auth-token')
+          localStorage.removeItem('auth-storage')
+
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login'
+          }
+        }
       }
-    }
-    
-    return Promise.reject(error)
+
+      return Promise.reject(error)
   }
 )
 
