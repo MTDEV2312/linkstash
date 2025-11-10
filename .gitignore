@@ -127,3 +127,4 @@ SECURITY-REPORT.md
 SECURITY.md
 
 *.sh
+test/
