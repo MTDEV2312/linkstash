@@ -7,6 +7,7 @@ import http from 'http';
 import https from 'https';
 import tls from 'tls';
 import { looksLikeObfuscatedIp, isIpPrivate as utilIsIpPrivate, sanitizeHostHeader, resolvePublicAddresses } from '../utils/urlValidators.js';
+import { getNextDefaultImage } from '../config/defaults.js';
 
 class ScraperService {
   constructor() {
@@ -147,6 +148,18 @@ class ScraperService {
         image = '';
       }
 
+      // Si no hay imagen válida, usar imagen por defecto configurable
+      if (!image) {
+        // Permitir override mediante variable de entorno
+        const defaultImg = process.env.DEFAULT_IMAGE_URL || null;
+        if (defaultImg && this.isValidUrl(defaultImg)) {
+          image = defaultImg;
+        } else {
+          // Usar la(s) imagen(es) definidas en public/defaults (random o roundrobin)
+          image = getNextDefaultImage();
+        }
+      }
+
       let favicon = this.extractFavicon($, url);
       if (favicon && this.isValidUrl(favicon)) {
         const safeFav = await this.getSafeUrlInfo(favicon);
@@ -160,7 +173,7 @@ class ScraperService {
       console.log(`✅ Scraping completado para: ${url}`);
       return {
         success: true,
-        data: metadata
+        data: { ...metadata, url }
       };
 
     } catch (error) {
@@ -175,7 +188,8 @@ class ScraperService {
           description: '',
           image: '',
           siteName: this.extractDomainFromUrl(url),
-          favicon: ''
+          favicon: '',
+          url
         }
       };
     }
@@ -466,7 +480,17 @@ class ScraperService {
     const { title, description, siteName } = metadata;
     
     // Extraer palabras clave comunes
-    const text = `${title} ${description} ${siteName}`.toLowerCase();
+    const text = `${title || ''} ${description || ''} ${siteName || ''}`.toLowerCase();
+    
+    // Añadir detección basada en dominio/hostname si metadata incluye siteName u origin
+    // Metadata puede no contener el hostname; intentar inferir de siteName
+    let hostname = '';
+    if (metadata.url) {
+      try { hostname = new URL(metadata.url).hostname.toLowerCase(); } catch (e) { hostname = ''; }
+    }
+    if (!hostname && siteName) {
+      hostname = siteName.toLowerCase();
+    }
     
     // Etiquetas basadas en dominios populares
     const domainTags = {
@@ -481,7 +505,7 @@ class ScraperService {
     };
 
     Object.entries(domainTags).forEach(([domain, tag]) => {
-      if (text.includes(domain)) {
+      if (text.includes(domain) || (hostname && hostname.includes(domain))) {
         tags.push(tag);
       }
     });
@@ -503,6 +527,15 @@ class ScraperService {
         tags.push(tag);
       }
     });
+
+    // Si no se generaron tags, intentar extraer palabras clave del título (n-grams simples)
+    if (tags.length === 0 && title) {
+      const words = title.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(Boolean);
+      const common = ['how', 'to', 'the', 'a', 'an', 'en', 'de', 'y', 'con', 'for', 'from'];
+      for (const w of words.slice(0, 6)) {
+        if (w.length >= 3 && !common.includes(w)) tags.push(w);
+      }
+    }
 
     return [...new Set(tags)]; // Eliminar duplicados
   }
