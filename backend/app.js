@@ -1,17 +1,16 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import connectDB from './src/config/database.js';
 import errorHandler from './src/utils/errorHandler.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Importar rutas
+// Importar rutas (las variables de entorno ya están cargadas gracias a import 'dotenv/config')
 import authRoutes from './src/routes/authRoutes.js';
 import linkRoutes from './src/routes/linkRoutes.js';
 import tagRoutes from './src/routes/tagRoutes.js';
-
-// Configurar variables de entorno
-dotenv.config();
 
 const app = express();
 // Si la app está detrás de un proxy (p.ej. Render), permite usar X-Forwarded-* para IP
@@ -40,6 +39,14 @@ connectDB();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Servir archivos estáticos (p.ej. imagen predeterminada)
+// __dirname en ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Carpeta pública para assets (por ejemplo: public/defaults/default-image.svg)
+app.use('/defaults', express.static(path.join(__dirname, 'public', 'defaults')));
 
 // Middleware de logging
 app.use((req, res, next) => {
