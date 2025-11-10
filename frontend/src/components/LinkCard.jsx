@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
+import DescriptionModal from './DescriptionModal'
+import EditLinkModal from './EditLinkModal'
 import { 
   ExternalLink, 
   Heart, 
@@ -9,20 +11,21 @@ import {
   Eye,
   Calendar,
   Archive,
+  Clock,
+  AlertCircle,
+  Cloud,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { toggleFavorite, deleteLink, incrementClickCount, toggleArchive, updateLink } = useLinkStore()
-  const [isEditing, setIsEditing] = useState(false)
-  const [form, setForm] = useState({
-    title: link.title || '',
-    description: link.description || '',
-    tags: (link.tags || []).join(', '),
-    url: link.url || ''
-  })
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const { toggleFavorite, deleteLink, incrementClickCount, toggleArchive } = useLinkStore()
+  
+  // Verificar si necesita descripción
+  const needsDescription = link.needsDescription && (!link.description || link.description.trim() === '')
 
   const handleVisit = async () => {
     await incrementClickCount(link._id)
@@ -42,33 +45,13 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
   }
 
   const handleEditToggle = () => {
-    setForm({
-      title: link.title || '',
-      description: link.description || '',
-      tags: (link.tags || []).join(', '),
-      url: link.url || ''
-    })
-    setIsEditing(true)
+    setShowEditModal(true)
     setIsMenuOpen(false)
   }
 
-  const handleEditCancel = () => {
-    setIsEditing(false)
-  }
-
-  const handleEditSave = async () => {
-    // preparar payload
-    const payload = {
-      title: form.title,
-      description: form.description,
-      tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
-      url: form.url
-    }
-    const result = await updateLink(link._id, payload)
-    if (result?.success) {
-      setIsEditing(false)
-      onUpdate?.()
-    }
+  const formatDateTime = (date) => {
+    if (!date) return null
+    return format(new Date(date), 'dd MMM yyyy - HH:mm', { locale: es })
   }
 
   const handleToggleArchive = async () => {
@@ -172,44 +155,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
     )
   }
 
-  // Si está en modo edición, mostrar formulario sencillo (aplica tanto list como grid)
-  if (isEditing) {
-    return (
-      <div className="card p-4">
-        <div className="flex flex-col gap-2">
-          <input
-            className="input w-full"
-            value={form.title}
-            onChange={(e) => setForm(s => ({ ...s, title: e.target.value }))}
-            placeholder="Título"
-          />
-          <input
-            className="input w-full"
-            value={form.url}
-            onChange={(e) => setForm(s => ({ ...s, url: e.target.value }))}
-            placeholder="https://example.com"
-          />
-          <textarea
-            className="textarea w-full"
-            value={form.description}
-            onChange={(e) => setForm(s => ({ ...s, description: e.target.value }))}
-            placeholder="Descripción"
-          />
-          <input
-            className="input w-full"
-            value={form.tags}
-            onChange={(e) => setForm(s => ({ ...s, tags: e.target.value }))}
-            placeholder="tags separadas por coma"
-          />
 
-          <div className="flex gap-2 justify-end">
-            <button onClick={handleEditCancel} className="btn btn-ghost">Cancelar</button>
-            <button onClick={handleEditSave} className="btn btn-primary">Guardar</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (viewMode === 'list') {
     return (
@@ -235,7 +181,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                   <p className="text-sm text-gray-600 line-clamp-2">
                     {link.description || 'Sin descripción'}
                   </p>
-                  <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                     <span className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
                       {formatDate(link.createdAt)}
@@ -246,10 +192,30 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                         {link.clickCount} visitas
                       </span>
                     )}
-                    <span className="text-primary-600">
+                    {link.lastVisited && (
+                      <span className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Última: {formatDateTime(link.lastVisited)}
+                      </span>
+                    )}
+                    <span className="text-primary-600 flex items-center">
+                      {link.imageIsCloudinary && (
+                        <Cloud className="w-3 h-3 mr-1" title="Imagen en Cloudinary" />
+                      )}
                       {getDomainFromUrl(link.url)}
                     </span>
                   </div>
+                  
+                  {/* Indicador de descripción requerida */}
+                  {needsDescription && (
+                    <button
+                      onClick={() => setShowDescriptionModal(true)}
+                      className="flex items-center mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+                    >
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Agregar descripción
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -412,10 +378,18 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
         )}
         
         <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-          <span className="flex items-center">
-            <Calendar className="w-3 h-3 mr-1" />
-            {formatDate(link.createdAt)}
-          </span>
+          <div className="flex items-center space-x-3">
+            <span className="flex items-center">
+              <Calendar className="w-3 h-3 mr-1" />
+              {formatDate(link.createdAt)}
+            </span>
+            {link.lastVisited && (
+              <span className="flex items-center">
+                <Clock className="w-3 h-3 mr-1" />
+                {formatDateTime(link.lastVisited)}
+              </span>
+            )}
+          </div>
           {link.clickCount > 0 && (
             <span className="flex items-center">
               <Eye className="w-3 h-3 mr-1" />
@@ -424,8 +398,22 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
           )}
         </div>
         
+        {/* Indicador de descripción requerida */}
+        {needsDescription && (
+          <button
+            onClick={() => setShowDescriptionModal(true)}
+            className="flex items-center mb-3 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+          >
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Agregar descripción
+          </button>
+        )}
+        
         <div className="flex items-center justify-between">
-          <span className="text-xs text-primary-600 font-medium truncate">
+          <span className="text-xs text-primary-600 font-medium truncate flex items-center">
+            {link.imageIsCloudinary && (
+              <Cloud className="w-3 h-3 mr-1" title="Imagen en Cloudinary" />
+            )}
             {getDomainFromUrl(link.url)}
           </span>
           
@@ -481,6 +469,22 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
           </div>
         </div>
       </div>
+
+      {/* Modal para agregar descripción */}
+      <DescriptionModal
+        link={link}
+        isOpen={showDescriptionModal}
+        onClose={() => setShowDescriptionModal(false)}
+        onUpdate={onUpdate}
+      />
+
+      {/* Modal para editar enlace */}
+      <EditLinkModal
+        link={link}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onUpdate={onUpdate}
+      />
     </div>
   )
 }

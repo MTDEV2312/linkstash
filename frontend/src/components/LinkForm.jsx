@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
-import { X, Link as LinkIcon, FileText, Tag, Loader2 } from 'lucide-react'
+import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const LinkForm = ({ onSave, onCancel, editLink = null }) => {
+const LinkForm = ({ onSave, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [urlPreview, setUrlPreview] = useState(null)
-  const { saveLink, updateLink } = useLinkStore()
+  const [imageFile, setImageFile] = useState(null)
+  const [imageUrl, setImageUrl] = useState('')
+  const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
+  const [imagePreview, setImagePreview] = useState('')
+  const { saveLink } = useLinkStore()
   
   const {
     register,
@@ -15,12 +19,12 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
     watch,
     formState: { errors }
   } = useForm({
-    defaultValues: editLink ? {
-      url: editLink.url,
-      title: editLink.title,
-      description: editLink.description,
-      tags: editLink.tags.join(', ')
-    } : {}
+    defaultValues: {
+      url: '',
+      title: '',
+      description: '',
+      tags: ''
+    }
   })
 
   const watchedUrl = watch('url')
@@ -60,11 +64,58 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
     }
   }, [watchedUrl])
 
+  // Manejar selección de archivo de imagen
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Por favor selecciona un archivo de imagen válido')
+        return
+      }
+
+      // Validar tamaño (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no puede ser mayor a 5MB')
+        return
+      }
+
+      setImageFile(file)
+      
+      // Crear preview
+      const reader = new FileReader()
+      reader.onload = (e) => setImagePreview(e.target.result)
+      reader.readAsDataURL(file)
+      
+      // Limpiar URL si se selecciona archivo
+      setImageUrl('')
+    }
+  }
+
+  // Manejar cambio de URL de imagen
+  const handleImageUrlChange = (e) => {
+    const url = e.target.value
+    setImageUrl(url)
+    setImagePreview(url)
+    
+    // Limpiar archivo si se ingresa URL
+    if (url) {
+      setImageFile(null)
+    }
+  }
+
+  // Limpiar imagen
+  const clearImage = () => {
+    setImageFile(null)
+    setImageUrl('')
+    setImagePreview('')
+  }
+
   const onSubmit = async (data) => {
     setIsSubmitting(true)
     
     try {
-      // Preparar datos
+      // Preparar datos básicos
       const linkData = {
         url: normalizeUrl(data.url),
         title: data.title?.trim() || '',
@@ -74,19 +125,19 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
           : []
       }
 
+      // Agregar imagen si hay URL
+      if (imageUrl && !imageFile) {
+        linkData.image = imageUrl
+      }
+
       // Validar URL
       if (!isValidUrl(linkData.url)) {
         toast.error('Por favor ingresa una URL válida')
         return
       }
 
-      // Guardar o actualizar
-      let result
-      if (editLink) {
-        result = await updateLink(editLink._id, linkData)
-      } else {
-        result = await saveLink(linkData)
-      }
+      // Guardar nuevo enlace - el backend maneja las imágenes automáticamente via scraping
+      const result = await saveLink(linkData)
 
       if (result.success) {
         onSave?.(result.link)
@@ -103,7 +154,7 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-gray-900">
-          {editLink ? 'Editar enlace' : 'Agregar nuevo enlace'}
+          Agregar nuevo enlace
         </h3>
         <button
           onClick={onCancel}
@@ -208,6 +259,8 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
           )}
         </div>
 
+
+
         {/* Etiquetas */}
         <div>
           <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
@@ -247,10 +300,10 @@ const LinkForm = ({ onSave, onCancel, editLink = null }) => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {editLink ? 'Actualizando...' : 'Guardando...'}
+                Guardando...
               </>
             ) : (
-              editLink ? 'Actualizar enlace' : 'Guardar enlace'
+              'Guardar enlace'
             )}
           </button>
         </div>
