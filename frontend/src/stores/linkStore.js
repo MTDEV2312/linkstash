@@ -91,11 +91,37 @@ export const useLinkStore = create((set, get) => ({
     }
   },
 
-  // Actualizar enlace
-  updateLink: async (id, linkData) => {
+  // Actualizar enlace (con soporte para imágenes)
+  updateLink: async (id, linkData, uploadFile = null, uploadToCloudinary = false) => {
     set({ isLoading: true })
     try {
-      const response = await linkService.updateLink(id, linkData)
+      const response = await linkService.updateLink(id, linkData, uploadFile, uploadToCloudinary)
+      const updatedLink = response.data.link
+      
+      // Actualizar en la lista
+      set(state => ({
+        links: state.links.map(link => 
+          link._id === id ? updatedLink : link
+        ),
+        currentLink: state.currentLink?._id === id ? updatedLink : state.currentLink,
+        isLoading: false
+      }))
+      
+      toast.success('Enlace actualizado exitosamente')
+      return { success: true, link: updatedLink }
+    } catch (error) {
+      set({ isLoading: false })
+      const message = error.response?.data?.message || 'Error al actualizar el enlace'
+      toast.error(message)
+      return { success: false, message }
+    }
+  },
+
+  // Actualizar solo datos del enlace (sin imagen)
+  updateLinkData: async (id, linkData) => {
+    set({ isLoading: true })
+    try {
+      const response = await linkService.updateLinkData(id, linkData)
       const updatedLink = response.data.link
       
       // Actualizar en la lista

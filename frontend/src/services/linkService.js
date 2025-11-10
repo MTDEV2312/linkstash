@@ -19,8 +19,46 @@ class LinkService {
     return response.data
   }
 
-  // Actualizar enlace
-  async updateLink(id, linkData) {
+  // Actualizar enlace (soporta FormData para imágenes multipart)
+  async updateLink(id, linkData, uploadFile = null, uploadToCloudinary = false) {
+    let payload = linkData
+
+    // Si hay archivo para subir, usar FormData
+    if (uploadFile) {
+      payload = new FormData()
+      
+      // Agregar campos de texto
+      Object.keys(linkData).forEach(key => {
+        if (linkData[key] !== undefined && linkData[key] !== null) {
+          if (Array.isArray(linkData[key])) {
+            linkData[key].forEach(item => payload.append(key, item))
+          } else {
+            payload.append(key, linkData[key])
+          }
+        }
+      })
+      
+      // Agregar archivo
+      payload.append('image', uploadFile)
+      payload.append('uploadToCloudinary', uploadToCloudinary.toString())
+    } else if (linkData.image && uploadToCloudinary) {
+      // Si solo hay URL de imagen y se quiere subir a Cloudinary
+      payload = { 
+        ...linkData, 
+        uploadToCloudinary: uploadToCloudinary 
+      }
+    }
+
+    const config = uploadFile ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {}
+
+    const response = await api.put(`/links/${id}`, payload, config)
+    return response.data
+  }
+
+  // Actualizar enlace solo con datos (sin imagen)
+  async updateLinkData(id, linkData) {
     const response = await api.put(`/links/${id}`, linkData)
     return response.data
   }
