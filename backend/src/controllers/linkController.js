@@ -1,6 +1,8 @@
 import Link from '../models/Link.js';
 import Tag from '../models/Tag.js';
 import scraperService from '../services/scraperService.js';
+import cloudinaryService from '../services/cloudinaryService.js';
+import { getNextDefaultImage } from '../config/defaults.js';
 
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
@@ -32,6 +34,7 @@ const saveLink = async (req, res) => {
       url,
       title: title || '',
       description: description || '',
+      needsDescription: false,
       tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean)
     };
 
@@ -50,8 +53,80 @@ const saveLink = async (req, res) => {
       
       if (scrapingResult.success) {
         linkData.title = scrapingResult.data.title;
-        linkData.description = linkData.description || scrapingResult.data.description;
-        linkData.image = scrapingResult.data.image;
+        // Si no hay descripción, usar la encontrada por el scraper o una por defecto configurable
+        const foundDesc = scrapingResult.data.description || '';
+        linkData.description = linkData.description || foundDesc || process.env.DEFAULT_DESCRIPTION || '';
+        // Si el scraping trae una imagen, intentar subirla a Cloudinary y guardar la referencia
+        const scrapedImage = scrapingResult.data.image || '';
+        if (scrapedImage) {
+          // Si la imagen es una ruta local servida por el backend (/defaults/...),
+          // intentamos subirla a Cloudinary (cloudinaryService manejará la conversión
+          // a URL pública o la lectura local si BACKEND_BASE_URL no está definida).
+          if (typeof scrapedImage === 'string' && scrapedImage.startsWith('/')) {
+            try {
+              const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
+              if (up && up.success) {
+                linkData.image = up.url;
+                linkData.imagePublicId = up.public_id;
+                linkData.imageIsCloudinary = true;
+              } else {
+                // No se pudo subir: mantener la ruta relativa como fallback
+                linkData.image = scrapedImage;
+                linkData.imageIsCloudinary = false;
+                linkData.imagePublicId = '';
+              }
+            } catch (e) {
+              linkData.image = scrapedImage;
+              linkData.imageIsCloudinary = false;
+              linkData.imagePublicId = '';
+            }
+          } else {
+            try {
+              const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
+              if (up && up.success) {
+                linkData.image = up.url;
+                linkData.imagePublicId = up.public_id;
+                linkData.imageIsCloudinary = true;
+              } else {
+                // Si falla subida, usar la URL original
+                linkData.image = scrapedImage;
+                linkData.imageIsCloudinary = false;
+                linkData.imagePublicId = '';
+              }
+            } catch (e) {
+              linkData.image = scrapedImage;
+              linkData.imageIsCloudinary = false;
+              linkData.imagePublicId = '';
+            }
+          }
+        } else {
+          // No se encontró imagen en el scraping: usar la imagen por defecto y
+          // tratar de subirla a Cloudinary (si falla, guardamos la ruta relativa).
+          const defaultImg = process.env.DEFAULT_IMAGE_URL || '';
+          const chosen = defaultImg || getNextDefaultImage();
+          if (chosen) {
+            try {
+              const up = await cloudinaryService.uploadImageFromUrl(chosen);
+              if (up && up.success) {
+                linkData.image = up.url;
+                linkData.imagePublicId = up.public_id;
+                linkData.imageIsCloudinary = true;
+              } else {
+                linkData.image = chosen;
+                linkData.imageIsCloudinary = false;
+                linkData.imagePublicId = '';
+              }
+            } catch (e) {
+              linkData.image = chosen;
+              linkData.imageIsCloudinary = false;
+              linkData.imagePublicId = '';
+            }
+          }
+        }
+        // Si no hay descripción y la configuración pide al usuario, marcar needsDescription
+        if (!linkData.description && (process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true') {
+          linkData.needsDescription = true;
+        }
         
         // Generar etiquetas automáticas si no se proporcionaron
         if (tags.length === 0) {
@@ -59,8 +134,58 @@ const saveLink = async (req, res) => {
           linkData.tags = autoTags;
         }
       } else {
-        // Usar URL como título si el scraping falla
+        // Usar dominio como título si el scraping falla
         linkData.title = scraperService.extractDomainFromUrl(url);
+        // Si el scraping falla, asignar imagen por defecto (si no fue proporcionada por el usuario)
+        if (!linkData.image) {
+          const defaultImg = process.env.DEFAULT_IMAGE_URL || '';
+          const chosen = defaultImg || getNextDefaultImage();
+          // Si la imagen por defecto es relativa (/defaults/...), intentar subirla a Cloudinary
+          if (typeof chosen === 'string' && chosen.startsWith('/')) {
+            try {
+              const up = await cloudinaryService.uploadImageFromUrl(chosen);
+              if (up && up.success) {
+                linkData.image = up.url;
+                linkData.imagePublicId = up.public_id;
+                linkData.imageIsCloudinary = true;
+              } else {
+                // Si no se pudo subir, guardar la ruta relativa como fallback
+                linkData.image = chosen;
+                linkData.imageIsCloudinary = false;
+                linkData.imagePublicId = '';
+              }
+            } catch (e) {
+              linkData.image = chosen;
+              linkData.imageIsCloudinary = false;
+              linkData.imagePublicId = '';
+            }
+          } else {
+            // imagen absoluta: intentar subirla (o usarla si DEFAULT_IMAGE_URL proporcionada)
+            if (chosen) {
+              try {
+                const up = await cloudinaryService.uploadImageFromUrl(chosen);
+                if (up && up.success) {
+                  linkData.image = up.url;
+                  linkData.imagePublicId = up.public_id;
+                  linkData.imageIsCloudinary = true;
+                } else {
+                  linkData.image = chosen;
+                  linkData.imageIsCloudinary = false;
+                  linkData.imagePublicId = '';
+                }
+              } catch (e) {
+                linkData.image = chosen;
+                linkData.imageIsCloudinary = false;
+                linkData.imagePublicId = '';
+              }
+            }
+          }
+        }
+        // Y descripción por defecto si no se proporcionó. Si ASK_FOR_DESCRIPTION está activo, marcar needsDescription
+        if (process.env.ASK_FOR_DESCRIPTION && process.env.ASK_FOR_DESCRIPTION.toLowerCase() === 'true') {
+          linkData.needsDescription = true;
+        }
+        linkData.description = linkData.description || process.env.DEFAULT_DESCRIPTION || '';
       }
     }
 
@@ -168,7 +293,7 @@ const getLinkById = async (req, res) => {
     const { id } = req.params;
     const userId = req.user._id;
 
-    const link = await Link.findOne({ _id: id, userId });
+  const link = await Link.findOne({ _id: id, userId });
 
     if (!link) {
       return res.status(404).json({
@@ -198,7 +323,16 @@ const updateLink = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-    const { title, description, tags = [], isFavorite, isArchived } = req.body;
+  const { title, description, image, tags = [], isFavorite, isArchived } = req.body;
+    // Determinar si se pidió subida a Cloudinary (form fields vienen como strings en multipart)
+    const uploadToCloudinary = (req.body.uploadToCloudinary === 'true' || req.body.uploadToCloudinary === true);
+
+    // Debug: log corto para entender por qué req.file podría no llegar
+    console.log(`updateLink: id=${id}, user=${userId}, uploadToCloudinary=${uploadToCloudinary}, hasFile=${!!req.file}`);
+    if (!req.file) {
+      console.log('updateLink: req.body keys =', Object.keys(req.body));
+      console.log('updateLink: content-type =', req.headers['content-type']);
+    }
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -213,7 +347,59 @@ const updateLink = async (req, res) => {
     
     // Actualizar campos
     if (title !== undefined) link.title = title;
-    if (description !== undefined) link.description = description;
+    if (description !== undefined) {
+      link.description = description;
+      // Si el usuario proporciona una descripción, limpiar needsDescription
+      if (link.needsDescription) link.needsDescription = false;
+    }
+  // Manejar subida de archivo multipart (req.file) o URL en field 'image'
+
+    if (req.file) {
+      // Si la imagen anterior estaba en Cloudinary, eliminarla antes
+      if (link.imageIsCloudinary && link.imagePublicId) {
+        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { console.error('Error deleting old cloud image:', e); }
+      }
+
+      if (!uploadToCloudinary) {
+        return res.status(400).json({ success: false, message: 'Para subir un archivo multipart debe enviar uploadToCloudinary=true' });
+      }
+
+      // Subir buffer a Cloudinary
+      const up = await cloudinaryService.uploadImageFromBuffer(req.file.buffer);
+      if (up && up.success) {
+        link.image = up.url;
+        link.imagePublicId = up.public_id;
+        link.imageIsCloudinary = true;
+      } else {
+        console.error('Error subiendo imagen multipart a Cloudinary:', up && up.error ? up.error : up);
+        return res.status(500).json({ success: false, message: 'No se pudo subir la imagen a Cloudinary' });
+      }
+    } else if (image !== undefined) {
+      // Si la imagen cambia y la anterior estaba en Cloudinary, eliminarla
+      if (link.imageIsCloudinary && link.imagePublicId) {
+        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { console.error('Error deleting old cloud image:', e); }
+      }
+
+      // Si se proporciona una URL y pide subida a Cloudinary, intentar subir desde URL
+      if (uploadToCloudinary && image) {
+        const up = await cloudinaryService.uploadImageFromUrl(image);
+        if (up && up.success) {
+          link.image = up.url;
+          link.imagePublicId = up.public_id;
+          link.imageIsCloudinary = true;
+        } else {
+          // Fallback: guardar la URL tal cual
+          link.image = image;
+          link.imagePublicId = '';
+          link.imageIsCloudinary = false;
+        }
+      } else {
+        // No subir a cloudinary: simplemente actualizar URL/flag
+        link.image = image;
+        link.imagePublicId = '';
+        link.imageIsCloudinary = false;
+      }
+    }
     if (isFavorite !== undefined) link.isFavorite = isFavorite;
     if (isArchived !== undefined) link.isArchived = isArchived;
     
@@ -273,6 +459,15 @@ const deleteLink = async (req, res) => {
     // Actualizar contadores de etiquetas
     if (link.tags.length > 0) {
       await updateTagsCount(userId, link.tags, 'decrement');
+    }
+
+    // Si la imagen está en Cloudinary, eliminarla
+    if (link.imageIsCloudinary && link.imagePublicId) {
+      try {
+        await cloudinaryService.deleteImage(link.imagePublicId);
+      } catch (e) {
+        console.error('Error eliminando imagen en Cloudinary:', e);
+      }
     }
 
     await Link.deleteOne({ _id: id });

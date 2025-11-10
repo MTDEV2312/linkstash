@@ -29,17 +29,34 @@ const linkSchema = new mongoose.Schema({
     maxlength: [500, 'La descripción no puede exceder 500 caracteres'],
     default: ''
   },
+  // Indica si se debe pedir al usuario que complete la descripción
+  needsDescription: {
+    type: Boolean,
+    default: false
+  },
   image: {
     type: String,
     trim: true,
     validate: {
       validator: function(v) {
         if (!v) return true; // Campo opcional
-        return /^https?:\/\/.+/i.test(v); // Solo valida que sea una URL
+        // Aceptar URLs absolutas http(s) o rutas relativas internas que comiencen con /
+        return /^(https?:\/\/.+|\/[^\s].*)/i.test(v); // http(s)://... o /path
       },
       message: 'Debe ser una URL válida.'
     },
     default: ''
+  },
+  // Si la imagen fue subida a Cloudinary, guardamos el public_id
+  imagePublicId: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  // Indica si la imagen actual está almacenada en Cloudinary (true) o es externa/ruta relativa (false)
+  imageIsCloudinary: {
+    type: Boolean,
+    default: false
   },
   tags: [{
     type: String,

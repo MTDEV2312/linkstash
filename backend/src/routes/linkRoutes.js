@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import {
   saveLink,
   getLinks,
@@ -13,6 +14,9 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
+// Multer para manejar uploads en memoria (no escribe a disco)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
+
 // Todas las rutas requieren autenticación
 router.use(authMiddleware);
 
@@ -26,7 +30,8 @@ router.route('/save-link')
 
 router.route('/:id')
   .get(getLinkById)
-  .put(updateLink)
+  // Acepta multipart/form-data con campo 'image' o JSON con 'image' URL
+  .put(upload.single('image'), updateLink)
   .delete(deleteLink);
 
 // Rutas adicionales
