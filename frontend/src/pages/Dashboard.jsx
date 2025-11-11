@@ -1,42 +1,66 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import LinkForm from '../components/LinkForm'
-import { Plus, Grid, List, Filter } from 'lucide-react'
+import LinkCard from '../components/LinkCard'
+import TagCard from '../components/TagCard'
+import dashboardService from '../services/dashboardService'
+import { Plus, Grid, List, Filter, Eye, Heart, Archive, Tag } from 'lucide-react'
+
+const StatCard = ({ title, value, icon: Icon }) => (
+  <div className="bg-white border rounded-md p-4 flex items-center gap-3">
+    <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center text-primary-600">
+      <Icon className="w-5 h-5" />
+    </div>
+    <div>
+      <div className="text-sm text-gray-500">{title}</div>
+      <div className="text-lg font-semibold text-gray-900">{value}</div>
+    </div>
+  </div>
+)
 
 const Dashboard = () => {
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
-  const [viewMode, setViewMode] = useState('grid') // mantenemos el control visual pero no listamos aquí
+  const [viewMode, setViewMode] = useState('grid')
+  const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState(null)
+  const [topTags, setTopTags] = useState([])
+  const [recentLinks, setRecentLinks] = useState([])
 
   const handleLinkSaved = () => {
     setShowLinkForm(false)
-    // Los enlaces se muestran en la página "Mis Enlaces" (myLinks.jsx)
+    loadData()
   }
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const res = await dashboardService.getSummary()
+      if (res && res.success) {
+        setSummary(res.data.summary || null)
+        setTopTags(res.data.topTags || [])
+        setRecentLinks(res.data.recentLinks || [])
+      }
+    } catch (e) {
+      console.error('Error cargando dashboard:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="space-y-6">
-      {/* Header simple para Dashboard */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Crea y gestiona tus enlaces — usa "Mis Enlaces" para verlos todos.</p>
+          <p className="text-gray-600">Resumen rápido de tus enlaces y etiquetas.</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-gray-300">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
-            >
-              <Grid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 border-l border-gray-300 ${viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-
           <button
             onClick={() => setShowLinkForm(true)}
             className="btn-primary btn-md flex items-center"
@@ -47,9 +71,46 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-content">
-          <p className="text-sm text-gray-600">Los enlaces del usuario se muestran en la página "Mis Enlaces".</p>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatCard title="Total enlaces" value={loading ? '—' : (summary ? summary.totalLinks : 0)} icon={Tag} />
+        <StatCard title="Favoritos" value={loading ? '—' : (summary ? summary.favorites : 0)} icon={Heart} />
+        <StatCard title="Archivados" value={loading ? '—' : (summary ? summary.archived : 0)} icon={Archive} />
+        <StatCard title="Necesitan descripción" value={loading ? '—' : (summary ? summary.needsDescription : 0)} icon={Filter} />
+        <StatCard title="Visitas totales" value={loading ? '—' : (summary ? summary.totalClicks : 0)} icon={Eye} />
+      </div>
+
+      {/* Middle: Top tags + Recent links */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-1">
+          <div className="card">
+            <div className="card-header">
+              <h3 className="text-sm font-medium">Top etiquetas</h3>
+            </div>
+            <div className="card-content space-y-2">
+              {loading && <div className="text-sm text-gray-500">Cargando...</div>}
+              {!loading && topTags.length === 0 && <div className="text-sm text-gray-500">No hay etiquetas aún.</div>}
+              {!loading && topTags.map(tag => (
+                <TagCard key={tag._id} tag={{ ...tag, count: tag.linkCount }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="card">
+            <div className="card-header flex items-center justify-between">
+              <h3 className="text-sm font-medium">Enlaces recientes</h3>
+              <div className="text-xs text-gray-500">Últimos 6</div>
+            </div>
+            <div className="card-content space-y-3">
+              {loading && <div className="text-sm text-gray-500">Cargando...</div>}
+              {!loading && recentLinks.length === 0 && <div className="text-sm text-gray-500">Aún no has guardado enlaces.</div>}
+              {!loading && recentLinks.map(link => (
+                <LinkCard key={link._id} link={link} mode="minimal" onUpdate={loadData} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
