@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './src/routes/authRoutes.js';
 import linkRoutes from './src/routes/linkRoutes.js';
 import tagRoutes from './src/routes/tagRoutes.js';
+import dashboardRoutes from './src/routes/dashboardRoutes.js';
 
 const app = express();
 // Si la app está detrás de un proxy (p.ej. Render), permite usar X-Forwarded-* para IP
@@ -58,6 +59,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

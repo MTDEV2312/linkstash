@@ -55,7 +55,21 @@ const saveLink = async (req, res) => {
         linkData.title = scrapingResult.data.title;
         // Si no hay descripción, usar la encontrada por el scraper o una por defecto configurable
         const foundDesc = scrapingResult.data.description || '';
-        linkData.description = linkData.description || foundDesc || process.env.DEFAULT_DESCRIPTION || '';
+        // Normalizar comportamiento cuando se pide descripción al usuario
+        const askForDesc = (process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true';
+        const defaultDesc = process.env.DEFAULT_DESCRIPTION || '';
+
+        if (linkData.description) {
+          // ya proporcionada por el usuario
+        } else if (foundDesc) {
+          linkData.description = foundDesc;
+        } else if (askForDesc) {
+          // No escribir la descripción por defecto: dejar vacío y marcar para que el usuario complete
+          linkData.description = '';
+          linkData.needsDescription = true;
+        } else {
+          linkData.description = defaultDesc;
+        }
         // Si el scraping trae una imagen, intentar subirla a Cloudinary y guardar la referencia
         const scrapedImage = scrapingResult.data.image || '';
         if (scrapedImage) {
@@ -182,10 +196,13 @@ const saveLink = async (req, res) => {
           }
         }
         // Y descripción por defecto si no se proporcionó. Si ASK_FOR_DESCRIPTION está activo, marcar needsDescription
-        if (process.env.ASK_FOR_DESCRIPTION && process.env.ASK_FOR_DESCRIPTION.toLowerCase() === 'true') {
+        if ((process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true') {
           linkData.needsDescription = true;
+          // No sobrescribir con DEFAULT_DESCRIPTION: mantener vacío para completar luego
+          linkData.description = linkData.description || '';
+        } else {
+          linkData.description = linkData.description || process.env.DEFAULT_DESCRIPTION || '';
         }
-        linkData.description = linkData.description || process.env.DEFAULT_DESCRIPTION || '';
       }
     }
 
