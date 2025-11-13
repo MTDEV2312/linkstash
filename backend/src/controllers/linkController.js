@@ -3,6 +3,7 @@ import Tag from '../models/Tag.js';
 import scraperService from '../services/scraperService.js';
 import cloudinaryService from '../services/cloudinaryService.js';
 import { getNextDefaultImage } from '../config/defaults.js';
+import scraperQueue from '../services/scraperQueue.js';
 
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
@@ -14,230 +15,168 @@ const saveLink = async (req, res) => {
 
     // Validar URL
     if (!url) {
-      return res.status(400).json({
-        success: false,
-        message: 'La URL es obligatoria'
-      });
+      return res.status(400).json({ success: false, message: 'La URL es obligatoria' });
     }
 
     // Verificar si el enlace ya existe para este usuario
     const existingLink = await Link.findOne({ userId, url: { $eq: url } });
     if (existingLink) {
-      return res.status(400).json({
-        success: false,
-        message: 'Este enlace ya está guardado'
-      });
+      return res.status(400).json({ success: false, message: 'Este enlace ya está guardado' });
     }
 
-    let linkData = {
+    // Validar sintaxis y seguridad de la URL de forma temprana
+    if (!scraperService.isValidUrl(url) || !(await scraperService.isSafeUrl(url))) {
+      return res.status(400).json({ success: false, message: 'La URL no es válida o no está permitida' });
+    }
+
+    // Preparar datos provisionales
+    const provisionalTitle = title && title.trim() ? title.trim() : scraperService.extractDomainFromUrl(url) || '';
+    const provisionalDescription = description || (title ? '' : 'Procesando...');
+
+    const linkData = {
       userId,
       url,
-      title: title || '',
-      description: description || '',
+      title: provisionalTitle,
+      description: provisionalDescription,
       needsDescription: false,
-      tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean)
+      tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean),
+      status: title ? 'completed' : 'processing',
+      scrapingError: null,
+      scrapingAttempts: 0
     };
 
-    // Si no se proporcionó título, hacer scraping
-    if (!title) {
-      // Usamos los helpers del scraperService (isValidUrl e isSafeUrl)
-      if (!scraperService.isValidUrl(url) || !(await scraperService.isSafeUrl(url))) {
-        return res.status(400).json({
-          success: false,
-          message: 'La URL no es válida o no está permitida'
-        });
-      }
-
-  console.log(`🕷️ Haciendo scraping de: ${url}`);
-  const scrapingResult = await scraperService.scrapeUrl(url);
-      
-      if (scrapingResult.success) {
-        linkData.title = scrapingResult.data.title;
-        // Si no hay descripción, usar la encontrada por el scraper o una por defecto configurable
-        const foundDesc = scrapingResult.data.description || '';
-        // Normalizar comportamiento cuando se pide descripción al usuario
-        const askForDesc = (process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true';
-        const defaultDesc = process.env.DEFAULT_DESCRIPTION || '';
-
-        if (linkData.description) {
-          // ya proporcionada por el usuario
-        } else if (foundDesc) {
-          linkData.description = foundDesc;
-        } else if (askForDesc) {
-          // No escribir la descripción por defecto: dejar vacío y marcar para que el usuario complete
-          linkData.description = '';
-          linkData.needsDescription = true;
-        } else {
-          linkData.description = defaultDesc;
-        }
-        // Si el scraping trae una imagen, intentar subirla a Cloudinary y guardar la referencia
-        const scrapedImage = scrapingResult.data.image || '';
-        if (scrapedImage) {
-          // Si la imagen es una ruta local servida por el backend (/defaults/...),
-          // intentamos subirla a Cloudinary (cloudinaryService manejará la conversión
-          // a URL pública o la lectura local si BACKEND_BASE_URL no está definida).
-          if (typeof scrapedImage === 'string' && scrapedImage.startsWith('/')) {
-            try {
-              const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
-              if (up && up.success) {
-                linkData.image = up.url;
-                linkData.imagePublicId = up.public_id;
-                linkData.imageIsCloudinary = true;
-              } else {
-                // No se pudo subir: mantener la ruta relativa como fallback
-                linkData.image = scrapedImage;
-                linkData.imageIsCloudinary = false;
-                linkData.imagePublicId = '';
-              }
-            } catch (e) {
-              linkData.image = scrapedImage;
-              linkData.imageIsCloudinary = false;
-              linkData.imagePublicId = '';
-            }
-          } else {
-            try {
-              const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
-              if (up && up.success) {
-                linkData.image = up.url;
-                linkData.imagePublicId = up.public_id;
-                linkData.imageIsCloudinary = true;
-              } else {
-                // Si falla subida, usar la URL original
-                linkData.image = scrapedImage;
-                linkData.imageIsCloudinary = false;
-                linkData.imagePublicId = '';
-              }
-            } catch (e) {
-              linkData.image = scrapedImage;
-              linkData.imageIsCloudinary = false;
-              linkData.imagePublicId = '';
-            }
-          }
-        } else {
-          // No se encontró imagen en el scraping: usar la imagen por defecto y
-          // tratar de subirla a Cloudinary (si falla, guardamos la ruta relativa).
-          const defaultImg = process.env.DEFAULT_IMAGE_URL || '';
-          const chosen = defaultImg || getNextDefaultImage();
-          if (chosen) {
-            try {
-              const up = await cloudinaryService.uploadImageFromUrl(chosen);
-              if (up && up.success) {
-                linkData.image = up.url;
-                linkData.imagePublicId = up.public_id;
-                linkData.imageIsCloudinary = true;
-              } else {
-                linkData.image = chosen;
-                linkData.imageIsCloudinary = false;
-                linkData.imagePublicId = '';
-              }
-            } catch (e) {
-              linkData.image = chosen;
-              linkData.imageIsCloudinary = false;
-              linkData.imagePublicId = '';
-            }
-          }
-        }
-        // Si no hay descripción y la configuración pide al usuario, marcar needsDescription
-        if (!linkData.description && (process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true') {
-          linkData.needsDescription = true;
-        }
-        
-        // Generar etiquetas automáticas si no se proporcionaron
-        if (tags.length === 0) {
-          const autoTags = scraperService.generateAutoTags(scrapingResult.data);
-          linkData.tags = autoTags;
-        }
-      } else {
-        // Usar dominio como título si el scraping falla
-        linkData.title = scraperService.extractDomainFromUrl(url);
-        // Si el scraping falla, asignar imagen por defecto (si no fue proporcionada por el usuario)
-        if (!linkData.image) {
-          const defaultImg = process.env.DEFAULT_IMAGE_URL || '';
-          const chosen = defaultImg || getNextDefaultImage();
-          // Si la imagen por defecto es relativa (/defaults/...), intentar subirla a Cloudinary
-          if (typeof chosen === 'string' && chosen.startsWith('/')) {
-            try {
-              const up = await cloudinaryService.uploadImageFromUrl(chosen);
-              if (up && up.success) {
-                linkData.image = up.url;
-                linkData.imagePublicId = up.public_id;
-                linkData.imageIsCloudinary = true;
-              } else {
-                // Si no se pudo subir, guardar la ruta relativa como fallback
-                linkData.image = chosen;
-                linkData.imageIsCloudinary = false;
-                linkData.imagePublicId = '';
-              }
-            } catch (e) {
-              linkData.image = chosen;
-              linkData.imageIsCloudinary = false;
-              linkData.imagePublicId = '';
-            }
-          } else {
-            // imagen absoluta: intentar subirla (o usarla si DEFAULT_IMAGE_URL proporcionada)
-            if (chosen) {
-              try {
-                const up = await cloudinaryService.uploadImageFromUrl(chosen);
-                if (up && up.success) {
-                  linkData.image = up.url;
-                  linkData.imagePublicId = up.public_id;
-                  linkData.imageIsCloudinary = true;
-                } else {
-                  linkData.image = chosen;
-                  linkData.imageIsCloudinary = false;
-                  linkData.imagePublicId = '';
-                }
-              } catch (e) {
-                linkData.image = chosen;
-                linkData.imageIsCloudinary = false;
-                linkData.imagePublicId = '';
-              }
-            }
-          }
-        }
-        // Y descripción por defecto si no se proporcionó. Si ASK_FOR_DESCRIPTION está activo, marcar needsDescription
-        if ((process.env.ASK_FOR_DESCRIPTION || 'false').toLowerCase() === 'true') {
-          linkData.needsDescription = true;
-          // No sobrescribir con DEFAULT_DESCRIPTION: mantener vacío para completar luego
-          linkData.description = linkData.description || '';
-        } else {
-          linkData.description = linkData.description || process.env.DEFAULT_DESCRIPTION || '';
-        }
-      }
-    }
-
-    // Crear el enlace
+    // Guardado inmediato
     const link = new Link(linkData);
     await link.save();
 
-    // Actualizar o crear etiquetas
+    // Actualizar contadores de etiquetas si se proporcionaron
     if (linkData.tags.length > 0) {
       await updateTagsCount(userId, linkData.tags, 'increment');
     }
 
-    console.log(`✅ Enlace guardado: ${linkData.title}`);
+    console.log(`✅ Enlace guardado (provisional): ${link.title} - status=${link.status}`);
 
-    res.status(201).json({
+    // Si requiere scraping en segundo plano, encolamos la tarea (no await)
+    if (link.status === 'processing') {
+      const job = async () => {
+        try {
+          console.log(`[Worker] Procesando scraping para link ${link._id} -> ${url}`);
+
+          const scrapingResult = await scraperService.scrapeUrl(url);
+
+          if (scrapingResult && scrapingResult.success) {
+            const scraped = scrapingResult.data || {};
+
+            // Preparar actualizaciones
+            const updates = {
+              title: scraped.title || provisionalTitle,
+              description: scraped.description || '',
+              status: 'completed',
+              $inc: { scrapingAttempts: 1 }
+            };
+
+            // Manejo básico de imagen (intentar subir a Cloudinary si aplica)
+            const scrapedImage = scraped.image || '';
+            if (scrapedImage) {
+              try {
+                const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
+                if (up && up.success) {
+                  updates.image = up.url;
+                  updates.imagePublicId = up.public_id;
+                  updates.imageIsCloudinary = true;
+                } else {
+                  updates.image = scrapedImage;
+                  updates.imagePublicId = '';
+                  updates.imageIsCloudinary = false;
+                }
+              } catch (e) {
+                updates.image = scrapedImage;
+                updates.imagePublicId = '';
+                updates.imageIsCloudinary = false;
+              }
+            } else {
+              // Si no trajo imagen, intentar usar DEFAULT_IMAGE_URL o next default
+              const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+              if (defaultImg) {
+                try {
+                  const up = await cloudinaryService.uploadImageFromUrl(defaultImg);
+                  if (up && up.success) {
+                    updates.image = up.url;
+                    updates.imagePublicId = up.public_id;
+                    updates.imageIsCloudinary = true;
+                  } else {
+                    updates.image = defaultImg;
+                    updates.imagePublicId = '';
+                    updates.imageIsCloudinary = false;
+                  }
+                } catch (e) {
+                  updates.image = defaultImg;
+                  updates.imagePublicId = '';
+                  updates.imageIsCloudinary = false;
+                }
+              }
+            }
+
+            // Si el scraper generó etiquetas automáticas y el link no tenía tags, agregarlas
+            if ((!linkData.tags || linkData.tags.length === 0) && Array.isArray(scraped.tags) && scraped.tags.length > 0) {
+              updates.tags = scraped.tags.map(t => t.toLowerCase().trim()).filter(Boolean);
+            }
+
+            // Aplicar las actualizaciones (sin eliminar campos existentes si no vienen)
+            const applied = await Link.findByIdAndUpdate(link._id, updates, { new: true });
+
+            // Si agregamos tags automáticos, actualizar contadores
+            if (updates.tags && updates.tags.length > 0) {
+              await updateTagsCount(userId, updates.tags, 'increment');
+            }
+
+            console.log(`[Worker] Scraping completado para link ${link._id}`);
+            return applied;
+          } else {
+            // Marcar como failed y registrar intento
+            await Link.findByIdAndUpdate(link._id, {
+              status: 'failed',
+              scrapingError: (scrapingResult && scrapingResult.error) ? scrapingResult.error : 'Scraping failed',
+              $inc: { scrapingAttempts: 1 }
+            });
+            console.error(`[Worker] Scraping falló para link ${link._id}`);
+          }
+        } catch (err) {
+          console.error(`[Worker] Error procesando scraping para link ${link._id}:`, err);
+          try {
+            await Link.findByIdAndUpdate(link._id, {
+              status: 'failed',
+              scrapingError: err.message || String(err),
+              $inc: { scrapingAttempts: 1 }
+            });
+          } catch (u) {
+            console.error('Error actualizando estado del link tras fallo:', u);
+          }
+        }
+      };
+
+      // Encolar sin esperar (procesado en background por la cola in-process)
+      try {
+        scraperQueue.enqueue(job).catch(e => console.error('Error en cola de scraping:', e));
+      } catch (e) {
+        console.error('No se pudo encolar job de scraping:', e);
+      }
+    }
+
+    // Responder inmediatamente
+    return res.status(link.status === 'processing' ? 202 : 201).json({
       success: true,
-      message: 'Enlace guardado exitosamente',
+      message: link.status === 'processing' ? 'Link guardado, procesando metadata...' : 'Enlace guardado exitosamente',
       data: { link }
     });
 
   } catch (error) {
     console.error('Error en saveLink:', error);
-    
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: messages.join('. ')
-      });
+      return res.status(400).json({ success: false, message: messages.join('. ') });
     }
-
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };
 
@@ -640,3 +579,67 @@ export {
   toggleFavorite,
   toggleArchive
 };
+
+// @desc    Operaciones en lote sobre enlaces (delete, archive, unarchive, addTag)
+// @route   POST /api/links/batch
+// @access  Private
+const batchUpdate = async (req, res) => {
+  try {
+    const { action, linkIds, tag } = req.body;
+    const userId = req.user._id;
+
+    if (!action || !Array.isArray(linkIds) || linkIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid batch request' });
+    }
+
+    // Limitar tamaño razonable por request
+    const MAX_BATCH = parseInt(process.env.MAX_BATCH_SIZE || '100', 10);
+    if (linkIds.length > MAX_BATCH) {
+      return res.status(400).json({ success: false, message: `Batch too large (max ${MAX_BATCH})` });
+    }
+
+    let result;
+    switch (action) {
+      case 'delete':
+        // Obtener links para actualizar counters antes de borrar
+        const linksToDelete = await Link.find({ _id: { $in: linkIds }, userId }).select('tags').lean();
+        // Decrement tag counts
+        for (const l of linksToDelete) {
+          if (Array.isArray(l.tags) && l.tags.length > 0) {
+            await updateTagsCount(userId, l.tags, 'decrement');
+          }
+        }
+        result = await Link.deleteMany({ _id: { $in: linkIds }, userId });
+        break;
+
+      case 'archive':
+        result = await Link.updateMany({ _id: { $in: linkIds }, userId }, { $set: { isArchived: true } });
+        break;
+
+      case 'unarchive':
+        result = await Link.updateMany({ _id: { $in: linkIds }, userId }, { $set: { isArchived: false } });
+        break;
+
+      case 'addTag':
+        if (!tag || typeof tag !== 'string') {
+          return res.status(400).json({ success: false, message: 'Tag is required for addTag action' });
+        }
+        result = await Link.updateMany({ _id: { $in: linkIds }, userId }, { $addToSet: { tags: tag.toLowerCase().trim() } });
+        // Update tag counts (approximate: increment by number of modified docs)
+        if (result && result.modifiedCount > 0) {
+          await updateTagsCount(userId, [tag.toLowerCase().trim()], 'increment');
+        }
+        break;
+
+      default:
+        return res.status(400).json({ success: false, message: 'Unknown action' });
+    }
+
+    return res.json({ success: true, modified: result.modifiedCount || result.deletedCount || 0, action });
+  } catch (error) {
+    console.error('Error en batchUpdate:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+};
+
+export { batchUpdate };

@@ -80,6 +80,20 @@ const linkSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Estado del scraping/metadata
+  status: {
+    type: String,
+    enum: ['processing', 'completed', 'failed'],
+    default: 'completed'
+  },
+  scrapingError: {
+    type: String,
+    default: null
+  },
+  scrapingAttempts: {
+    type: Number,
+    default: 0
+  },
   createdAt: {
     type: Date,
     default: Date.now
