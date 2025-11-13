@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import linkService from '../services/linkService'
-import toast from 'react-hot-toast'
+import { showSuccess, showError } from '../utils/toastUtils'
 
 export const useLinkStore = create((set, get) => ({
   links: [],
@@ -44,7 +44,7 @@ export const useLinkStore = create((set, get) => ({
       const message = error.response?.data?.message || 'Error al obtener los enlaces'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -63,14 +63,14 @@ export const useLinkStore = create((set, get) => ({
         isLoading: false
       }))
       
-      toast.success('Enlace guardado exitosamente')
+      showSuccess('Enlace guardado exitosamente')
       return { success: true, link: newLink }
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al guardar el enlace'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -94,7 +94,7 @@ export const useLinkStore = create((set, get) => ({
       const message = error.response?.data?.message || 'Error al obtener el enlace'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -116,14 +116,14 @@ export const useLinkStore = create((set, get) => ({
         isLoading: false
       }))
       
-      toast.success('Enlace actualizado exitosamente')
+      showSuccess('Enlace actualizado exitosamente')
       return { success: true, link: updatedLink }
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al actualizar el enlace'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -145,14 +145,14 @@ export const useLinkStore = create((set, get) => ({
         isLoading: false
       }))
       
-      toast.success('Enlace actualizado exitosamente')
+      showSuccess('Enlace actualizado exitosamente')
       return { success: true, link: updatedLink }
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al actualizar el enlace'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -171,14 +171,14 @@ export const useLinkStore = create((set, get) => ({
         isLoading: false
       }))
       
-      toast.success('Enlace eliminado exitosamente')
+      showSuccess('Enlace eliminado exitosamente')
       return { success: true }
     } catch (error) {
       set({ isLoading: false })
       const message = error.response?.data?.message || 'Error al eliminar el enlace'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -200,13 +200,13 @@ export const useLinkStore = create((set, get) => ({
           : state.currentLink
       }))
       
-      toast.success(isFavorite ? 'Añadido a favoritos' : 'Eliminado de favoritos')
+      showSuccess(isFavorite ? 'Añadido a favoritos' : 'Eliminado de favoritos')
       return { success: true, isFavorite }
     } catch (error) {
       const message = error.response?.data?.message || 'Error al actualizar favorito'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
@@ -228,13 +228,13 @@ export const useLinkStore = create((set, get) => ({
           : state.currentLink
       }))
 
-      toast.success(archived ? 'Enlace archivado' : 'Enlace desarchivado')
+      showSuccess(archived ? 'Enlace archivado' : 'Enlace desarchivado')
       return { success: true, archived }
     } catch (error) {
       const message = error.response?.data?.message || 'Error al actualizar archivado'
       try {
         const status = error?.response?.status
-        if (!status || status >= 500) toast.error(message)
+          if (!status || status >= 500) showError(message)
       } catch (t) {}
       return { success: false, message }
     }
