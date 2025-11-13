@@ -62,9 +62,11 @@ const createTag = async (req, res) => {
     });
 
     if (existingTag) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una etiqueta con este nombre'
+      // Si ya existe, retornamos el recurso existente en vez de crear duplicado
+      return res.status(200).json({
+        success: true,
+        message: 'Etiqueta ya existente',
+        data: { tag: existingTag.getFullInfo ? existingTag.getFullInfo() : existingTag }
       });
     }
 
