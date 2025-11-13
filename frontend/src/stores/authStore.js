@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import authService from '../services/authService'
-import toast from 'react-hot-toast'
+import { showSuccess, showError } from '../utils/toastUtils'
 
 export const useAuthStore = create(
   persist(
@@ -29,7 +29,7 @@ export const useAuthStore = create(
           // Configurar el token en el servicio
           authService.setAuthToken(token)
           
-          toast.success(`¡Bienvenido, ${user.username}!`)
+          showSuccess(`¡Bienvenido, ${user.username}!`)
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
@@ -38,7 +38,7 @@ export const useAuthStore = create(
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
-              toast.error(message)
+              showError(message)
             }
           } catch (t) {
             // ignore toast errors
@@ -64,7 +64,7 @@ export const useAuthStore = create(
           // Configurar el token en el servicio
           authService.setAuthToken(token)
           
-          toast.success('¡Cuenta creada exitosamente!')
+          showSuccess('¡Cuenta creada exitosamente!')
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
@@ -72,7 +72,7 @@ export const useAuthStore = create(
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
-              toast.error(message)
+              showError(message)
             }
           } catch (t) {}
           return { success: false, message }
@@ -90,7 +90,7 @@ export const useAuthStore = create(
         
         // Limpiar el token del servicio
         authService.removeAuthToken()
-        toast.success('Sesión cerrada correctamente')
+        showSuccess('Sesión cerrada correctamente')
       },
 
       // Verificar autenticación al cargar la app
@@ -140,7 +140,7 @@ export const useAuthStore = create(
             isLoading: false
           })
           
-          toast.success('Perfil actualizado correctamente')
+          showSuccess('Perfil actualizado correctamente')
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
@@ -148,7 +148,7 @@ export const useAuthStore = create(
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
-              toast.error(message)
+              showError(message)
             }
           } catch (t) {}
           return { success: false, message }
@@ -162,7 +162,7 @@ export const useAuthStore = create(
           await authService.changePassword(passwordData)
           
           set({ isLoading: false })
-          toast.success('Contraseña actualizada correctamente')
+          showSuccess('Contraseña actualizada correctamente')
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
@@ -170,7 +170,7 @@ export const useAuthStore = create(
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
-              toast.error(message)
+              showError(message)
             }
           } catch (t) {}
           return { success: false, message }
