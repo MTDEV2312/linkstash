@@ -8,7 +8,8 @@ import {
   deleteLink,
   incrementClickCount,
   toggleFavorite,
-  toggleArchive
+  toggleArchive,
+  batchUpdate
 } from '../controllers/linkController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
@@ -38,5 +39,7 @@ router.route('/:id')
 router.post('/:id/click', incrementClickCount);
 router.post('/:id/favorite', toggleFavorite);
 router.post('/:id/archive', toggleArchive);
+// Batch operations
+router.post('/batch', batchUpdate);
 
 export default router;
