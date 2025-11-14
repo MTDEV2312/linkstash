@@ -36,6 +36,14 @@ const PORT = process.env.PORT || 5000;
 // Conectar a la base de datos
 connectDB();
 
+// Iniciar worker de scraping in-process si está habilitado (por defecto enabled)
+if ((process.env.ENABLE_SCRAPER_WORKER || 'true').toLowerCase() !== 'false') {
+  // Import dinámico para evitar cargarlo en entornos donde no se quiere el worker
+  import('./src/services/scraperWorker.js')
+    .then(() => console.log('Scraper worker cargado'))
+    .catch(e => console.error('No se pudo cargar scraperWorker:', e));
+}
+
 // Middlewares globales
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
