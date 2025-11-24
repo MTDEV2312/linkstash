@@ -3,8 +3,20 @@ import api from './api'
 class LinkService {
   // Obtener todos los enlaces
   async getLinks(params = {}) {
+    // Cache simple por parámetros para evitar ráfagas de requests (ej: búsqueda)
+    if (!this._linksCache) this._linksCache = new Map();
+    const key = JSON.stringify(params || {})
+    const cached = this._linksCache.get(key)
+    const TTL = parseInt(import.meta.env.VITE_LINKS_CACHE_TTL_MS || '3000', 10) // 3s por defecto
+    const now = Date.now()
+    if (cached && (now - cached.ts) < TTL) {
+      return { fromCache: true, data: cached.data }
+    }
+
     const response = await api.get('/links', { params })
-    return response.data
+    const payload = response.data
+    this._linksCache.set(key, { ts: Date.now(), data: payload })
+    return { fromCache: false, data: payload }
   }
 
   // Guardar nuevo enlace
