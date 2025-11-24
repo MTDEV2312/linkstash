@@ -12,6 +12,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import linkRoutes from './src/routes/linkRoutes.js';
 import tagRoutes from './src/routes/tagRoutes.js';
 import dashboardRoutes from './src/routes/dashboardRoutes.js';
+import metricsRoutes from './src/routes/metricsRoutes.js';
 
 const app = express();
 // Si la app está detrás de un proxy (p.ej. Render), permite usar X-Forwarded-* para IP
@@ -38,10 +39,17 @@ connectDB();
 
 // Iniciar worker de scraping in-process si está habilitado (por defecto enabled)
 if ((process.env.ENABLE_SCRAPER_WORKER || 'true').toLowerCase() !== 'false') {
-  // Import dinámico para evitar cargarlo en entornos donde no se quiere el worker
-  import('./src/services/scraperWorker.js')
-    .then(() => console.log('Scraper worker cargado'))
-    .catch(e => console.error('No se pudo cargar scraperWorker:', e));
+  // Si hay Redis configurado preferimos inicializar BullMQ (worker + queue)
+  if (process.env.REDIS_HOST) {
+    import('./src/config/queue.js')
+      .then(() => console.log('BullMQ queue/worker inicializada (REDIS)'))
+      .catch(e => console.error('No se pudo inicializar BullMQ, intentar fallback in-process:', e));
+  } else {
+    // Import dinámico del worker in-process
+    import('./src/services/scraperWorker.js')
+      .then(() => console.log('Scraper worker (in-process) cargado'))
+      .catch(e => console.error('No se pudo cargar scraperWorker:', e));
+  }
 }
 
 // Middlewares globales
@@ -68,6 +76,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/metrics', metricsRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {

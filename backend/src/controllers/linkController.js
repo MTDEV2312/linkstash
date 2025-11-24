@@ -3,7 +3,7 @@ import Tag from '../models/Tag.js';
 import scraperService from '../services/scraperService.js';
 import cloudinaryService from '../services/cloudinaryService.js';
 import { getNextDefaultImage } from '../config/defaults.js';
-import scraperQueue from '../services/scraperQueue.js';
+import queue from '../config/queue.js';
 
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
@@ -59,8 +59,15 @@ const saveLink = async (req, res) => {
     // Si requiere scraping en segundo plano, encolamos la tarea (no await)
     if (link.status === 'processing') {
       try {
-        // Añadimos un job descriptor para que el worker lo procese y maneje reintentos
-        scraperQueue.addJob({ linkId: link._id.toString(), url, userId: req.user._id }, { maxAttempts: 3, backoff: 2000 });
+        // Añadimos job a la cola (BullMQ si está configurado, sino in-process)
+        if (queue && typeof queue.addJob === 'function') {
+          await queue.addJob({ linkId: link._id.toString(), url, userId: req.user._id }, { maxAttempts: 3, backoff: 2000 });
+        } else if (queue && typeof queue.add === 'function') {
+          // compatibilidad por si la implementación exporta add
+          await queue.add('scrape', { linkId: link._id.toString(), url, userId: req.user._id }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+        } else {
+          console.warn('No queue available to enqueue scraping job');
+        }
       } catch (e) {
         console.error('No se pudo encolar job de scraping:', e);
       }
