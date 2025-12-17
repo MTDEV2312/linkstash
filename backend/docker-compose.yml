@@ -1,0 +1,112 @@
+services:
+  backend:
+    container_name: linkstash-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-development}
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      # Variables de entorno desde .env
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-5000}
+      MONGODB_URI: ${MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      USER_AGENT: ${USER_AGENT:-LinkStash-Bot/1.0}
+      
+      # Scraper configuración
+      SCRAPER_HOST_ALLOWLIST: ${SCRAPER_HOST_ALLOWLIST:-}
+      SCRAPER_ALLOWED_PORTS: ${SCRAPER_ALLOWED_PORTS:-80,443}
+      SCRAPER_TIMEOUT_MS: ${SCRAPER_TIMEOUT_MS:-10000}
+      SCRAPER_MAX_CONTENT_LENGTH: ${SCRAPER_MAX_CONTENT_LENGTH:-2097152}
+      SCRAPER_ALLOW_PUBLIC: ${SCRAPER_ALLOW_PUBLIC:-true}
+      SCRAPER_QUEUE_CONCURRENCY: ${SCRAPER_QUEUE_CONCURRENCY:-3}
+      ENABLE_SCRAPER_WORKER: ${ENABLE_SCRAPER_WORKER:-true}
+      
+      # Rate limiting
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-60}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-linkstash}
+      
+      # Defaults
+      DEFAULT_IMAGE_URL: ${DEFAULT_IMAGE_URL}
+      DEFAULT_IMAGE_STRATEGY: ${DEFAULT_IMAGE_STRATEGY:-random}
+      DEFAULT_DESCRIPTION: ${DEFAULT_DESCRIPTION:-Sin descripción}
+      ASK_FOR_DESCRIPTION: ${ASK_FOR_DESCRIPTION:-false}
+      
+      # Backend URL
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL}
+      
+      # Apify (opcional)
+      APIFY_TOKEN: ${APIFY_TOKEN:-}
+      
+      # Redis (opcional para BullMQ)
+      # Dejar vacío para usar cola in-process, o configurar con nombre del servicio redis
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      ENABLE_BULLMQ: ${ENABLE_BULLMQ:-true}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+    volumes:
+      # Montar código fuente para hot-reload en desarrollo
+      - ./:/app
+      # Evitar que node_modules del host sobrescriba los del contenedor
+      - /app/node_modules
+      # Volumen para archivos públicos persistentes
+      - backend-public-data:/app/public
+    
+    networks:
+      - linkstash-network
+    
+    # Descomentar cuando Redis esté disponible
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis para BullMQ (cola persistente para producción)
+  # Descomentar para habilitar Redis cuando Docker Hub esté disponible
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: linkstash-redis
+  #   ports:
+  #     - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - linkstash-network
+  #   command: redis-server --appendonly yes
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+
+networks:
+  linkstash-network:
+    driver: bridge
+
+volumes:
+  backend-public-data:
+    driver: local
+  redis-data:
+    driver: local
