@@ -67,10 +67,10 @@ services:
     networks:
       - linkstash-network
     
-    # Descomentar cuando Redis esté disponible
-    # depends_on:
-    #   redis:
-    #     condition: service_healthy
+    # Redis como dependencia (cola persistente)
+    depends_on:
+      redis:
+        condition: service_healthy
     
     restart: unless-stopped
     
@@ -83,21 +83,22 @@ services:
       start_period: 40s
 
   # Redis para BullMQ (cola persistente para producción)
-  # Descomentar para habilitar Redis cuando Docker Hub esté disponible
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: linkstash-redis
-  #   ports:
-  #     - "${REDIS_PORT_EXTERNAL:-6379}:6379"
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - linkstash-network
-  #   command: redis-server --appendonly yes
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
+  redis:
+    image: redis:7-alpine
+    container_name: linkstash-redis
+    ports:
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - linkstash-network
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   #     timeout: 3s
   #     retries: 3
 
