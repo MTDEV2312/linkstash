@@ -1,17 +1,30 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './stores/authStore'
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 
-// Importar páginas
+// Importar páginas críticas directamente (necesarias en el inicio)
 import Login from './pages/Login'
 import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import MyLinks from './pages/myLinks'
-import Tags from './pages/tags'
-import Settings from './pages/settings'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
+
+// Lazy loading para páginas no críticas
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const MyLinks = lazy(() => import('./pages/myLinks'))
+const Tags = lazy(() => import('./pages/tags'))
+const Settings = lazy(() => import('./pages/settings'))
+
+// Componente de carga
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">Cargando...</p>
+    </div>
+  </div>
+)
 
 function App() {
   const { user, checkAuth, isLoading } = useAuthStore()
@@ -29,9 +42,11 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
+    <ErrorBoundary>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
           {/* Rutas públicas */}
           <Route 
             path="/login" 
@@ -115,6 +130,7 @@ function App() {
             } 
           />
         </Routes>
+        </Suspense>
         
         {/* Toast notifications */}
         <Toaster
@@ -143,6 +159,7 @@ function App() {
         />
       </div>
     </Router>
+    </ErrorBoundary>
   )
 }
 
