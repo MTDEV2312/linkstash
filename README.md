@@ -27,22 +27,34 @@ Cada sub-proyecto (backend y frontend) incluye:
 - 🔍 **Búsqueda y filtrado** avanzado
 - 📱 **Interfaz responsive** con React y Tailwind CSS
 - 🗄️ **Base de datos MongoDB** para almacenamiento
+- ⚡ **Sistema de caché** con stale-while-revalidate
+- 🌙 **Dark mode** con persistencia
+- 📴 **Modo offline** con Service Worker
+- 🎯 **Error tracking** con Sentry
+- 🔄 **Redis + BullMQ** para procesamiento en background
+- 📊 **Dashboard** con métricas en tiempo real
 
 ## 🛠️ Tecnologías
 
 ### Backend
 - Node.js + Express
 - MongoDB + Mongoose
+- Redis + BullMQ (colas de trabajo)
 - JWT para autenticación
 - Cheerio para web scraping
 - Bcrypt para hash de contraseñas
+- Cloudinary para almacenamiento de imágenes
+- Docker + Docker Compose
 
 ### Frontend
-- React 18 + Vite
-- React Router DOM
-- Tailwind CSS
-- Axios para HTTP requests
-- Zustand para gestión de estado
+- React 18.2.0 + Vite 7.1.7
+- React Router DOM 6.15.0
+- Tailwind CSS 3.3.3
+- Axios 1.12.2 para HTTP requests
+- Zustand 4.4.1 para gestión de estado
+- Sentry para error tracking
+- Playwright para tests E2E
+- Vitest para tests unitarios
 
 ## 🚀 Instalación y Configuración
 
@@ -69,54 +81,81 @@ npm install
 cp .env.example .env
 # Editar .env con tus configuraciones
 
-# Iniciar servidor de desarrollo
+# Iniciar con Docker Compose (recomendado)
+docker-compose up -d
+
+# O iniciar servidor de desarrollo directamente
 npm run dev
 ```
 
 ### 3. Configurar Frontend
 ```bash
-# Navegar al directorio del cliente
+# Navegar al directorio del frontend
 cd frontend
 
 # Instalar dependencias
 npm install
 
-# Iniciar servidor de desarrollo
+# Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus configuraciones
+
+# Iniciar servidor de desarrollo (puerto 5173)
 npm run dev
+
+# Ejecutar tests
+npm test              # Tests unitarios
+npm run test:e2e      # Tests E2E con Playwright
+
+# Build de producción
+npm run build
+npm run preview
 ```
 
-### 4. Configurar MongoDB
-- Asegúrate de que MongoDB esté corriendo
-- Actualiza `MONGODB_URI` en el archivo `.env`
+### 4. Configurar MongoDB y Redis
+- MongoDB y Redis se inician automáticamente con `docker-compose up -d`
+- O configura tus propias instancias en el archivo `.env`
+- Actualiza `MONGODB_URI` y `REDIS_URL` en el archivo `.env`
 
 ## 📁 Estructura del Proyecto
 
 ```
 LinkStash/
-├── app.js                 # Servidor principal
-├── package.json
-├── .env
-├── .gitignore
-├── README.md
+├── backend/
+│   ├── app.js                    # Servidor principal
+│   ├── docker-compose.yml        # Docker Compose
+│   ├── Dockerfile               # Dockerfile backend
+│   ├── package.json
+│   ├── .env
+│   └── src/
+│       ├── config/
+│       │   ├── database.js      # Configuración MongoDB
+│       │   └── queue.js         # Configuración BullMQ
+│       ├── controllers/         # Lógica de negocio
+│       ├── middlewares/         # Middlewares personalizados
+│       ├── models/             # Modelos de MongoDB
+│       ├── routes/             # Rutas de la API
+│       ├── services/           # Servicios (scraping, workers)
+│       └── utils/              # Utilidades
 │
-├── src/
-│   ├── config/
-│   │   └── database.js    # Configuración MongoDB
-│   ├── controllers/       # Lógica de negocio
-│   ├── middlewares/       # Middlewares personalizados
-│   ├── models/           # Modelos de MongoDB
-│   ├── routes/           # Rutas de la API
-│   ├── services/         # Servicios (scraping, etc.)
-│   └── utils/            # Utilidades
-│
-└── client/               # Frontend React
+└── frontend/
     ├── src/
-    │   ├── components/   # Componentes reutilizables
-    │   ├── pages/        # Páginas principales
-    │   ├── services/     # Servicios API
-    │   └── utils/        # Utilidades frontend
+    │   ├── components/         # Componentes React
+    │   ├── pages/              # Páginas principales
+    │   ├── services/           # Servicios API
+    │   ├── stores/             # Stores de Zustand
+    │   ├── hooks/              # Custom hooks
+    │   └── utils/              # Utilidades
+    ├── tests/
+    │   ├── e2e/                # Tests E2E (Playwright)
+    │   └── unit/               # Tests unitarios (Vitest)
+    ├── public/
+    │   ├── sw.js               # Service Worker
+    │   └── offline.html        # Página offline
     ├── package.json
-    └── vite.config.js
+    ├── vite.config.js
+    ├── vitest.config.js
+    └── playwright.config.js
 ```
 
 ## 🔌 API Endpoints
@@ -125,6 +164,7 @@ LinkStash/
 - `POST /api/auth/register` - Registrar usuario
 - `POST /api/auth/login` - Iniciar sesión
 - `GET /api/auth/me` - Obtener perfil de usuario
+- `PUT /api/auth/profile` - Actualizar perfil
 
 ### Enlaces
 - `GET /api/links` - Obtener todos los enlaces del usuario
@@ -136,7 +176,14 @@ LinkStash/
 ### Etiquetas
 - `GET /api/tags` - Obtener todas las etiquetas
 - `POST /api/tags` - Crear nueva etiqueta
+- `PUT /api/tags/:id` - Actualizar etiqueta
 - `DELETE /api/tags/:id` - Eliminar etiqueta
+
+### Dashboard
+- `GET /api/dashboard/stats` - Obtener estadísticas del usuario
+
+### Métricas
+- `GET /api/metrics` - Obtener métricas del sistema
 
 ## 🧠 Modelos de Datos
 
