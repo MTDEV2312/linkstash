@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import authService from '../services/authService'
 import { showSuccess, showError } from '../utils/toastUtils'
+import { setUser as setSentryUser } from '../utils/sentry'
 
 export const useAuthStore = create(
   persist(
@@ -28,6 +29,9 @@ export const useAuthStore = create(
           
           // Configurar el token en el servicio
           authService.setAuthToken(token)
+          
+          // Establecer usuario en Sentry
+          setSentryUser(user)
           
           showSuccess(`¡Bienvenido, ${user.username}!`)
           return { success: true }
@@ -64,6 +68,9 @@ export const useAuthStore = create(
           // Configurar el token en el servicio
           authService.setAuthToken(token)
           
+          // Establecer usuario en Sentry
+          setSentryUser(user)
+          
           showSuccess('¡Cuenta creada exitosamente!')
           return { success: true }
         } catch (error) {
@@ -90,6 +97,10 @@ export const useAuthStore = create(
         
         // Limpiar el token del servicio
         authService.removeAuthToken()
+        
+        // Limpiar usuario de Sentry
+        setSentryUser(null)
+        
         showSuccess('Sesión cerrada correctamente')
       },
 
