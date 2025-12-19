@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import LinkCard from '../components/LinkCard'
 import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
+import UpdateIndicator from '../components/UpdateIndicator'
 import LinkForm from '../components/LinkForm'
 import SearchBar from '../components/SearchBar'
 import { Plus, Grid, List, Filter } from 'lucide-react'
@@ -21,6 +22,7 @@ const MyLinks = () => {
   } = useLinkStore()
 
   const [loadError, setLoadError] = useState('')
+  const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -36,21 +38,27 @@ const MyLinks = () => {
   }, [fetchLinks])
 
   const handleSearch = async (query) => {
+    setIsUpdating(true)
     setFilters({ ...filters, search: query, page: 1 })
     const res = await fetchLinks({ ...filters, search: query, page: 1 })
     if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    setIsUpdating(false)
   }
 
   const handleFilterChange = async (newFilters) => {
+    setIsUpdating(true)
     const updatedFilters = { ...filters, ...newFilters, page: 1 }
     setFilters(updatedFilters)
     const res = await fetchLinks(updatedFilters)
     if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    setIsUpdating(false)
   }
 
   const handlePageChange = async (page) => {
+    setIsUpdating(true)
     const res = await fetchLinks({ ...filters, page })
     if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    setIsUpdating(false)
   }
 
   const handleLinkSaved = async () => {
@@ -80,6 +88,9 @@ const MyLinks = () => {
 
   return (
     <div className="space-y-6">
+      {/* Indicador de actualización */}
+      <UpdateIndicator isUpdating={isUpdating} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
