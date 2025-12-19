@@ -171,10 +171,73 @@ const Landing = () => {
                 <div className="w-3 h-3 rounded-full bg-green-400"></div>
               </div>
             </div>
-            <div className="p-8 bg-gray-50 dark:bg-gray-900 min-h-[400px] flex items-center justify-center">
-              <div className="text-center">
-                <Bookmark className="w-24 h-24 text-primary-300 dark:text-primary-700 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">Dashboard de ejemplo</p>
+            <div className="p-8 bg-gray-50 dark:bg-gray-900">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Mis Enlaces</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">28 enlaces guardados</p>
+                </div>
+                <div className="flex space-x-2">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                  <div className="w-10 h-10 bg-primary-600 rounded-lg"></div>
+                </div>
+              </div>
+
+              {/* Search bar */}
+              <div className="mb-6">
+                <div className="relative">
+                  <div className="absolute left-3 top-3 text-gray-400">
+                    <Search className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar enlaces..."
+                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    disabled
+                  />
+                </div>
+              </div>
+
+              {/* Links grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { title: 'React Documentation', domain: 'react.dev', tags: ['React', 'Frontend'] },
+                  { title: 'TypeScript Handbook', domain: 'typescriptlang.org', tags: ['TypeScript', 'Learning'] },
+                  { title: 'Node.js Docs', domain: 'nodejs.org', tags: ['Node.js', 'Backend'] },
+                  { title: 'Tailwind CSS', domain: 'tailwindcss.com', tags: ['CSS', 'Tools'] }
+                ].map((link, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2">
+                          {link.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{link.domain}</p>
+                      </div>
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg flex-shrink-0"></div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {link.tags.map((tag, tidx) => (
+                        <span
+                          key={tidx}
+                          className="inline-block px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Y muchos más... Tu dashboard personal te espera
+                </p>
               </div>
             </div>
           </div>
