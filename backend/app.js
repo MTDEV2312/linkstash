@@ -79,6 +79,15 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/metrics', metricsRoutes);
 
+// Ruta de health check (para wake-up de Render)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok',
+    message: 'LinkStash API está funcionando',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ 
