@@ -5,6 +5,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { useDarkMode } from './hooks/useDarkMode'
 
 // Importar páginas críticas directamente (necesarias en el inicio)
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -49,6 +50,14 @@ function App() {
         <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors">
           <Suspense fallback={<PageLoader />}>
             <Routes>
+          {/* Ruta principal - Landing Page */}
+          <Route 
+            path="/" 
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Landing />
+            } 
+          />
+
           {/* Rutas públicas */}
           <Route 
             path="/login" 
@@ -105,15 +114,7 @@ function App() {
             } 
           />
           
-          {/* Redirección por defecto */}
-          <Route 
-            path="/" 
-            element={
-              <Navigate to={user ? "/dashboard" : "/login"} replace />
-            } 
-          />
-          
-          {/* Ruta catch-all */}
+          {/* Ruta catch-all - Landing o 404 */}
           <Route 
             path="*" 
             element={
