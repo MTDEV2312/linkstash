@@ -14,9 +14,21 @@ class LinkService {
     }
 
     const response = await api.get('/links', { params })
-    const payload = response.data
-    this._linksCache.set(key, { ts: Date.now(), data: payload })
-    return { fromCache: false, data: payload }
+    // Normalizar payload del backend: { success, data: { links, pagination } }
+    const raw = response.data
+    const payload = raw?.data ?? raw
+    const normalized = {
+      links: Array.isArray(payload?.links) ? payload.links : [],
+      pagination: payload?.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalLinks: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    }
+    this._linksCache.set(key, { ts: Date.now(), data: normalized })
+    return { fromCache: false, data: normalized }
   }
 
   // Guardar nuevo enlace

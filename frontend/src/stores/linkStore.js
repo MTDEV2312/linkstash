@@ -30,10 +30,13 @@ export const useLinkStore = create((set, get) => ({
       const queryParams = { ...filters, ...params }
       
       const response = await linkService.getLinks(queryParams)
-      const { links, pagination } = response.data
+      // El backend responde como { success, data: { links, pagination } }
+      // y el service retorna { data: payload }. Normalizamos aquí.
+      const payload = response?.data?.data ?? response?.data
+      const { links, pagination } = payload || {}
       
       set({
-        links: links || [],
+        links: Array.isArray(links) ? links : [],
         pagination: pagination || {
           currentPage: 1,
           totalPages: 1,
