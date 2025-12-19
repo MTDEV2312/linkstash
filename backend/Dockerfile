@@ -10,13 +10,13 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package*.json ./
-
 # ===========================
 # Etapa de desarrollo
 # ===========================
 FROM base AS development
+
+# Copiar archivos de dependencias
+COPY package*.json ./
 
 # Instalar TODAS las dependencias (incluyendo devDependencies)
 RUN npm install
@@ -36,21 +36,23 @@ CMD ["npm", "run", "dev"]
 FROM base AS production
 
 # Variables de entorno para producción
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NPM_CONFIG_LOGLEVEL=error
 
-# Copiar el resto del código fuente ANTES de instalar
-COPY . .
+# Copiar PRIMERO los archivos de dependencias
+COPY package*.json ./
 
 # Instalar SOLO dependencias de producción
-RUN npm install --omit=dev && \
+RUN npm install --omit=dev --legacy-peer-deps && \
     npm cache clean --force
+
+# Copiar el resto del código fuente
+COPY . .
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# Cambiar permisos de archivos necesarios
-RUN chown -R nodejs:nodejs /app
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
 
 # Cambiar a usuario no-root
 USER nodejs
@@ -58,9 +60,9 @@ USER nodejs
 # Exponer puerto
 EXPOSE 5000
 
-# Health check
+# Health check (simple para no-root user)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:5000/', (r) => {if(r.statusCode === 200) process.exit(0); else process.exit(1)}).on('error', () => process.exit(1))" || exit 1
 
 # Comando para producción
 CMD ["node", "app.js"]
