@@ -38,12 +38,12 @@ FROM base AS production
 # Variables de entorno para producción
 ENV NODE_ENV=production
 
-# Instalar SOLO dependencias de producción
-RUN npm install --only=production && \
-    npm cache clean --force
-
-# Copiar el resto del código fuente
+# Copiar el resto del código fuente ANTES de instalar
 COPY . .
+
+# Instalar SOLO dependencias de producción
+RUN npm install --omit=dev && \
+    npm cache clean --force
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs && \
