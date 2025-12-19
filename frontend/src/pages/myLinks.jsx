@@ -94,8 +94,8 @@ const MyLinks = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mis Enlaces</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mis Enlaces</h1>
+          <p className="text-gray-600 dark:text-gray-300">
             {pagination?.totalLinks || 0} enlaces guardados
           </p>
         </div>
@@ -143,7 +143,7 @@ const MyLinks = () => {
           <div className="card-content">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Estado
                 </label>
                 <select
@@ -157,7 +157,7 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Favoritos
                 </label>
                 <select
@@ -175,7 +175,7 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Ordenar por
                 </label>
                 <select
@@ -191,7 +191,7 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Orden
                 </label>
                 <select
@@ -210,10 +210,10 @@ const MyLinks = () => {
 
       {/* Estado de error inline */}
       {loadError && (
-        <div className="card border-red-300">
+        <div className="card border-red-300 dark:border-red-800">
           <div className="card-content">
             <div className="flex items-center justify-between">
-              <p className="text-red-700">{loadError}</p>
+              <p className="text-red-700 dark:text-red-300">{loadError}</p>
               <button
                 onClick={async () => {
                   const res = await fetchLinks(filters)
@@ -236,10 +236,10 @@ const MyLinks = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             No tienes enlaces guardados
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
             Comienza agregando tu primer enlace para organizarlo mejor.
           </p>
           <button
@@ -269,7 +269,7 @@ const MyLinks = () => {
 
           {/* Paginación */}
           {pagination?.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
               <div className="flex flex-1 justify-between sm:hidden">
                 <button
                   onClick={() => handlePageChange(pagination.currentPage - 1)}
@@ -289,7 +289,7 @@ const MyLinks = () => {
               
               <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     Mostrando página <span className="font-medium">{pagination?.currentPage || 1}</span> de{' '}
                     <span className="font-medium">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
                   </p>
@@ -324,7 +324,7 @@ const MyLinks = () => {
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowLinkForm(false)} />
             
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <LinkForm 
                 onSave={handleLinkSaved}
                 onCancel={() => setShowLinkForm(false)}

@@ -234,14 +234,14 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Editar enlace
           </h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             disabled={isSubmitting}
           >
             <X className="w-5 h-5" />
@@ -251,12 +251,12 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
           {serverError && (
             <div>
-              <p className="mt-2 text-sm text-red-600">{serverError}</p>
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{serverError}</p>
             </div>
           )}
           {/* URL */}
           <div>
-            <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               URL del enlace *
             </label>
             <div className="relative">
@@ -291,7 +291,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Título */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Título
             </label>
             <div className="relative">
@@ -319,7 +319,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Descripción */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Descripción
             </label>
             <textarea
@@ -352,11 +352,11 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
               {errors.description ? (
                 <p className="text-sm text-red-600">{errors.description.message}</p>
               ) : (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Describe brevemente el contenido del enlace
                 </p>
               )}
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
                 {watch('description')?.length || 0}/500
               </p>
             </div>
@@ -364,7 +364,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Imagen */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Imagen del enlace
             </label>
             
@@ -403,7 +403,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
             <div className="space-y-4">
               {/* Subir archivo */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                   Subir nueva imagen
                 </label>
                 <div className="relative">
@@ -426,7 +426,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
               {/* URL de imagen */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                   O ingresar URL de imagen
                 </label>
                 <div className="relative">
@@ -472,7 +472,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                     onChange={(e) => setUploadToCloudinary(e.target.checked)}
                     className="mr-2"
                   />
-                  <label htmlFor="uploadToCloudinary" className="text-sm text-gray-700">
+                  <label htmlFor="uploadToCloudinary" className="text-sm text-gray-700 dark:text-gray-300">
                     Subir a Cloudinary (recomendado para mejor rendimiento)
                   </label>
                 </div>
@@ -482,7 +482,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Etiquetas */}
           <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Etiquetas
             </label>
             <div className="relative">
@@ -499,7 +499,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
           </div>
 
           {/* Botones */}
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={handleClose}

@@ -157,14 +157,14 @@ const LinkForm = ({ onSave, onCancel }) => {
 
   return (
     <div className="space-y-6">
-      {serverError && <div><p className="mt-2 text-sm text-red-600">{serverError}</p></div>}
+      {serverError && <div><p className="mt-2 text-sm text-red-600 dark:text-red-400">{serverError}</p></div>}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           Agregar nuevo enlace
         </h3>
         <button
           onClick={onCancel}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         >
           <X className="w-5 h-5" />
         </button>
@@ -173,7 +173,7 @@ const LinkForm = ({ onSave, onCancel }) => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* URL */}
         <div>
-          <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             URL del enlace *
           </label>
           <div className="relative">
@@ -192,12 +192,12 @@ const LinkForm = ({ onSave, onCancel }) => {
             />
           </div>
           {errors.url && (
-            <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.url.message}</p>
           )}
           
           {/* Preview de URL */}
           {urlPreview && (
-            <div className="mt-2 flex items-center text-xs text-gray-600">
+            <div className="mt-2 flex items-center text-xs text-gray-600 dark:text-gray-400">
               <img
                 src={urlPreview.favicon}
                 alt=""
@@ -218,12 +218,12 @@ const LinkForm = ({ onSave, onCancel }) => {
 
         {/* Título */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Título
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FileText className="h-4 w-4 text-gray-400" />
+              <FileText className="h-4 w-4 text-gray-400 dark:text-gray-500" />
             </div>
             <input
               {...register('title', {
@@ -240,16 +240,16 @@ const LinkForm = ({ onSave, onCancel }) => {
             />
           </div>
           {errors.title && (
-            <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title.message}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Si no especificas un título, se extraerá automáticamente de la página web
           </p>
         </div>
 
         {/* Descripción */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Descripción
           </label>
           <textarea
