@@ -16,9 +16,13 @@ let _initPromise = null;
 const init = async () => {
   if (_initPromise) return _initPromise;
   _initPromise = (async () => {
-    const useRedis = !!(process.env.REDIS_HOST && process.env.REDIS_HOST.length > 0 && process.env.ENABLE_BULLMQ !== 'false');
+    // Detectar si hay configuración de Redis (URL de Upstash o host tradicional)
+    const hasRedisUrl = !!(process.env.REDIS_URL && process.env.REDIS_URL.length > 0);
+    const hasRedisHost = !!(process.env.REDIS_HOST && process.env.REDIS_HOST.length > 0);
+    const useRedis = (hasRedisUrl || hasRedisHost) && process.env.ENABLE_BULLMQ !== 'false';
+    
     if (!useRedis) {
-      console.log('[Queue] Usando cola in-process (no se detectó REDIS_HOST)');
+      console.log('[Queue] Usando cola in-process (no se detectó REDIS_URL ni REDIS_HOST)');
       backend = {
         mode: 'inprocess',
         addJob: async (data, opts = {}) => { inProcessQueue.addJob(data, opts); return { id: 'inproc-' + Date.now() }; },
@@ -32,11 +36,35 @@ const init = async () => {
       const { Queue, Worker } = await import('bullmq');
       const IORedis = (await import('ioredis')).default;
 
-      const connection = new IORedis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        maxRetriesPerRequest: null
-      });
+      let connection;
+
+      // Priorizar REDIS_URL (Upstash y otros servicios cloud)
+      if (hasRedisUrl) {
+        console.log('[Queue] Usando REDIS_URL para conexión (Upstash)');
+        connection = new IORedis(process.env.REDIS_URL, {
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
+          family: 0 // Usar IPv4 e IPv6
+        });
+      } else {
+        // Fallback a configuración tradicional (Docker local, etc.)
+        console.log('[Queue] Usando configuración tradicional (REDIS_HOST)');
+        const redisConfig = {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          maxRetriesPerRequest: null
+        };
+
+        if (process.env.REDIS_PASSWORD) {
+          redisConfig.password = process.env.REDIS_PASSWORD;
+        }
+
+        if (process.env.REDIS_TLS === 'true') {
+          redisConfig.tls = {};
+        }
+
+        connection = new IORedis(redisConfig);
+      }
 
       const scraperQueue = new Queue('scraper', { connection });
 
