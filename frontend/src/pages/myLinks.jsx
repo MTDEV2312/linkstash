@@ -58,7 +58,7 @@ const MyLinks = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mis Enlaces</h1>
           <p className="text-gray-600">
-            {pagination.totalLinks} enlaces guardados
+            {pagination?.totalLinks || 0} enlaces guardados
           </p>
         </div>
         
@@ -210,19 +210,19 @@ const MyLinks = () => {
           </div>
 
           {/* Paginación */}
-          {pagination.totalPages > 1 && (
+          {pagination?.totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
               <div className="flex flex-1 justify-between sm:hidden">
                 <button
                   onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPrevPage}
+                  disabled={!pagination?.hasPrevPage}
                   className="btn-outline btn-md disabled:opacity-50"
                 >
                   Anterior
                 </button>
                 <button
                   onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNextPage}
+                  disabled={!pagination?.hasNextPage}
                   className="btn-outline btn-md disabled:opacity-50"
                 >
                   Siguiente
@@ -232,22 +232,22 @@ const MyLinks = () => {
               <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-gray-700">
-                    Mostrando página <span className="font-medium">{pagination.currentPage}</span> de{' '}
-                    <span className="font-medium">{pagination.totalPages}</span> ({pagination.totalLinks} enlaces)
+                    Mostrando página <span className="font-medium">{pagination?.currentPage || 1}</span> de{' '}
+                    <span className="font-medium">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
                   </p>
                 </div>
                 <div>
                   <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
                     <button
                       onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={!pagination.hasPrevPage}
+                      disabled={!pagination?.hasPrevPage}
                       className="btn-outline btn-sm disabled:opacity-50"
                     >
                       Anterior
                     </button>
                     <button
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={!pagination.hasNextPage}
+                      disabled={!pagination?.hasNextPage}
                       className="btn-outline btn-sm disabled:opacity-50 ml-2"
                     >
                       Siguiente
