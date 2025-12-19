@@ -43,7 +43,7 @@ const MyLinks = () => {
     fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
   }
 
-  if (isLoading && links.length === 0) {
+  if (isLoading && (!links || links.length === 0)) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
@@ -171,7 +171,7 @@ const MyLinks = () => {
       )}
 
       {/* Lista de enlaces */}
-      {links.length === 0 ? (
+      {!links || links.length === 0 ? (
         <div className="text-center py-12">
           <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,7 +198,7 @@ const MyLinks = () => {
               ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
               : 'space-y-4'
           }>
-            {links.map((link) => (
+            {links?.map((link) => (
               <LinkCard 
                 key={link._id} 
                 link={link} 

@@ -219,9 +219,9 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                 </div>
               </div>
               
-              {link.tags.length > 0 && (
+              {link.tags?.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-3">
-                  {link.tags.slice(0, 3).map((tagItem) => {
+                  {link.tags?.slice(0, 3).map((tagItem) => {
                     const resolved = resolveTag(tagItem)
                     const isObj = typeof resolved === 'object' && resolved !== null
                     const name = isObj ? resolved.name : resolved
@@ -350,9 +350,9 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
           {link.description || 'Sin descripción'}
         </p>
         
-        {link.tags.length > 0 && (
+        {link.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
-            {link.tags.slice(0, 2).map((tagItem) => {
+            {link.tags?.slice(0, 2).map((tagItem) => {
               const resolved = resolveTag(tagItem)
               const isObj = typeof resolved === 'object' && resolved !== null
               const name = isObj ? resolved.name : resolved

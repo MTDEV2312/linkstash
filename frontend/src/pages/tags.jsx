@@ -157,13 +157,13 @@ const Tags = () => {
 				<div className="flex items-center justify-center h-40">
 					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
 				</div>
-			) : tags.length === 0 ? (
+			) : !tags || tags.length === 0 ? (
 				<div className="text-center py-12">
 					<p className="text-gray-600">Aún no hay etiquetas. Crea la primera.</p>
 				</div>
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-					{tags.map((tag) => (
+					{tags?.map((tag) => (
 						<TagCard key={tag._id} tag={tag} onEdit={startEdit} onDelete={handleDelete} />
 					))}
 				</div>

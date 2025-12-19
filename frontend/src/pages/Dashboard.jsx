@@ -89,8 +89,8 @@ const Dashboard = () => {
             </div>
             <div className="card-content space-y-2">
               {loading && <div className="text-sm text-gray-500">Cargando...</div>}
-              {!loading && topTags.length === 0 && <div className="text-sm text-gray-500">No hay etiquetas aún.</div>}
-              {!loading && topTags.map(tag => (
+              {!loading && (!topTags || topTags.length === 0) && <div className="text-sm text-gray-500">No hay etiquetas aún.</div>}
+              {!loading && topTags?.map(tag => (
                 <TagCard key={tag._id} tag={{ ...tag, count: tag.linkCount }} />
               ))}
             </div>
@@ -105,8 +105,8 @@ const Dashboard = () => {
             </div>
             <div className="card-content space-y-3">
               {loading && <div className="text-sm text-gray-500">Cargando...</div>}
-              {!loading && recentLinks.length === 0 && <div className="text-sm text-gray-500">Aún no has guardado enlaces.</div>}
-              {!loading && recentLinks.map(link => (
+              {!loading && (!recentLinks || recentLinks.length === 0) && <div className="text-sm text-gray-500">Aún no has guardado enlaces.</div>}
+              {!loading && recentLinks?.map(link => (
                 <LinkCard key={link._id} link={link} mode="minimal" onUpdate={loadData} />
               ))}
             </div>
