@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
-import { Bookmark, Tag, Search, Zap, Shield, Cloud, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Bookmark, Tag, Search, Zap, Shield, Cloud, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react'
 import DarkModeToggle from '../components/DarkModeToggle'
+import { useBackendWakeup } from '../hooks/useBackendWakeup'
 
 const Landing = () => {
+  const { isReady, isChecking, error, attempts } = useBackendWakeup()
   const features = [
     {
       icon: Bookmark,
@@ -47,6 +49,43 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-primary-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800">
+      {/* Modal de inicialización del servidor */}
+      {isChecking && (
+        <div className="fixed inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-20">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-3 mb-3">
+              <Loader2 className="w-6 h-6 text-primary-600 dark:text-primary-400 animate-spin" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Iniciando servidor...
+              </h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
+              El backend está despertando. Esto puede tomar unos segundos en el primer acceso.
+            </p>
+            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <div 
+                  className="bg-primary-600 dark:bg-primary-400 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((attempts / 30) * 100, 95)}%` }}
+                />
+              </div>
+              <span className="whitespace-nowrap">Intento {attempts}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error de conexión */}
+      {error && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md mx-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <p className="text-red-800 dark:text-red-300 text-sm font-medium">
+              {error}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Navbar */}
       <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,13 +101,19 @@ const Landing = () => {
               <DarkModeToggle />
               <Link
                 to="/login"
-                className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium"
+                className={`text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-opacity ${
+                  !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
+                }`}
+                aria-disabled={!isReady}
               >
                 Iniciar sesión
               </Link>
               <Link
                 to="/register"
-                className="btn-primary btn-md"
+                className={`btn-primary btn-md ${
+                  !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
+                }`}
+                aria-disabled={!isReady}
               >
                 Registrarse
               </Link>
@@ -96,14 +141,20 @@ const Landing = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/register"
-              className="btn-primary btn-lg w-full sm:w-auto flex items-center justify-center"
+              className={`btn-primary btn-lg w-full sm:w-auto flex items-center justify-center ${
+                !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
+              }`}
+              aria-disabled={!isReady}
             >
               Comenzar gratis
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
             <Link
               to="/login"
-              className="btn-outline btn-lg w-full sm:w-auto"
+              className={`btn-outline btn-lg w-full sm:w-auto ${
+                !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
+              }`}
+              aria-disabled={!isReady}
             >
               Iniciar sesión
             </Link>
