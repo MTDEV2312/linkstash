@@ -2,9 +2,9 @@ services:
   # Backend API
   - type: web
     name: linkstash-backend
-    env: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
     region: oregon
     plan: free
     healthCheckPath: /
