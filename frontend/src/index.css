@@ -169,6 +169,10 @@
   @apply animate-pulse bg-gray-200 rounded;
 }
 
+html.dark .loading-skeleton {
+  @apply bg-gray-700;
+}
+
 /* Estilos para el toast */
 .react-hot-toast-container {
   z-index: 9999;

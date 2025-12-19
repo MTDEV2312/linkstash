@@ -6,13 +6,13 @@ import dashboardService from '../services/dashboardService'
 import { Plus, Grid, List, Filter, Eye, Heart, Archive, Tag } from 'lucide-react'
 
 const StatCard = ({ title, value, icon: Icon }) => (
-  <div className="bg-white border rounded-md p-4 flex items-center gap-3">
-    <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center text-primary-600">
+  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 flex items-center gap-3">
+    <div className="w-10 h-10 bg-primary-50 dark:bg-primary-900 rounded-full flex items-center justify-center text-primary-600 dark:text-primary-300">
       <Icon className="w-5 h-5" />
     </div>
     <div>
-      <div className="text-sm text-gray-500">{title}</div>
-      <div className="text-lg font-semibold text-gray-900">{value}</div>
+      <div className="text-sm text-gray-500 dark:text-gray-400">{title}</div>
+      <div className="text-lg font-semibold text-gray-900 dark:text-white">{value}</div>
     </div>
   </div>
 )
@@ -56,8 +56,8 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Resumen rápido de tus enlaces y etiquetas.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Resumen rápido de tus enlaces y etiquetas.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -85,11 +85,11 @@ const Dashboard = () => {
         <div className="lg:col-span-1">
           <div className="card">
             <div className="card-header">
-              <h3 className="text-sm font-medium">Top etiquetas</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Top etiquetas</h3>
             </div>
             <div className="card-content space-y-2">
-              {loading && <div className="text-sm text-gray-500">Cargando...</div>}
-              {!loading && (!topTags || topTags.length === 0) && <div className="text-sm text-gray-500">No hay etiquetas aún.</div>}
+              {loading && <div className="text-sm text-gray-500 dark:text-gray-400">Cargando...</div>}
+              {!loading && (!topTags || topTags.length === 0) && <div className="text-sm text-gray-500 dark:text-gray-400">No hay etiquetas aún.</div>}
               {!loading && topTags?.map(tag => (
                 <TagCard key={tag._id} tag={{ ...tag, count: tag.linkCount }} />
               ))}
@@ -100,12 +100,12 @@ const Dashboard = () => {
         <div className="lg:col-span-2">
           <div className="card">
             <div className="card-header flex items-center justify-between">
-              <h3 className="text-sm font-medium">Enlaces recientes</h3>
-              <div className="text-xs text-gray-500">Últimos 6</div>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Enlaces recientes</h3>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Últimos 6</div>
             </div>
             <div className="card-content space-y-3">
-              {loading && <div className="text-sm text-gray-500">Cargando...</div>}
-              {!loading && (!recentLinks || recentLinks.length === 0) && <div className="text-sm text-gray-500">Aún no has guardado enlaces.</div>}
+              {loading && <div className="text-sm text-gray-500 dark:text-gray-400">Cargando...</div>}
+              {!loading && (!recentLinks || recentLinks.length === 0) && <div className="text-sm text-gray-500 dark:text-gray-400">Aún no has guardado enlaces.</div>}
               {!loading && recentLinks?.map(link => (
                 <LinkCard key={link._id} link={link} mode="minimal" onUpdate={loadData} />
               ))}
@@ -120,7 +120,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowLinkForm(false)} />
             
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <LinkForm 
                 onSave={handleLinkSaved}
                 onCancel={() => setShowLinkForm(false)}
