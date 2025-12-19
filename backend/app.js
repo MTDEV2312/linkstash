@@ -15,8 +15,9 @@ import dashboardRoutes from './src/routes/dashboardRoutes.js';
 import metricsRoutes from './src/routes/metricsRoutes.js';
 
 const app = express();
-// Si la app está detrás de un proxy (p.ej. Render), permite usar X-Forwarded-* para IP
-if (process.env.TRUST_PROXY && process.env.TRUST_PROXY.toLowerCase() === 'true') {
+// Confiar en proxy en producción (Render) o si TRUST_PROXY=true
+const trustProxyEnv = process.env.TRUST_PROXY && process.env.TRUST_PROXY.toLowerCase() === 'true';
+if (trustProxyEnv || process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 // Configurar rate limiter global usando variables de entorno
