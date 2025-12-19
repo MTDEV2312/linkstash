@@ -1,0 +1,39 @@
+services:
+  # Backend API
+  - type: web
+    name: linkstash-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: TRUST_PROXY
+        value: true
+      - key: MONGODB_URI
+        sync: false  # Se configurará manualmente desde el dashboard
+      - key: JWT_SECRET
+        sync: false  # Se configurará manualmente desde el dashboard - IMPORTANTE: cambiar en producción
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: linkstash
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX
+        value: 60
+      - key: USER_AGENT
+        value: LinkStash-Bot/1.0
+      - key: SCRAPER_ALLOWED_PORTS
+        value: 80,443
+      - key: ENABLE_SCRAPER_WORKER
+        value: true
