@@ -3,17 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   * {
     @apply border-gray-200;
   }
-  
-  body {
-    @apply bg-gray-50 text-gray-900 font-sans;
-    font-feature-settings: "rlig" 1, "calt" 1;
+
+  html.dark * {
+    @apply border-gray-700;
   }
   
-  html {
-    scroll-behavior: smooth;
+  body {
+    @apply bg-white text-gray-900 font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html.dark body {
+    @apply bg-gray-950 text-gray-50;
   }
 }
 
@@ -33,9 +46,17 @@
   .btn-outline {
     @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100;
   }
+
+  html.dark .btn-outline {
+    @apply border-gray-600 bg-gray-800 text-gray-200 hover:bg-gray-700 active:bg-gray-600;
+  }
   
   .btn-ghost {
     @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+  }
+
+  html.dark .btn-ghost {
+    @apply text-gray-400 hover:bg-gray-800 hover:text-gray-50;
   }
   
   .btn-sm {
@@ -53,9 +74,17 @@
   .input {
     @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50;
   }
+
+  html.dark .input {
+    @apply bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-500;
+  }
   
   .card {
     @apply rounded-lg border border-gray-200 bg-white shadow-sm;
+  }
+
+  html.dark .card {
+    @apply bg-gray-800 border-gray-700;
   }
   
   .card-header {
@@ -77,17 +106,33 @@
   .badge-secondary {
     @apply badge bg-gray-100 text-gray-800;
   }
-  
+
+  html.dark .badge-secondary {
+    @apply bg-gray-700 text-gray-100;
+  }
+
   .badge-success {
     @apply badge bg-green-100 text-green-800;
   }
-  
+
+  html.dark .badge-success {
+    @apply bg-green-900 text-green-200;
+  }
+
   .badge-warning {
     @apply badge bg-yellow-100 text-yellow-800;
   }
-  
+
+  html.dark .badge-warning {
+    @apply bg-yellow-900 text-yellow-200;
+  }
+
   .badge-error {
     @apply badge bg-red-100 text-red-800;
+  }
+
+  html.dark .badge-error {
+    @apply bg-red-900 text-red-200;
   }
 }
 

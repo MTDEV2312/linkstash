@@ -28,6 +28,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <title>LinkStash - Organizador de Enlaces</title>
+    
+    <script>
+      (function() {
+        const isDark = localStorage.getItem('darkMode') === 'true' || 
+                     (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.style.colorScheme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
