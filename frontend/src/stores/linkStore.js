@@ -33,14 +33,30 @@ export const useLinkStore = create((set, get) => ({
       const { links, pagination } = response.data
       
       set({
-        links,
-        pagination,
+        links: links || [],
+        pagination: pagination || {
+          currentPage: 1,
+          totalPages: 1,
+          totalLinks: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
         isLoading: false
       })
       
       return { success: true }
     } catch (error) {
-      set({ isLoading: false })
+      set({ 
+        isLoading: false,
+        links: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 1,
+          totalLinks: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      })
       const message = error.response?.data?.message || 'Error al obtener los enlaces'
       try {
         const status = error?.response?.status

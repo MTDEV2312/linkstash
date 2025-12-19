@@ -13,7 +13,7 @@ const useTagStore = create((set, get) => ({
       set({ tags: data || [], isLoading: false })
       return { success: true }
     } catch (error) {
-      set({ isLoading: false })
+      set({ isLoading: false, tags: [] })
       const message = error?.response?.data?.message || 'Error al cargar etiquetas'
       try {
         const status = error?.response?.status
