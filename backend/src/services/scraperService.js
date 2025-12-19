@@ -49,7 +49,7 @@ class ScraperService {
 
       for (let hop = 0; hop < maxHops; hop++) {
         // Validar de nuevo la URL antes de cada petición (previene redirecciones a destinos internos)
-  const safeCheck = await this.getSafeUrlInfo(currentUrl);
+        const safeCheck = await this.getSafeUrlInfo(currentUrl);
         if (!safeCheck.ok) {
           throw new Error('Redirección a URL no permitida');
         }
@@ -64,51 +64,76 @@ class ScraperService {
 
         // Construir la URL objetivo usando la IP resuelta para evitar cualquier resolución adicional
         // y forzar el Host header al hostname original (preserva validación del certificado via SNI)
-  const parsedUrl = new URL(currentUrl);
-  const ipAddr = resolved.ip;
-  const hostForUrl = ipAddr.includes(':') ? `[${ipAddr}]` : ipAddr; // IPv6 must be bracketed in URLs
-  const defaultPort = parsedUrl.protocol === 'https:' ? 443 : 80;
-  // Decide si necesitamos incluir puerto en la URL construida
-  const includePort = (parsedUrl.port && parseInt(parsedUrl.port, 10) !== defaultPort) || (resolved.port && resolved.port !== defaultPort);
-  const portPart = includePort ? `:${resolved.port || parsedUrl.port}` : '';
-  const pathAndQuery = `${parsedUrl.pathname || '/'}${parsedUrl.search || ''}`;
-  const requestUrl = `${parsedUrl.protocol}//${hostForUrl}${portPart}${pathAndQuery}`;
-  // ---- SSRF Mitigation: Validate Resolved IP ----
-  let parsedIP;
-  try {
-    parsedIP = ipaddr.parse(ipAddr);
-  } catch (e) {
-    throw new Error('La IP resuelta no es válida');
-  }
-  if (utilIsIpPrivate(parsedIP)) {
-    throw new Error('La IP de destino no está permitida');
-  }
+        const parsedUrl = new URL(currentUrl);
+        const ipAddr = resolved.ip;
+        const hostForUrl = ipAddr.includes(':') ? `[${ipAddr}]` : ipAddr; // IPv6 must be bracketed in URLs
+        const defaultPort = parsedUrl.protocol === 'https:' ? 443 : 80;
+        // Decide si necesitamos incluir puerto en la URL construida
+        const includePort = (parsedUrl.port && parseInt(parsedUrl.port, 10) !== defaultPort) || (resolved.port && resolved.port !== defaultPort);
+        const portPart = includePort ? `:${resolved.port || parsedUrl.port}` : '';
+        const pathAndQuery = `${parsedUrl.pathname || '/'}${parsedUrl.search || ''}`;
+        const requestUrl = `${parsedUrl.protocol}//${hostForUrl}${portPart}${pathAndQuery}`;
+        // ---- SSRF Mitigation: Validate Resolved IP ----
+        let parsedIP;
+        try {
+          parsedIP = ipaddr.parse(ipAddr);
+        } catch (e) {
+          throw new Error('La IP resuelta no es válida');
+        }
+        if (utilIsIpPrivate(parsedIP)) {
+          throw new Error('La IP de destino no está permitida');
+        }
 
-  // Sanear host header para evitar inyección de cabeceras
-  const safeHostHeader = sanitizeHostHeader(resolved.hostname || parsedUrl.hostname);
+        // Sanear host header para evitar inyección de cabeceras
+        const safeHostHeader = sanitizeHostHeader(resolved.hostname || parsedUrl.hostname);
 
-        response = await axios.get(requestUrl, {
-          headers: {
-            'User-Agent': this.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Accept-Encoding': 'gzip, deflate',
-            'DNT': '1',
-            'Connection': 'close',
-            'Upgrade-Insecure-Requests': '1',
-            'Host': safeHostHeader
-          },
-          timeout: this.timeout,
-          // No seguir redirecciones automáticamente
-          maxRedirects: 0,
-          validateStatus: (status) => status < 400,
-          httpAgent: resolved.protocol === 'http:' ? agent : undefined,
-          httpsAgent: resolved.protocol === 'https:' ? agent : undefined,
-          // Limitar tamaño de respuesta para mitigar DoS accidental
-          maxContentLength: 1024 * 1024 * 2, // 2 MB
-          maxBodyLength: 1024 * 1024 * 2,
-          responseType: 'text'
-        });
+        try {
+          response = await axios.get(requestUrl, {
+            headers: {
+              'User-Agent': this.userAgent,
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
+              'Accept-Encoding': 'gzip, deflate',
+              'DNT': '1',
+              'Connection': 'close',
+              'Upgrade-Insecure-Requests': '1',
+              'Host': safeHostHeader
+            },
+            timeout: this.timeout,
+            // No seguir redirecciones automáticamente
+            maxRedirects: 0,
+            validateStatus: (status) => status < 500, // Aceptar hasta 4xx para manejar rate limits
+            httpAgent: resolved.protocol === 'http:' ? agent : undefined,
+            httpsAgent: resolved.protocol === 'https:' ? agent : undefined,
+            // Limitar tamaño de respuesta para mitigar DoS accidental
+            maxContentLength: 1024 * 1024 * 2, // 2 MB
+            maxBodyLength: 1024 * 1024 * 2,
+            responseType: 'text'
+          });
+        } catch (axiosError) {
+          // Manejar errores específicos de rate limit o bloqueo
+          if (axiosError.response?.status === 429) {
+            throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
+          }
+          if (axiosError.response?.status === 403) {
+            throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso a nuestro bot. Verifica la URL.');
+          }
+          if (axiosError.code === 'ECONNREFUSED' || axiosError.code === 'ETIMEDOUT') {
+            throw new Error('CONNECTION_ERROR: No se pudo conectar con el servidor. El sitio podría estar inactivo.');
+          }
+          throw axiosError;
+        }
+
+        // Validar código de estado
+        if (response.status === 429) {
+          throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
+        }
+        if (response.status === 403) {
+          throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso. Verifica la URL.');
+        }
+        if (response.status >= 400) {
+          throw new Error(`HTTP ${response.status}: No se pudo acceder a la página.`);
+        }
 
         // Validar tipo de contenido: esperamos HTML/text para scraping
         const contentType = (response.headers && response.headers['content-type']) || '';
@@ -179,10 +204,23 @@ class ScraperService {
     } catch (error) {
       console.error('❌ Error en scraping de %s: %s', url, error.message);
       
-      // Retornar datos básicos en caso de error
+      // Clasificar el tipo de error para mejor manejo en el frontend
+      const errorMessage = error.message || 'Error desconocido en scraping';
+      let errorType = 'SCRAPING_ERROR';
+      
+      if (errorMessage.includes('RATE_LIMIT')) {
+        errorType = 'RATE_LIMIT_ERROR';
+      } else if (errorMessage.includes('BLOCKED')) {
+        errorType = 'BLOCKED_ERROR';
+      } else if (errorMessage.includes('CONNECTION')) {
+        errorType = 'CONNECTION_ERROR';
+      }
+      
+      // Retornar datos básicos en caso de error con tipo específico
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
+        errorType,
         data: {
           title: this.extractDomainFromUrl(url),
           description: '',

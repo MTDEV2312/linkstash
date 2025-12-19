@@ -64,11 +64,14 @@ const processJob = async (job) => {
       return true;
     } else {
       const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
+      const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : 'SCRAPING_ERROR';
+      
       await Link.findByIdAndUpdate(linkId, {
         status: 'failed',
-        scrapingError: errMsg
+        scrapingError: errMsg,
+        scrapingErrorType: errType // Nuevo campo para clasificar el error
       });
-      console.error(`[Worker] Scraping falló para ${linkId}: ${errMsg}`);
+      console.error(`[Worker] Scraping falló para ${linkId}: ${errMsg} (tipo: ${errType})`);
       throw new Error(errMsg);
     }
   } catch (err) {
