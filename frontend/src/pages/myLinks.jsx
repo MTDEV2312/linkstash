@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import LinkCard from '../components/LinkCard'
+import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
 import LinkForm from '../components/LinkForm'
 import SearchBar from '../components/SearchBar'
 import { Plus, Grid, List, Filter } from 'lucide-react'
@@ -19,34 +20,60 @@ const MyLinks = () => {
     setFilters
   } = useLinkStore()
 
+  const [loadError, setLoadError] = useState('')
+
   useEffect(() => {
-    fetchLinks()
+    let mounted = true
+    ;(async () => {
+      const res = await fetchLinks()
+      if (mounted && res && res.success === false) {
+        setLoadError(res.message || 'Error al cargar enlaces')
+      } else {
+        setLoadError('')
+      }
+    })()
+    return () => { mounted = false }
   }, [fetchLinks])
 
-  const handleSearch = (query) => {
+  const handleSearch = async (query) => {
     setFilters({ ...filters, search: query, page: 1 })
-    fetchLinks({ ...filters, search: query, page: 1 })
+    const res = await fetchLinks({ ...filters, search: query, page: 1 })
+    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
   }
 
-  const handleFilterChange = (newFilters) => {
+  const handleFilterChange = async (newFilters) => {
     const updatedFilters = { ...filters, ...newFilters, page: 1 }
     setFilters(updatedFilters)
-    fetchLinks(updatedFilters)
+    const res = await fetchLinks(updatedFilters)
+    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
   }
 
-  const handlePageChange = (page) => {
-    fetchLinks({ ...filters, page })
+  const handlePageChange = async (page) => {
+    const res = await fetchLinks({ ...filters, page })
+    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
   }
 
-  const handleLinkSaved = () => {
+  const handleLinkSaved = async () => {
     setShowLinkForm(false)
-    fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
+    const res = await fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
+    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
   }
 
+  // Carga inicial: mostrar skeletons en lugar de spinner
   if (isLoading && (!links || links.length === 0)) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-6 bg-gray-200 rounded w-40 animate-pulse" />
+            <div className="h-4 bg-gray-200 rounded w-24 mt-2 animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <LinkCardSkeleton key={i} viewMode={viewMode} />
+          ))}
+        </div>
       </div>
     )
   }
@@ -165,6 +192,26 @@ const MyLinks = () => {
                   <option value="asc">Ascendente</option>
                 </select>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Estado de error inline */}
+      {loadError && (
+        <div className="card border-red-300">
+          <div className="card-content">
+            <div className="flex items-center justify-between">
+              <p className="text-red-700">{loadError}</p>
+              <button
+                onClick={async () => {
+                  const res = await fetchLinks(filters)
+                  setLoadError(res && res.success === false ? (res.message || 'Error al cargar enlaces') : '')
+                }}
+                className="btn-outline btn-sm"
+              >
+                Reintentar
+              </button>
             </div>
           </div>
         </div>

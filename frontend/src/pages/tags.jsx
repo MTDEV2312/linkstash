@@ -3,6 +3,7 @@ import useTagStore from '../stores/tagStore'
 import { toast } from 'react-hot-toast'
 import { Plus } from 'lucide-react'
 import TagCard from '../components/TagCard'
+import TagCardSkeleton from '../components/Skeletons/TagCardSkeleton'
 
 const Tags = () => {
 	const { tags, isLoading, fetchTags, createTag, updateTag, deleteTag } = useTagStore()
@@ -11,10 +12,19 @@ const Tags = () => {
 	const [editingId, setEditingId] = useState(null)
 	const [color, setColor] = useState('#6B7280')
 	const [description, setDescription] = useState('')
-
+	const [loadError, setLoadError] = useState('')
 
 	useEffect(() => {
-		fetchTags()
+		let mounted = true
+		;(async () => {
+			const res = await fetchTags()
+			if (mounted && res && res.success === false) {
+				setLoadError(res.message || 'Error al cargar etiquetas')
+			} else {
+				setLoadError('')
+			}
+		})()
+		return () => { mounted = false }
 	}, [fetchTags])
 
 	const handleCreate = async (e) => {
@@ -28,6 +38,7 @@ const Tags = () => {
 				setColor('#6B7280')
 				setDescription('')
 				setShowForm(false)
+				setLoadError('')
 			}
 		} catch (err) {
 			console.error(err)
@@ -152,10 +163,30 @@ const Tags = () => {
 				</div>
 			)}
 
+			{/* Error inline */}
+			{loadError && (
+				<div className="card border-red-300">
+					<div className="card-content flex items-center justify-between">
+						<p className="text-red-700">{loadError}</p>
+						<button
+							onClick={async () => {
+								const res = await fetchTags()
+								setLoadError(res && res.success === false ? (res.message || 'Error al cargar etiquetas') : '')
+							}}
+							className="btn-outline btn-sm"
+						>
+							Reintentar
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* Lista */}
 			{isLoading ? (
-				<div className="flex items-center justify-center h-40">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+					{Array.from({ length: 6 }).map((_, i) => (
+						<TagCardSkeleton key={i} />
+					))}
 				</div>
 			) : !tags || tags.length === 0 ? (
 				<div className="text-center py-12">
