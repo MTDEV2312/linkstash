@@ -82,7 +82,7 @@ const AccountForm = ({ mode = 'profile' }) => {
   if (mode === 'profile') {
     return (
       <div className="card p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil</h3>
+        <h3 className="text-lg font-medium  mb-4">Perfil</h3>
         <form onSubmit={submitProfile}>
           {serverError && <p className="mb-3 text-sm text-red-600">{serverError}</p>}
           <label className="block mb-2 text-sm font-medium">Nombre de usuario</label>
@@ -121,7 +121,7 @@ const AccountForm = ({ mode = 'profile' }) => {
   // mode === 'password'
   return (
     <div className="card p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Cambiar contraseña</h3>
+      <h3 className="text-lg font-medium  mb-4">Cambiar contraseña</h3>
       <form onSubmit={submitPassword}>
         <label className="block mb-2 text-sm font-medium">Contraseña actual</label>
         <input

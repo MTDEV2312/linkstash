@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 const DescriptionModal = ({ link, isOpen, onClose, onUpdate }) => {
   const [description, setDescription] = useState(link?.description || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { updateLinkData } = useLinkStore()
+  const { updateLinkData, refetchLinks } = useLinkStore()
   const textareaRef = useRef(null)
 
   // Función para auto-resize del textarea
@@ -49,6 +49,7 @@ const DescriptionModal = ({ link, isOpen, onClose, onUpdate }) => {
       if (result.success) {
         toast.success('Descripción actualizada')
         onUpdate?.()
+        await refetchLinks() // Asegura que la UI se actualice con los datos del servidor
         onClose()
       }
     } catch (error) {

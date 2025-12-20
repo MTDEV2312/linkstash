@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
+import useTagStore from '../stores/tagStore'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -12,7 +13,8 @@ const LinkForm = ({ onSave, onCancel }) => {
   const [imageUrl, setImageUrl] = useState('')
   const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
   const [imagePreview, setImagePreview] = useState('')
-  const { saveLink } = useLinkStore()
+  const { saveLink, refetchLinks } = useLinkStore()
+  const { refetchTags, markTagsForRefresh } = useTagStore()
   
   const {
     register,
@@ -142,6 +144,9 @@ const LinkForm = ({ onSave, onCancel }) => {
 
       if (result.success) {
         setServerError(null)
+        await refetchLinks() // Asegura que la lista se actualice con el nuevo enlace
+        markTagsForRefresh() // Marcar que tags necesitan refrescar por si hay nuevos
+        await refetchTags() // Refrescar tags por si se crearon nuevos tags al guardar
         onSave?.(result.link)
       } else {
         setServerError(result.message || 'Error al guardar el enlace')

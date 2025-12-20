@@ -23,7 +23,7 @@ const getContrastTextColor = (hex) => {
 
 const TagCard = ({ tag, onEdit, onDelete }) => {
   return (
-    <div className="flex items-center justify-between bg-white border rounded-md p-3 overflow-hidden">
+    <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3 overflow-hidden">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
@@ -34,7 +34,7 @@ const TagCard = ({ tag, onEdit, onDelete }) => {
         </div>
 
         <div className="min-w-0">
-          <div className="font-medium text-gray-900 truncate">{tag.name}</div>
+          <div className="font-medium text-gray-900 dark:text-white truncate">{tag.name}</div>
 
           {tag.description && (
             <div
@@ -54,7 +54,7 @@ const TagCard = ({ tag, onEdit, onDelete }) => {
       <div className="flex items-center gap-2">
         <button
           onClick={() => onEdit && onEdit(tag)}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           title="Editar"
         >
           <Edit className="w-4 h-4" />
@@ -62,7 +62,7 @@ const TagCard = ({ tag, onEdit, onDelete }) => {
 
         <button
           onClick={() => onDelete && onDelete(tag._id)}
-          className="text-red-500 hover:text-red-700"
+          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
           title="Eliminar"
         >
           <Trash className="w-4 h-4" />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
+import useTagStore from '../stores/tagStore'
 import PlaceholderImage from './PlaceholderImage'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload, Cloud, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -12,7 +13,8 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   const [imageUrl, setImageUrl] = useState(link?.image || '')
   const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
   const [imagePreview, setImagePreview] = useState(link?.image || '')
-  const { updateLink } = useLinkStore()
+  const { updateLink, refetchLinks } = useLinkStore()
+  const { refetchTags, markTagsForRefresh } = useTagStore()
   const textareaRef = useRef(null)
 
   const {
@@ -206,6 +208,9 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       if (result.success) {
         toast.success('Enlace actualizado exitosamente')
         onUpdate?.()
+        await refetchLinks() // Asegura que la UI se actualice con los datos del servidor
+        markTagsForRefresh() // Marcar que tags necesitan refrescar por si hay nuevos
+        await refetchTags() // Refrescar tags por si se crearon nuevos tags al actualizar
         onClose()
         setServerError(null)
       }

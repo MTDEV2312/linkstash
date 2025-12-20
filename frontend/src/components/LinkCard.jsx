@@ -159,9 +159,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
 
   if (viewMode === 'list') {
     return (
-      <div className={`card hover:shadow-md transition-shadow duration-200 ${
-        link.status === 'failed' ? 'border-red-300 dark:border-red-800' : ''
-      }`}>
+      <div className="card hover:shadow-md transition-shadow duration-200">
         <div className="p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -186,20 +184,10 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                         Procesando...
                       </span>
                     )}
-                    {link.status === 'failed' && (
-                      <span className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        Error
-                      </span>
-                    )}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                     {link.description || 'Sin descripción'}
                   </p>
-                  {link.status === 'failed' && link.scrapingError && (
-                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                      {link.scrapingError}
-                    </p>
-                  )}
                   <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
@@ -335,19 +323,13 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
   // Vista de tarjeta (grid)
   return (
     <div className={`card hover:shadow-lg transition-all duration-200 group ${
-      link.status === 'processing' ? 'opacity-75' : link.status === 'failed' ? 'border-red-300 dark:border-red-800' : ''
+      link.status === 'processing' ? 'opacity-75' : ''
     }`}>
       {/* Indicador de estado de scraping */}
       {link.status === 'processing' && (
         <div className="absolute top-2 right-2 z-10 flex items-center space-x-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
           <span>Procesando...</span>
-        </div>
-      )}
-      
-      {link.status === 'failed' && (
-        <div className="absolute top-2 right-2 z-10 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded-full text-xs font-medium">
-          Error al cargar
         </div>
       )}
 
@@ -380,24 +362,6 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
             <Heart className={`w-4 h-4 ${link.isFavorite ? 'fill-current' : ''}`} />
           </button>
         </div>
-        
-        {/* Mensaje de error si el scraping falló */}
-        {link.status === 'failed' && link.scrapingError && (
-          <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-xs">
-            <p className="text-red-700 dark:text-red-300 font-medium mb-1">
-              {link.scrapingErrorType === 'RATE_LIMIT_ERROR' && '⏱️ Límite de solicitudes'}
-              {link.scrapingErrorType === 'BLOCKED_ERROR' && '🚫 Sitio bloqueado'}
-              {link.scrapingErrorType === 'CONNECTION_ERROR' && '🔌 Error de conexión'}
-              {!link.scrapingErrorType && '❌ Error'}
-            </p>
-            <p className="text-red-600 dark:text-red-400">{link.scrapingError}</p>
-            {link.scrapingAttempts > 0 && (
-              <p className="text-red-500 dark:text-red-400 mt-1 text-xs">
-                Intentos: {link.scrapingAttempts}
-              </p>
-            )}
-          </div>
-        )}
         
         <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-3 mb-3">
           {link.description || 'Sin descripción'}
