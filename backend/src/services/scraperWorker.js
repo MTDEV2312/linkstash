@@ -63,21 +63,62 @@ const processJob = async (job) => {
       console.log(`[Worker] Scraping completado para ${linkId}`);
       return true;
     } else {
+      // Scraping falló, pero NO marcar como failed - usar valores predeterminados
       const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
-      const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : 'SCRAPING_ERROR';
+      const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
       
-      await Link.findByIdAndUpdate(linkId, {
-        status: 'failed',
+      console.warn(`[Worker] Scraping falló para ${linkId}: ${errMsg} (tipo: ${errType}), usando valores predeterminados`);
+      
+      // Obtener imagen predeterminada
+      const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+      
+      // Actualizar con valores predeterminados y marcar como completado
+      const updates = {
+        status: 'completed',
         scrapingError: errMsg,
-        scrapingErrorType: errType // Nuevo campo para clasificar el error
-      });
-      console.error(`[Worker] Scraping falló para ${linkId}: ${errMsg} (tipo: ${errType})`);
-      throw new Error(errMsg);
+        scrapingErrorType: errType,
+        needsDescription: true // IMPORTANTE: Marcar que necesita descripción manual
+      };
+      
+      // Solo agregar imagen si no tiene una
+      const currentLink = await Link.findById(linkId);
+      if (!currentLink.image || currentLink.image === '') {
+        if (defaultImg) updates.image = defaultImg;
+      }
+      
+      await Link.findByIdAndUpdate(linkId, updates, { new: true });
+      
+      // Retornar true para no reintentar
+      return true;
     }
   } catch (err) {
-    // El worker lanza el error para que la cola pueda reintentar
+    // Si hay un error crítico, registrarlo pero marcar el link como completado con predeterminados
     console.error(`[Worker] Error procesando job ${job.id} para link ${linkId}:`, err.message || err);
-    throw err;
+    
+    try {
+      const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+      const currentLink = await Link.findById(linkId);
+      
+      const updates = {
+        status: 'completed',
+        scrapingError: err.message || 'Error interno',
+        scrapingErrorType: null,
+        needsDescription: true // IMPORTANTE: Marcar que necesita descripción manual
+      };
+      
+      if (!currentLink.image || currentLink.image === '') {
+        if (defaultImg) updates.image = defaultImg;
+      }
+      
+      await Link.findByIdAndUpdate(linkId, updates, { new: true });
+      console.log(`[Worker] Link ${linkId} marcado como completado con valores predeterminados tras error`);
+      
+      // Retornar true para evitar reintentos
+      return true;
+    } catch (updateErr) {
+      console.error(`[Worker] Error crítico actualizando link ${linkId}:`, updateErr);
+      throw err;
+    }
   }
 };
 
@@ -93,14 +134,28 @@ try {
   scraperQueue.on('requeued', (job) => console.log('[Queue] requeued', job.id, 'attempts=', job.attempts));
   scraperQueue.on('exhausted', async (job, err) => {
     console.error('[Queue] exhausted job', job.id, 'error=', err && err.message);
-    // Si el job se agotó, marcar link como failed definitivamente
+    // Si el job se agotó, marcar link como completado con valores predeterminados
     try {
       const linkId = job.data && job.data.linkId;
       if (linkId) {
-        await Link.findByIdAndUpdate(linkId, { status: 'failed', scrapingError: err && err.message });
+        const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+        const currentLink = await Link.findById(linkId);
+        
+        const updates = {
+          status: 'completed',
+          scrapingError: err && err.message || 'Job agotado',
+          scrapingErrorType: null
+        };
+        
+        if (!currentLink.image || currentLink.image === '') {
+          if (defaultImg) updates.image = defaultImg;
+        }
+        
+        await Link.findByIdAndUpdate(linkId, updates);
+        console.log(`[Queue] Link ${linkId} marcado como completado tras agotamiento`);
       }
     } catch (e) {
-      console.error('Error marcando link como failed tras agotamiento:', e);
+      console.error('Error marcando link como completado tras agotamiento:', e);
     }
   });
 

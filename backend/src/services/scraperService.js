@@ -41,6 +41,13 @@ class ScraperService {
 
       console.log(`🕷️ Iniciando scraping de: ${url}`);
 
+      // Detectar sitios especiales y aplicar estrategias específicas
+      const specialResult = await this.trySpecialScraping(url);
+      if (specialResult) {
+        console.log(`✅ Scraping especial completado para: ${url}`);
+        return specialResult;
+      }
+
       // Realizar la petición HTTP de forma segura: no seguir redirecciones automáticamente.
       // Seguiremos manualmente hasta `maxHops` redirecciones, validando cada URL intermedia.
       const maxHops = 5;
@@ -576,6 +583,371 @@ class ScraperService {
     }
 
     return [...new Set(tags)]; // Eliminar duplicados
+  }
+
+  // Scraping especial para sitios que bloquean bots
+  async trySpecialScraping(url) {
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      
+      // YouTube - extraer datos del JSON-LD o atributos del video
+      if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+        console.log('[Special] Detectado YouTube, aplicando estrategia especial');
+        return await this.scrapeYouTube(url);
+      }
+      
+      // Twitter/X - usar información mínima
+      if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+        console.log('[Special] Detectado Twitter/X, aplicando estrategia especial');
+        return await this.scrapeTwitter(url);
+      }
+      
+      // Vimeo
+      if (hostname.includes('vimeo.com')) {
+        console.log('[Special] Detectado Vimeo, aplicando estrategia especial');
+        return await this.scrapeVimeo(url);
+      }
+
+      return null; // No es un sitio especial
+    } catch (e) {
+      console.error('[Special] Error en scraping especial:', e.message);
+      return null; // Fallback a scraping normal
+    }
+  }
+
+  // Scraper especial para YouTube
+  async scrapeYouTube(url) {
+    try {
+      const videoIdMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      if (!videoIdMatch) {
+        return null;
+      }
+
+      const videoId = videoIdMatch[1];
+      
+      console.log(`[YouTube] Scrapeando video: ${videoId}`);
+      
+      // Intentar extraer metadata de la página con límite menor para YouTube
+      try {
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': this.userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.8',
+          },
+          timeout: 5000,  // Timeout más corto para YouTube
+          maxRedirects: 0,
+          validateStatus: (status) => status < 500,
+          maxContentLength: 512 * 1024,  // 512 KB para YouTube (menor que 2MB general)
+          maxBodyLength: 512 * 1024,
+          responseType: 'text'
+        });
+
+        if (response.status >= 400) {
+          console.warn(`[YouTube] No se pudo acceder (status ${response.status}), usando fallback`);
+          // Fallback a thumbnail si no se puede acceder
+          return {
+            success: true,
+            data: {
+              title: `Video de YouTube`,
+              description: 'Video compartido desde YouTube',
+              image: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+              siteName: 'YouTube',
+              favicon: 'https://www.youtube.com/favicon.ico',
+              url
+            }
+          };
+        }
+
+        const $ = cheerio.load(response.data);
+        
+        // Intentar extraer del JSON-LD o meta tags
+        let title = $('meta[name="title"]').attr('content') ||
+                    $('meta[property="og:title"]').attr('content') ||
+                    $('h1').first().text() ||
+                    `Video de YouTube`;
+        
+        let description = $('meta[name="description"]').attr('content') ||
+                          $('meta[property="og:description"]').attr('content') ||
+                          'Video compartido desde YouTube';
+        
+        let image = $('meta[property="og:image"]').attr('content') ||
+                    `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+        return {
+          success: true,
+          data: {
+            title: this.cleanText(title),
+            description: this.cleanText(description),
+            image,
+            siteName: 'YouTube',
+            favicon: 'https://www.youtube.com/favicon.ico',
+            url
+          }
+        };
+      } catch (axiosErr) {
+        // Detectar errores de tamaño de contenido
+        if (axiosErr.code === 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED' || 
+            axiosErr.message?.includes('maxContentLength') ||
+            axiosErr.message?.includes('maxBodyLength')) {
+          console.warn(`[YouTube] Contenido muy grande (${axiosErr.message}), usando thumbnail`);
+          // Retornar datos básicos pero válidos usando thumbnail
+          return {
+            success: true,
+            data: {
+              title: `Video de YouTube`,
+              description: 'Video compartido desde YouTube',
+              image: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+              siteName: 'YouTube',
+              favicon: 'https://www.youtube.com/favicon.ico',
+              url
+            }
+          };
+        }
+        
+        // Otros errores de timeout/conexión
+        if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+          console.warn(`[YouTube] Timeout: ${axiosErr.message}`);
+          throw new Error(`CONNECTION_ERROR: YouTube tardó demasiado en responder. ${axiosErr.message}`);
+        }
+        
+        throw axiosErr;
+      }
+    } catch (e) {
+      console.error('[YouTube] Error crítico:', e.message);
+      // Retornar error para que el worker lo maneje
+      return {
+        success: false,
+        error: `YouTube scraping falló: ${e.message}`,
+        errorType: 'CONNECTION_ERROR',
+        data: {
+          title: 'Video de YouTube',
+          description: 'Video compartido desde YouTube',
+          image: '',
+          siteName: 'YouTube',
+          favicon: 'https://www.youtube.com/favicon.ico',
+          url
+        }
+      };
+    }
+  }
+
+  // Scraper especial para Twitter/X
+  async scrapeTwitter(url) {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        timeout: 5000,  // Reducido a 5 segundos para Twitter también
+        maxRedirects: 0,
+        validateStatus: (status) => status < 500,
+        maxContentLength: 512 * 1024,  // Reducido a 512 KB como YouTube
+        maxBodyLength: 512 * 1024,
+        responseType: 'text'
+      });
+
+      if (response.status >= 400) {
+        console.warn(`[Twitter] No se pudo acceder (status ${response.status}), usando fallback`);
+        return {
+          success: true,
+          data: {
+            title: 'Tweet/Post en Twitter',
+            description: 'Tweet compartido desde Twitter/X',
+            image: '',
+            siteName: 'Twitter',
+            favicon: 'https://abs.twimg.com/favicons/twitter.ico',
+            url
+          }
+        };
+      }
+
+      const $ = cheerio.load(response.data);
+
+      let title = $('meta[property="og:title"]').attr('content') ||
+                  $('meta[name="title"]').attr('content') ||
+                  'Tweet en Twitter';
+      
+      let description = $('meta[property="og:description"]').attr('content') ||
+                        $('meta[name="description"]').attr('content') ||
+                        'Tweet compartido desde Twitter';
+      
+      let image = $('meta[property="og:image"]').attr('content') || '';
+
+      return {
+        success: true,
+        data: {
+          title: this.cleanText(title),
+          description: this.cleanText(description),
+          image,
+          siteName: 'Twitter',
+          favicon: 'https://abs.twimg.com/favicons/twitter.ico',
+          url
+        }
+      };
+    } catch (axiosErr) {
+      // Detectar errores de tamaño de contenido
+      if (axiosErr.code === 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED' || 
+          axiosErr.message?.includes('maxContentLength') ||
+          axiosErr.message?.includes('maxBodyLength')) {
+        console.warn(`[Twitter] Contenido muy grande (${axiosErr.message}), usando fallback`);
+        // Retornar datos básicos pero válidos
+        return {
+          success: true,
+          data: {
+            title: 'Tweet/Post en Twitter',
+            description: 'Tweet compartido desde Twitter/X',
+            image: '',
+            siteName: 'Twitter',
+            favicon: 'https://abs.twimg.com/favicons/twitter.ico',
+            url
+          }
+        };
+      }
+      
+      // Otros errores de timeout/conexión
+      if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+        console.warn(`[Twitter] Timeout: ${axiosErr.message}`);
+        return {
+          success: false,
+          error: `Twitter scraping timeout: ${axiosErr.message}`,
+          errorType: 'CONNECTION_ERROR',
+          data: {
+            title: 'Tweet en Twitter',
+            description: 'Tweet compartido desde Twitter',
+            image: '',
+            siteName: 'Twitter',
+            favicon: 'https://abs.twimg.com/favicons/twitter.ico',
+            url
+          }
+        };
+      }
+      
+      console.error('[Twitter] Error:', axiosErr.message);
+      return {
+        success: false,
+        error: `Twitter scraping falló: ${axiosErr.message}`,
+        errorType: 'CONNECTION_ERROR',
+        data: {
+          title: 'Tweet en Twitter',
+          description: 'Tweet compartido desde Twitter',
+          image: '',
+          siteName: 'Twitter',
+          favicon: 'https://abs.twimg.com/favicons/twitter.ico',
+          url
+        }
+      };
+    }
+  }
+
+  // Scraper especial para Vimeo
+  async scrapeVimeo(url) {
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        timeout: 5000,  // Reducido a 5 segundos
+        maxRedirects: 0,
+        validateStatus: (status) => status < 500,
+        maxContentLength: 512 * 1024,  // Reducido a 512 KB
+        maxBodyLength: 512 * 1024,
+        responseType: 'text'
+      });
+
+      if (response.status >= 400) {
+        console.warn(`[Vimeo] No se pudo acceder (status ${response.status}), usando fallback`);
+        return {
+          success: true,
+          data: {
+            title: 'Video en Vimeo',
+            description: 'Video compartido desde Vimeo',
+            image: '',
+            siteName: 'Vimeo',
+            favicon: 'https://vimeo.com/favicon.ico',
+            url
+          }
+        };
+      }
+
+      const $ = cheerio.load(response.data);
+
+      let title = $('meta[property="og:title"]').attr('content') ||
+                  $('meta[name="title"]').attr('content') ||
+                  'Video en Vimeo';
+      
+      let description = $('meta[property="og:description"]').attr('content') ||
+                        'Video compartido desde Vimeo';
+      
+      let image = $('meta[property="og:image"]').attr('content') || '';
+
+      return {
+        success: true,
+        data: {
+          title: this.cleanText(title),
+          description: this.cleanText(description),
+          image,
+          siteName: 'Vimeo',
+          favicon: 'https://vimeo.com/favicon.ico',
+          url
+        }
+      };
+    } catch (axiosErr) {
+      // Detectar errores de tamaño de contenido
+      if (axiosErr.code === 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED' || 
+          axiosErr.message?.includes('maxContentLength') ||
+          axiosErr.message?.includes('maxBodyLength')) {
+        console.warn(`[Vimeo] Contenido muy grande (${axiosErr.message}), usando fallback`);
+        // Retornar datos básicos pero válidos
+        return {
+          success: true,
+          data: {
+            title: 'Video en Vimeo',
+            description: 'Video compartido desde Vimeo',
+            image: '',
+            siteName: 'Vimeo',
+            favicon: 'https://vimeo.com/favicon.ico',
+            url
+          }
+        };
+      }
+      
+      // Otros errores de timeout/conexión
+      if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+        console.warn(`[Vimeo] Timeout: ${axiosErr.message}`);
+        return {
+          success: false,
+          error: `Vimeo scraping timeout: ${axiosErr.message}`,
+          errorType: 'CONNECTION_ERROR',
+          data: {
+            title: 'Video en Vimeo',
+            description: 'Video compartido desde Vimeo',
+            image: '',
+            siteName: 'Vimeo',
+            favicon: 'https://vimeo.com/favicon.ico',
+            url
+          }
+        };
+      }
+      
+      console.error('[Vimeo] Error:', axiosErr.message);
+      return {
+        success: false,
+        error: `Vimeo scraping falló: ${axiosErr.message}`,
+        errorType: 'CONNECTION_ERROR',
+        data: {
+          title: 'Video en Vimeo',
+          description: 'Video compartido desde Vimeo',
+          image: '',
+          siteName: 'Vimeo',
+          favicon: 'https://vimeo.com/favicon.ico',
+          url
+        }
+      };
+    }
   }
 }
 
