@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import useTagStore from '../stores/tagStore'
+import { useLinkStore } from '../stores/linkStore'
 import { toast } from 'react-hot-toast'
 import { Plus } from 'lucide-react'
 import TagCard from '../components/TagCard'
 import TagCardSkeleton from '../components/Skeletons/TagCardSkeleton'
 
 const Tags = () => {
-	const { tags, isLoading, fetchTags, createTag, updateTag, deleteTag } = useTagStore()
+	const { tags, isLoading, fetchTags, createTag, updateTag, deleteTag, refetchTags, tagsNeedRefresh } = useTagStore()
+	const { refetchLinks, invalidateLinksByTags } = useLinkStore()
 	const [showForm, setShowForm] = useState(false)
 	const [name, setName] = useState('')
 	const [editingId, setEditingId] = useState(null)
@@ -27,6 +29,19 @@ const Tags = () => {
 		return () => { mounted = false }
 	}, [fetchTags])
 
+	// Refrescar tags automáticamente si la bandera está activada
+	useEffect(() => {
+		if (tagsNeedRefresh) {
+			const refreshTags = async () => {
+				const res = await refetchTags()
+				if (res && res.success === false) {
+					setLoadError(res.message || 'Error al cargar etiquetas')
+				}
+			}
+			refreshTags()
+		}
+	}, [tagsNeedRefresh, refetchTags])
+
 	const handleCreate = async (e) => {
 		e.preventDefault()
 		if (!name.trim()) return toast.error('Ingresa un nombre')
@@ -39,6 +54,7 @@ const Tags = () => {
 				setDescription('')
 				setShowForm(false)
 				setLoadError('')
+				await invalidateLinksByTags() // Actualiza links que usan estas etiquetas
 			}
 		} catch (err) {
 			console.error(err)
@@ -51,7 +67,7 @@ const Tags = () => {
 		try {
 			const res = await deleteTag(id)
 			if (res.success) {
-				// nothing else needed, store updated
+				await invalidateLinksByTags() // Actualiza links que ya no usan esta etiqueta
 			}
 		} catch (err) {
 			console.error(err)
@@ -79,6 +95,7 @@ const Tags = () => {
 				setColor('#6B7280')
 				setDescription('')
 				setShowForm(false)
+				await invalidateLinksByTags() // Actualiza links que usan esta etiqueta modificada
 			}
 		} catch (err) {
 			console.error(err)
@@ -104,8 +121,8 @@ const Tags = () => {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-gray-900">Etiquetas</h1>
-					<p className="text-gray-600">Organiza y administra tus etiquetas</p>
+					<h1 className="text-2xl font-bold text-gray-900 dark:text-white">Etiquetas</h1>
+					<p className="text-gray-600 dark:text-gray-300">Organiza y administra tus etiquetas</p>
 				</div>
 
 				<div className="flex items-center gap-2">
@@ -138,19 +155,19 @@ const Tags = () => {
 									rows={2}
 								/>
 								<div className="mt-2 flex items-center gap-3">
-									<div className="text-sm text-gray-600">Color:</div>
+									<div className="text-sm text-gray-600 dark:text-gray-400">Color:</div>
 									<div className="flex gap-2">
 										{COLOR_PALETTE.map(c => (
 											<button
 												key={c}
 												type="button"
 												onClick={() => setColor(c)}
-												className={`w-7 h-7 rounded-full border-2 ${color === c ? 'ring-2 ring-offset-1 ring-primary-500' : 'border-white'}`}
+												className={`w-7 h-7 rounded-full border-2 ${color === c ? 'ring-2 ring-offset-1 ring-primary-500' : 'border-gray-300 dark:border-gray-600'}`}
 												style={{ backgroundColor: c }}
 											/>
 										))}
 									</div>
-									<input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="ml-2 h-8 w-10 p-0 rounded" />
+									<input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="ml-2 h-8 w-10 p-0 rounded border border-gray-300 dark:border-gray-600" />
 								</div>
 							</div>
 							<div className="flex-shrink-0 self-stretch flex items-center">
@@ -165,9 +182,9 @@ const Tags = () => {
 
 			{/* Error inline */}
 			{loadError && (
-				<div className="card border-red-300">
+				<div className="card border-red-300 dark:border-red-800">
 					<div className="card-content flex items-center justify-between">
-						<p className="text-red-700">{loadError}</p>
+						<p className="text-red-700 dark:text-red-400">{loadError}</p>
 						<button
 							onClick={async () => {
 								const res = await fetchTags()
@@ -190,7 +207,7 @@ const Tags = () => {
 				</div>
 			) : !tags || tags.length === 0 ? (
 				<div className="text-center py-12">
-					<p className="text-gray-600">Aún no hay etiquetas. Crea la primera.</p>
+					<p className="text-gray-600 dark:text-gray-400">Aún no hay etiquetas. Crea la primera.</p>
 				</div>
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
