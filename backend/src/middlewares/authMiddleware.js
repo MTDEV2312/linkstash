@@ -31,6 +31,7 @@ const authMiddleware = async (req, res, next) => {
       const user = await User.findById(decoded.userId).select('-password');
       
       if (!user) {
+        console.warn('Usuario no encontrado para token:', decoded.userId);
         return res.status(401).json({
           success: false,
           message: 'Token no válido. Usuario no encontrado.'
@@ -42,25 +43,29 @@ const authMiddleware = async (req, res, next) => {
       next();
 
     } catch (jwtError) {
-      console.error('Error de JWT:', jwtError.message);
+      console.error('Error de JWT:', jwtError.name, jwtError.message);
       
       if (jwtError.name === 'TokenExpiredError') {
         return res.status(401).json({
           success: false,
-          message: 'Token expirado. Por favor, inicia sesión nuevamente.'
+          message: 'Token expirado. Por favor, inicia sesión nuevamente.',
+          code: 'TOKEN_EXPIRED'
         });
       }
       
       if (jwtError.name === 'JsonWebTokenError') {
+        console.warn('Token inválido (malformado):', jwtError.message);
         return res.status(401).json({
           success: false,
-          message: 'Token no válido.'
+          message: 'Token no válido.',
+          code: 'INVALID_TOKEN'
         });
       }
 
       return res.status(401).json({
         success: false,
-        message: 'Error de autenticación.'
+        message: 'Error de autenticación.',
+        code: 'AUTH_ERROR'
       });
     }
 
