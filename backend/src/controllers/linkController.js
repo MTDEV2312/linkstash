@@ -32,12 +32,16 @@ const saveLink = async (req, res) => {
     // Preparar datos provisionales
     const provisionalTitle = title && title.trim() ? title.trim() : scraperService.extractDomainFromUrl(url) || '';
     const provisionalDescription = description || (title ? '' : 'Procesando...');
+    
+    // Si el usuario proporciona título, usar imagen predeterminada
+    const provisionalImage = (title && title.trim()) ? (process.env.DEFAULT_IMAGE_URL || getNextDefaultImage()) : '';
 
     const linkData = {
       userId,
       url,
       title: provisionalTitle,
       description: provisionalDescription,
+      image: provisionalImage,
       needsDescription: false,
       tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean),
       status: title ? 'completed' : 'processing',
@@ -424,24 +428,42 @@ const toggleFavorite = async (req, res) => {
 
 // Función auxiliar para actualizar contadores de etiquetas
 const updateTagsCount = async (userId, tags, operation) => {
+  if (!tags || tags.length === 0) return;
+  
   for (const tagName of tags) {
-    let tag = await Tag.findOne({ userId, name: tagName });
+    // Normalizar nombre: trim, lowercase, remover espacios múltiples
+    const normalizedTagName = tagName.toLowerCase().trim().replace(/\s+/g, ' ');
     
-    if (!tag && operation === 'increment') {
-      // Crear nueva etiqueta
-      tag = new Tag({ userId, name: tagName, linkCount: 1 });
-      await tag.save();
-    } else if (tag) {
-      if (operation === 'increment') {
-        await tag.incrementLinkCount();
-      } else if (operation === 'decrement') {
-        await tag.decrementLinkCount();
-        
-        // Eliminar etiqueta si no tiene enlaces
-        if (tag.linkCount === 0) {
-          await Tag.deleteOne({ _id: tag._id });
+    if (!normalizedTagName || normalizedTagName.length < 2) {
+      console.warn(`Tag inválido o demasiado corto: "${tagName}"`);
+      continue;
+    }
+    
+    try {
+      let tag = await Tag.findOne({ userId, name: normalizedTagName });
+      
+      if (!tag && operation === 'increment') {
+        // Crear nueva etiqueta
+        tag = new Tag({ userId, name: normalizedTagName, linkCount: 1 });
+        await tag.save();
+        console.log(`✅ Nueva etiqueta creada: ${normalizedTagName}`);
+      } else if (tag) {
+        if (operation === 'increment') {
+          await tag.incrementLinkCount();
+        } else if (operation === 'decrement') {
+          await tag.decrementLinkCount();
+          
+          // Eliminar etiqueta si no tiene enlaces
+          if (tag.linkCount === 0) {
+            await Tag.deleteOne({ _id: tag._id });
+            console.log(`✅ Etiqueta eliminada (sin referencias): ${normalizedTagName}`);
+          }
         }
       }
+    } catch (err) {
+      console.error(`Error procesando tag "${tagName}":`, err.message);
+      // Continuar con otros tags si uno falla
+      continue;
     }
   }
 };
