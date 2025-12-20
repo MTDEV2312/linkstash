@@ -13,7 +13,7 @@ const tagSchema = new mongoose.Schema({
     lowercase: true,
     minlength: [2, 'El nombre de la etiqueta debe tener al menos 2 caracteres'],
     maxlength: [30, 'El nombre de la etiqueta no puede exceder 30 caracteres'],
-    match: [/^[a-zA-Z0-9\s-_.]+$/, 'El nombre de la etiqueta solo puede contener letras, números, espacios, guiones y puntos']
+    match: [/^[a-záéíóúñüA-ZÁÉÍÓÚÑÜ0-9\s\-_.]+$/, 'El nombre de la etiqueta contiene caracteres no permitidos']
   },
   color: {
     type: String,

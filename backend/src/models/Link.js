@@ -92,7 +92,7 @@ const linkSchema = new mongoose.Schema({
   },
   scrapingErrorType: {
     type: String,
-    enum: ['RATE_LIMIT_ERROR', 'BLOCKED_ERROR', 'CONNECTION_ERROR', 'SCRAPING_ERROR'],
+    enum: ['RATE_LIMIT_ERROR', 'BLOCKED_ERROR', 'CONNECTION_ERROR', 'SCRAPING_ERROR', null],
     default: null
   },
   scrapingAttempts: {
