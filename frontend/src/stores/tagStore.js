@@ -5,12 +5,13 @@ import toast from 'react-hot-toast'
 const useTagStore = create((set, get) => ({
   tags: [],
   isLoading: false,
+  tagsNeedRefresh: false, // Flag para indicar que necesita refrescar
 
   fetchTags: async () => {
     set({ isLoading: true })
     try {
       const data = await TagService.getAllTags()
-      set({ tags: data || [], isLoading: false })
+      set({ tags: data || [], isLoading: false, tagsNeedRefresh: false })
       return { success: true }
     } catch (error) {
       set({ isLoading: false, tags: [] })
@@ -27,7 +28,7 @@ const useTagStore = create((set, get) => ({
     set({ isLoading: true })
     try {
       const tag = await TagService.createTag(tagData)
-      set(state => ({ tags: [tag, ...state.tags], isLoading: false }))
+      set(state => ({ tags: [tag, ...state.tags], isLoading: false, tagsNeedRefresh: true }))
       toast.success('Etiqueta creada')
       return { success: true, tag }
     } catch (error) {
@@ -45,7 +46,7 @@ const useTagStore = create((set, get) => ({
     set({ isLoading: true })
     try {
       const updated = await TagService.updateTag(id, tagData)
-      set(state => ({ tags: state.tags.map(t => (t._id === id ? updated : t)), isLoading: false }))
+      set(state => ({ tags: state.tags.map(t => (t._id === id ? updated : t)), isLoading: false, tagsNeedRefresh: true }))
       toast.success('Etiqueta actualizada')
       return { success: true, tag: updated }
     } catch (error) {
@@ -63,7 +64,7 @@ const useTagStore = create((set, get) => ({
     set({ isLoading: true })
     try {
       await TagService.deleteTag(id)
-      set(state => ({ tags: state.tags.filter(t => t._id !== id), isLoading: false }))
+      set(state => ({ tags: state.tags.filter(t => t._id !== id), isLoading: false, tagsNeedRefresh: true }))
       toast.success('Etiqueta eliminada')
       return { success: true }
     } catch (error) {
@@ -75,6 +76,16 @@ const useTagStore = create((set, get) => ({
       } catch (t) {}
       return { success: false, message }
     }
+  },
+
+  // Refrescar tags desde servidor
+  refetchTags: async () => {
+    return await get().fetchTags()
+  },
+
+  // Marcar tags para refrescar (usado cuando se detectan cambios desde otro lado)
+  markTagsForRefresh: () => {
+    set({ tagsNeedRefresh: true })
   }
 }))
 

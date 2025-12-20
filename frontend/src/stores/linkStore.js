@@ -79,7 +79,10 @@ export const useLinkStore = create((set, get) => ({
       // Agregar al inicio de la lista
       set(state => ({
         links: [newLink, ...state.links],
-        isLoading: false
+        isLoading: false,
+        pagination: state.pagination ? 
+          { ...state.pagination, totalLinks: state.pagination.totalLinks + 1 } 
+          : state.pagination
       }))
       
       showSuccess('Enlace guardado exitosamente')
@@ -93,6 +96,12 @@ export const useLinkStore = create((set, get) => ({
       } catch (t) {}
       return { success: false, message }
     }
+  },
+
+  // Refrescar datos después de mutaciones
+  refetchLinks: async () => {
+    const { fetchLinks, filters } = get()
+    return await fetchLinks(filters)
   },
 
   // Obtener enlace por ID
@@ -229,6 +238,16 @@ export const useLinkStore = create((set, get) => ({
       } catch (t) {}
       return { success: false, message }
     }
+  },
+
+  // Invalidar cache de links después de cambios en tags
+  invalidateLinksByTags: async (tags) => {
+    const { fetchLinks, filters } = get()
+    // Refrescar si hay tags en los filtros
+    if (filters.tags && filters.tags.length > 0) {
+      return await fetchLinks(filters)
+    }
+    return { success: true }
   },
 
   // Alternar archivado
