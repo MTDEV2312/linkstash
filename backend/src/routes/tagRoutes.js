@@ -213,6 +213,14 @@ const deleteTag = async (req, res) => {
     const { id } = req.params;
     const userId = req.user._id;
 
+    // Validar que el ID no sea undefined o inválido
+    if (!id || id === 'undefined' || id === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de etiqueta no válido'
+      });
+    }
+
     const tag = await Tag.findOne({ _id: id, userId });
 
     if (!tag) {
