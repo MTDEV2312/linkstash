@@ -31,7 +31,7 @@ Cada sub-proyecto (backend y frontend) incluye:
 - 🌙 **Dark mode** con persistencia
 - 📴 **Modo offline** con Service Worker
 - 🎯 **Error tracking** con Sentry
-- 🔄 **Redis + BullMQ** para procesamiento en background
+- 🔄 **Redis + BullMQ** para procesamiento en background (opcional)
 - 📊 **Dashboard** con métricas en tiempo real
 
 ## 🛠️ Tecnologías
@@ -39,12 +39,11 @@ Cada sub-proyecto (backend y frontend) incluye:
 ### Backend
 - Node.js + Express
 - MongoDB + Mongoose
-- Redis + BullMQ (colas de trabajo)
+- Redis + BullMQ (colas de trabajo, opcional)
 - JWT para autenticación
 - Cheerio para web scraping
-- Bcrypt para hash de contraseñas
+- Bcryptjs para hash de contraseñas
 - Cloudinary para almacenamiento de imágenes
-- Docker + Docker Compose
 
 ### Frontend
 - React 18.2.0 + Vite 7.1.7
@@ -81,10 +80,7 @@ npm install
 cp .env.example .env
 # Editar .env con tus configuraciones
 
-# Iniciar con Docker Compose (recomendado)
-docker-compose up -d
-
-# O iniciar servidor de desarrollo directamente
+# Iniciar servidor de desarrollo
 npm run dev
 ```
 
@@ -112,10 +108,10 @@ npm run build
 npm run preview
 ```
 
-### 4. Configurar MongoDB y Redis
-- MongoDB y Redis se inician automáticamente con `docker-compose up -d`
-- O configura tus propias instancias en el archivo `.env`
-- Actualiza `MONGODB_URI` y `REDIS_URL` en el archivo `.env`
+### 4. Configurar MongoDB y Redis (opcional)
+- Configura tu instancia de MongoDB en el archivo `.env`
+- Para Redis + BullMQ, configura las variables `REDIS_HOST`, `REDIS_PORT` y `ENABLE_BULLMQ` en el archivo `.env`
+- Actualiza `MONGODB_URI` con tu cadena de conexión de MongoDB
 
 ## 📁 Estructura del Proyecto
 
@@ -123,8 +119,6 @@ npm run preview
 LinkStash/
 ├── backend/
 │   ├── app.js                    # Servidor principal
-│   ├── docker-compose.yml        # Docker Compose
-│   ├── Dockerfile               # Dockerfile backend
 │   ├── package.json
 │   ├── .env
 │   └── src/
