@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-WORKDIR /app/backend
+WORKDIR /backend
 
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
 
