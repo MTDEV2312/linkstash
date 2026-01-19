@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-WORKDIR /backend
+WORKDIR /app
 
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
 
@@ -10,7 +10,7 @@ ENV PORT=5000
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
-COPY . .
+COPY backend/ .
 
 USER nodejs
 
