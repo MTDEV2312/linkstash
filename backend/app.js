@@ -108,9 +108,9 @@ app.use('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`📡 API disponible en: http://localhost:${PORT}`);
+  console.log(`📡 API disponible en: http://0.0.0.0:${PORT}`);
 });
 
 export default app;
