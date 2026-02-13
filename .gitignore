@@ -144,4 +144,5 @@ IMPLEMENTACION-COMPLETADA.md
 MEJORAS-TECNICAS.md
 *.txt
 test-results/
-frontend/tests/results
+frontend/tests
+frontend/tests/e2e
