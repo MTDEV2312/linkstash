@@ -143,3 +143,5 @@ VERIFICACION-INTEGRAL.md
 IMPLEMENTACION-COMPLETADA.md
 MEJORAS-TECNICAS.md
 *.txt
+test-results/
+frontend/tests/results
