@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
+import { linkFormRules, normalizeUrl, linkValidators } from '../utils/linkValidators'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -20,8 +21,10 @@ const LinkForm = ({ onSave, onCancel }) => {
     register,
     handleSubmit,
     watch,
-    formState: { errors }
+    formState: { errors, touchedFields },
+    trigger
   } = useForm({
+    mode: 'onBlur', // Validar al perder foco
     defaultValues: {
       url: '',
       title: '',
@@ -31,22 +34,12 @@ const LinkForm = ({ onSave, onCancel }) => {
   })
 
   const watchedUrl = watch('url')
+  const watchedTitle = watch('title')
+  const watchedDescription = watch('description')
+  const watchedTags = watch('tags')
 
-  // Función para validar URL
-  const isValidUrl = (string) => {
-    try {
-      new URL(string.startsWith('http') ? string : `https://${string}`)
-      return true
-    } catch (_) {
-      return false
-    }
-  }
-
-  // Normalizar URL
-  const normalizeUrl = (url) => {
-    if (!url) return ''
-    return url.startsWith('http') ? url : `https://${url}`
-  }
+  // Función para validar URL (solo formato)
+  const isValidUrl = (string) => linkValidators.isValidUrl(string)
 
   // Preview de URL cuando cambia
   useEffect(() => {
@@ -135,7 +128,7 @@ const LinkForm = ({ onSave, onCancel }) => {
 
       // Validar URL
       if (!isValidUrl(linkData.url)) {
-        toast.error('Por favor ingresa una URL válida')
+         toast.error('URL inválida')
         return
       }
 
@@ -186,18 +179,16 @@ const LinkForm = ({ onSave, onCancel }) => {
               <LinkIcon className="h-4 w-4 text-gray-400" />
             </div>
             <input
-              {...register('url', {
-                required: 'La URL es obligatoria',
-                  validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida',
-                  onChange: () => serverError && setServerError(null)
-              })}
+              {...register('url', linkFormRules.url)}
               type="text"
-              className="input pl-10"
+              className={`input pl-10 ${errors.url ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="https://ejemplo.com"
             />
           </div>
           {errors.url && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.url.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.url.message}
+            </p>
           )}
           
           {/* Preview de URL */}
@@ -225,27 +216,28 @@ const LinkForm = ({ onSave, onCancel }) => {
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Título
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(Opcional - será generado automáticamente)</span>
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FileText className="h-4 w-4 text-gray-400 dark:text-gray-500" />
             </div>
             <input
-              {...register('title', {
-                maxLength: {
-                  value: 200,
-                  message: 'El título no puede exceder 200 caracteres'
-                }
-                ,
-                onChange: () => serverError && setServerError(null)
-              })}
+              {...register('title', linkFormRules.title)}
               type="text"
-              className="input pl-10"
+              className={`input pl-10 ${errors.title ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Título del enlace (se detectará automáticamente si se deja vacío)"
             />
           </div>
           {errors.title && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.title.message}
+            </p>
+          )}
+          {watchedTitle && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {watchedTitle.length}/200 caracteres
+            </p>
           )}
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Si no especificas un título, se extraerá automáticamente de la página web
@@ -256,43 +248,48 @@ const LinkForm = ({ onSave, onCancel }) => {
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Descripción
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(Opcional)</span>
           </label>
           <textarea
-            {...register('description', {
-              maxLength: {
-                value: 500,
-                message: 'La descripción no puede exceder 500 caracteres'
-              }
-              ,
-              onChange: () => serverError && setServerError(null)
-            })}
+            {...register('description', linkFormRules.description)}
+            className={`input resize-none ${errors.description ? 'border-red-500 focus:ring-red-500' : ''}`}
             rows={3}
-            className="input resize-none"
             placeholder="Descripción del enlace (opcional)"
           />
           {errors.description && (
-            <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.description.message}
+            </p>
+          )}
+          {watchedDescription && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {watchedDescription.length}/1000 caracteres
+            </p>
           )}
         </div>
 
-
-
         {/* Etiquetas */}
         <div>
-          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Etiquetas
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(Separadas por comas)</span>
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Tag className="h-4 w-4 text-gray-400" />
             </div>
             <input
-              {...register('tags')}
+              {...register('tags', linkFormRules.tags)}
               type="text"
-              className="input pl-10"
+              className={`input pl-10 ${errors.tags ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="programación, tutorial, react (separadas por comas)"
             />
           </div>
+          {errors.tags && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.tags.message}
+            </p>
+          )}
           <p className="mt-1 text-xs text-gray-500">
             Separa las etiquetas con comas. Se generarán automáticamente si se dejan vacías.
           </p>
