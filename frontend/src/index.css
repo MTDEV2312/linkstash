@@ -52,11 +52,11 @@
   }
   
   .btn-ghost {
-    @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+    @apply btn bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900;
   }
 
   html.dark .btn-ghost {
-    @apply text-gray-400 hover:bg-gray-800 hover:text-gray-50;
+    @apply bg-gray-800 text-gray-200 hover:bg-gray-700 hover:text-gray-50;
   }
   
   .btn-sm {
@@ -137,6 +137,16 @@
 }
 
 @layer utilities {
+  /* Focus visible para mejor accesibilidad */
+  .focus-visible:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+
+  /* Asegurar contraste en modo oscuro */
+  html.dark .focus-visible:focus-visible {
+    @apply outline-primary-400;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
