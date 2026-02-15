@@ -1,8 +1,21 @@
 import api from './api'
 
 class LinkService {
-  // Obtener todos los enlaces
-  async getLinks(params = {}) {
+  constructor() {
+    this._linksCache = new Map()
+    this._abortController = null
+  }
+
+  // Cancelar request anterior de fetch links
+  cancelFetchLinks() {
+    if (this._abortController) {
+      this._abortController.abort()
+      this._abortController = null
+    }
+  }
+
+  // Obtener todos los enlaces con soporte para AbortController
+  async getLinks(params = {}, signal = null) {
     // Cache simple por parámetros para evitar ráfagas de requests (ej: búsqueda)
     if (!this._linksCache) this._linksCache = new Map();
     const key = JSON.stringify(params || {})
@@ -13,7 +26,16 @@ class LinkService {
       return { fromCache: true, data: cached.data }
     }
 
-    const response = await api.get('/links', { params })
+    // Cancelar request anterior si existe
+    this.cancelFetchLinks()
+
+    // Crear nuevo controller si no se proporciona signal
+    if (!signal) {
+      this._abortController = new AbortController()
+      signal = this._abortController.signal
+    }
+
+    const response = await api.get('/links', { params, signal })
     // Normalizar payload del backend: { success, data: { links, pagination } }
     const raw = response.data
     const payload = raw?.data ?? raw
