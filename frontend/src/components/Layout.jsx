@@ -43,7 +43,7 @@ const Layout = ({ children }) => {
       {/* Sidebar móvil */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed top-0 left-0 w-64 h-full bg-white dark:bg-gray-800 shadow-xl">
+        <div className="fixed top-0 left-0 w-64 h-full bg-white dark:bg-gray-800 shadow-xl flex flex-col">
           <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">LinkStash</h2>
             <button
@@ -53,7 +53,7 @@ const Layout = ({ children }) => {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <nav className="mt-4">
+          <nav className="mt-4 flex-1">
             {navigation.map((item) => {
               const Icon = item.icon
               return (
@@ -69,6 +69,27 @@ const Layout = ({ children }) => {
               )
             })}
           </nav>
+
+          {/* Usuario móvil */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{user?.username}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setSidebarOpen(false); handleLogout(); }}
+              className="mt-3 w-full flex items-center justify-center px-4 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-md transition-colors"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </div>
 

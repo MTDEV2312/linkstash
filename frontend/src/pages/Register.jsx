@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
-import { Mail, Lock, User, Eye, EyeOff, UserPlus } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react'
 import FormError from '../components/FormError'
 import extractServerMessage from '../utils/errorUtils'
 
@@ -39,7 +39,17 @@ const Register = () => {
   const [serverError, setServerError] = useState(null)
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 relative">
+       {/* Botón volver a landing */}
+       <Link
+         to="/"
+         className="absolute top-4 left-4 sm:top-6 sm:left-6 inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+         aria-label="Volver al inicio"
+       >
+         <ArrowLeft className="w-4 h-4" />
+         <span className="hidden sm:inline">Inicio</span>
+       </Link>
+
        <div className="container mx-auto max-w-md w-full space-y-6 sm:space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
