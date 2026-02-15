@@ -3,10 +3,13 @@ import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
 import PlaceholderImage from './PlaceholderImage'
+import OptimizedImage from './OptimizedImage'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload, Cloud, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
+  const modalRef = useFocusTrap(isOpen)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageFile, setImageFile] = useState(null)
   const [serverError, setServerError] = useState(null)
@@ -238,18 +241,34 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   if (!isOpen || !link) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={handleClose}
+    >
+      <div 
+        ref={modalRef}
+        className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-modal-title"
+        onClick={(e) => e.stopPropagation()}
+        tabIndex={0}
+      >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 
+            id="edit-modal-title"
+            className="text-xl font-bold text-gray-900 dark:text-white"
+          >
             Editar enlace
-          </h3>
+          </h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 rounded"
+            aria-label="Cerrar modal de edición"
             disabled={isSubmitting}
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
@@ -377,10 +396,14 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
             <div className="mb-4">
               {imagePreview ? (
                 <div className="relative inline-block">
-                  <img
+                  <OptimizedImage
                     src={imagePreview}
                     alt="Preview"
+                    width={300}
+                    height={300}
                     className="w-40 h-40 object-cover rounded-lg border"
+                    quality={70}
+                    isCloudinary={link?.imageIsCloudinary && imagePreview === link.image}
                     onError={(e) => {
                       e.target.style.display = 'none'
                     }}
