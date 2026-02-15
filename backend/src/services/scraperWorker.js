@@ -2,7 +2,23 @@ import scraperQueue from './scraperQueue.js';
 import scraperService from './scraperService.js';
 import Link from '../models/Link.js';
 import cloudinaryService from './cloudinaryService.js';
-import { getNextDefaultImage } from '../config/defaults.js';
+import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
+
+const resolveDefaultImage = async () => {
+  const fallback = await getNextDefaultImageWithCloudinary();
+  let url = fallback.url || '';
+  let isCloudinary = fallback.isCloudinary;
+  let publicId = fallback.publicId || '';
+
+  if (url && url.startsWith('/')) {
+    const backendUrl = process.env.BACKEND_BASE_URL || 'http://localhost:5000';
+    url = `${backendUrl.replace(/\/$/, '')}${url}`;
+    isCloudinary = false;
+    publicId = '';
+  }
+
+  return { url, isCloudinary, publicId };
+};
 
 // Worker: procesa jobs con forma { data: { linkId, url, userId }, ... }
 const processJob = async (job) => {
@@ -54,8 +70,12 @@ const processJob = async (job) => {
           updates.imageIsCloudinary = false;
         }
       } else {
-        const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
-        if (defaultImg) updates.image = defaultImg;
+        const fallback = await resolveDefaultImage();
+        if (fallback.url) {
+          updates.image = fallback.url;
+          updates.imagePublicId = fallback.publicId;
+          updates.imageIsCloudinary = fallback.isCloudinary;
+        }
       }
 
       // Aplicar actualizaciones
@@ -70,20 +90,25 @@ const processJob = async (job) => {
       console.warn(`[Worker] Scraping falló para ${linkId}: ${errMsg} (tipo: ${errType}), usando valores predeterminados`);
       
       // Obtener imagen predeterminada
-      const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+      const fallback = await resolveDefaultImage();
       
       // Actualizar con valores predeterminados y marcar como completado
       const updates = {
         status: 'completed',
         scrapingError: errMsg,
         scrapingErrorType: errType,
-        needsDescription: true // IMPORTANTE: Marcar que necesita descripción manual
+        needsDescription: true, // IMPORTANTE: Marcar que necesita descripción manual
+        // Asegurar que si el scraping falló, el campo image no se quede vacio si no tiene valor previo
       };
       
-      // Solo agregar imagen si no tiene una
+      // Obtener imagen predeterminada si no tenemos imagen
       const currentLink = await Link.findById(linkId);
       if (!currentLink.image || currentLink.image === '') {
-        if (defaultImg) updates.image = defaultImg;
+        if (fallback.url) {
+          updates.image = fallback.url;
+          updates.imagePublicId = fallback.publicId;
+          updates.imageIsCloudinary = fallback.isCloudinary;
+        }
       }
       
       await Link.findByIdAndUpdate(linkId, updates, { new: true });
@@ -96,7 +121,7 @@ const processJob = async (job) => {
     console.error(`[Worker] Error procesando job ${job.id} para link ${linkId}:`, err.message || err);
     
     try {
-      const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+      const fallback = await resolveDefaultImage();
       const currentLink = await Link.findById(linkId);
       
       const updates = {
@@ -107,7 +132,11 @@ const processJob = async (job) => {
       };
       
       if (!currentLink.image || currentLink.image === '') {
-        if (defaultImg) updates.image = defaultImg;
+        if (fallback.url) {
+          updates.image = fallback.url;
+          updates.imagePublicId = fallback.publicId;
+          updates.imageIsCloudinary = fallback.isCloudinary;
+        }
       }
       
       await Link.findByIdAndUpdate(linkId, updates, { new: true });
@@ -138,7 +167,7 @@ try {
     try {
       const linkId = job.data && job.data.linkId;
       if (linkId) {
-        const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+        const fallback = await resolveDefaultImage();
         const currentLink = await Link.findById(linkId);
         
         const updates = {
@@ -148,7 +177,11 @@ try {
         };
         
         if (!currentLink.image || currentLink.image === '') {
-          if (defaultImg) updates.image = defaultImg;
+          if (fallback.url) {
+            updates.image = fallback.url;
+            updates.imagePublicId = fallback.publicId;
+            updates.imageIsCloudinary = fallback.isCloudinary;
+          }
         }
         
         await Link.findByIdAndUpdate(linkId, updates);
