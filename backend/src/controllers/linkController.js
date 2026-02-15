@@ -2,7 +2,7 @@ import Link from '../models/Link.js';
 import Tag from '../models/Tag.js';
 import scraperService from '../services/scraperService.js';
 import cloudinaryService from '../services/cloudinaryService.js';
-import { getNextDefaultImage } from '../config/defaults.js';
+import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
 import queue from '../config/queue.js';
 
 // @desc    Guardar nuevo enlace
@@ -34,7 +34,22 @@ const saveLink = async (req, res) => {
     const provisionalDescription = description || (title ? '' : 'Procesando...');
     
     // Si el usuario proporciona título, usar imagen predeterminada
-    const provisionalImage = (title && title.trim()) ? (process.env.DEFAULT_IMAGE_URL || getNextDefaultImage()) : '';
+    let provisionalImage = '';
+    let fallback = { url: '', publicId: '', isCloudinary: false };
+    if (title && title.trim()) {
+      fallback = await getNextDefaultImageWithCloudinary();
+      const rawImage = fallback.url;
+      if (rawImage && /^(https?:\/\/.+|\/[\S].*)/i.test(rawImage)) {
+        provisionalImage = rawImage;
+      } else {
+        console.warn(`⚠️ Imagen por defecto inválida ignorada: "${rawImage}"`);
+        if (rawImage && !rawImage.startsWith('http') && !rawImage.startsWith('/')) {
+          provisionalImage = `/${rawImage}`;
+        } else {
+          provisionalImage = '';
+        }
+      }
+    }
 
     const linkData = {
       userId,
@@ -42,12 +57,17 @@ const saveLink = async (req, res) => {
       title: provisionalTitle,
       description: provisionalDescription,
       image: provisionalImage,
+      imagePublicId: provisionalImage && fallback.url === provisionalImage ? fallback.publicId : '',
+      imageIsCloudinary: provisionalImage && fallback.url === provisionalImage ? fallback.isCloudinary : false,
       needsDescription: false,
       tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean),
       status: title ? 'completed' : 'processing',
       scrapingError: null,
       scrapingAttempts: 0
     };
+
+    console.log('--- DEBUG SAVE LINK ---');
+    console.log('linkData:', JSON.stringify(linkData, null, 2));
 
     // Guardado inmediato
     const link = new Link(linkData);
