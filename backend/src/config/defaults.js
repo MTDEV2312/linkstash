@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cloudinaryService from '../services/cloudinaryService.js';
 
 // __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,31 @@ try {
 
 let roundRobinIndex = 0;
 
+const cloudinaryCache = new Map();
+
+const hasCloudinaryConfig = () => {
+  return !!(
+    process.env.CLOUDINARY_URL ||
+    process.env.CLOUDINARY_CLOUD_NAME ||
+    process.env.cloud_name ||
+    process.env.CLOUDINARY_CLOUDNAME
+  );
+};
+
+const isCloudinaryUrl = (url) => {
+  return typeof url === 'string' && url.includes('res.cloudinary.com');
+};
+
+const isLocalhostDefaultsUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    return (host === 'localhost' || host === '127.0.0.1') && parsed.pathname.includes('/defaults/');
+  } catch (e) {
+    return false;
+  }
+};
+
 export function getDefaultImages() {
   return defaultImages.slice();
 }
@@ -50,7 +76,55 @@ export function getNextDefaultImage() {
   return defaultImages[idx];
 }
 
+export async function getNextDefaultImageWithCloudinary() {
+  const rawImage = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+  if (!rawImage) {
+    return { url: '', publicId: '', isCloudinary: false };
+  }
+
+  if (cloudinaryCache.has(rawImage)) {
+    return cloudinaryCache.get(rawImage);
+  }
+
+  if (isCloudinaryUrl(rawImage)) {
+    const cached = { url: rawImage, publicId: '', isCloudinary: false };
+    cloudinaryCache.set(rawImage, cached);
+    return cached;
+  }
+
+  if (!hasCloudinaryConfig()) {
+    const fallback = { url: rawImage, publicId: '', isCloudinary: false };
+    cloudinaryCache.set(rawImage, fallback);
+    return fallback;
+  }
+
+  try {
+    const folderBase = process.env.CLOUDINARY_FOLDER || 'linkstash';
+    let uploadSource = rawImage;
+    if (isLocalhostDefaultsUrl(rawImage)) {
+      const parsed = new URL(rawImage);
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const filename = parts[parts.length - 1];
+      uploadSource = `/defaults/${filename}`;
+    }
+
+    const up = await cloudinaryService.uploadImageFromUrl(uploadSource, { folder: `${folderBase}/defaults` });
+    if (up && up.success) {
+      const result = { url: up.url, publicId: up.public_id || '', isCloudinary: true };
+      cloudinaryCache.set(rawImage, result);
+      return result;
+    }
+  } catch (e) {
+    // Fall through to fallback
+  }
+
+  const fallback = { url: rawImage, publicId: '', isCloudinary: false };
+  cloudinaryCache.set(rawImage, fallback);
+  return fallback;
+}
+
 export default {
   getDefaultImages,
-  getNextDefaultImage
+  getNextDefaultImage,
+  getNextDefaultImageWithCloudinary
 };

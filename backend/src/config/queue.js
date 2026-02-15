@@ -74,7 +74,23 @@ const init = async () => {
           const scraperService = (await import('../services/scraperService.js')).default;
           const Link = (await import('../models/Link.js')).default;
           const cloudinaryService = (await import('../services/cloudinaryService.js')).default;
-          const { getNextDefaultImage } = await import('../config/defaults.js');
+          const { getNextDefaultImageWithCloudinary } = await import('../config/defaults.js');
+
+          const resolveDefaultImage = async () => {
+            const fallback = await getNextDefaultImageWithCloudinary();
+            let url = fallback.url || '';
+            let isCloudinary = fallback.isCloudinary;
+            let publicId = fallback.publicId || '';
+
+            if (url && url.startsWith('/')) {
+              const backendUrl = process.env.BACKEND_BASE_URL || 'http://localhost:5000';
+              url = `${backendUrl.replace(/\/$/, '')}${url}`;
+              isCloudinary = false;
+              publicId = '';
+            }
+
+            return { url, isCloudinary, publicId };
+          };
 
           const { linkId, url, userId } = job.data || {};
           if (!linkId || !url) throw new Error('Invalid job payload');
@@ -100,16 +116,39 @@ const init = async () => {
                 updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsCloudinary = false;
               }
             } else {
-              const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
-              if (defaultImg) updates.image = defaultImg;
+              const fallback = await resolveDefaultImage();
+              if (fallback.url) {
+                updates.image = fallback.url;
+                updates.imagePublicId = fallback.publicId;
+                updates.imageIsCloudinary = fallback.isCloudinary;
+              }
             }
 
             await Link.findByIdAndUpdate(linkId, updates, { new: true });
             return { success: true };
           } else {
             const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
-            await Link.findByIdAndUpdate(linkId, { status: 'failed', scrapingError: errMsg });
-            throw new Error(errMsg);
+            const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
+
+            const updates = {
+              status: 'completed',
+              scrapingError: errMsg,
+              scrapingErrorType: errType,
+              needsDescription: true
+            };
+
+            const currentLink = await Link.findById(linkId);
+            if (!currentLink.image || currentLink.image === '') {
+              const fallback = await resolveDefaultImage();
+              if (fallback.url) {
+                updates.image = fallback.url;
+                updates.imagePublicId = fallback.publicId;
+                updates.imageIsCloudinary = fallback.isCloudinary;
+              }
+            }
+
+            await Link.findByIdAndUpdate(linkId, updates, { new: true });
+            return { success: true };
           }
         },
         {
