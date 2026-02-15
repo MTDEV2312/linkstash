@@ -32,7 +32,7 @@ const connectDB = async () => {
 
   } catch (error) {
     logger.error('❌ Error conectando a MongoDB', error);
-    console.log('⚠️  Servidor continuará sin base de datos (modo testing)');
+    logger.warn('Servidor continuará sin base de datos (modo testing)');
     return null;
     // process.exit(1); // Comentado para permitir tests E2E
   }

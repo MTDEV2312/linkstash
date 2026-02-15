@@ -4,6 +4,10 @@ import scraperService from '../services/scraperService.js';
 import cloudinaryService from '../services/cloudinaryService.js';
 import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
 import queue from '../config/queue.js';
+import { getLogger } from '../utils/logger.js';
+import { asyncHandler } from '../utils/customErrors.js';
+
+const logger = getLogger('LinkController');
 
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
@@ -30,7 +34,16 @@ const saveLink = async (req, res) => {
     }
 
     // Preparar datos provisionales
-    const provisionalTitle = title && title.trim() ? title.trim() : scraperService.extractDomainFromUrl(url) || '';
+    let provisionalTitle = '';
+    if (title && title.trim()) {
+      provisionalTitle = title.trim();
+    } else {
+      try {
+        provisionalTitle = scraperService.extractDomainFromUrl(url) || new URL(url).hostname || 'Sin título';
+      } catch (_) {
+        provisionalTitle = url.substring(0, 100) || 'Sin título';
+      }
+    }
     const provisionalDescription = description || (title ? '' : 'Procesando...');
     
     // Si el usuario proporciona título, usar imagen predeterminada
@@ -42,7 +55,7 @@ const saveLink = async (req, res) => {
       if (rawImage && /^(https?:\/\/.+|\/[\S].*)/i.test(rawImage)) {
         provisionalImage = rawImage;
       } else {
-        console.warn(`⚠️ Imagen por defecto inválida ignorada: "${rawImage}"`);
+        logger.warn(`Imagen por defecto inválida ignorada: "${rawImage}"`);
         if (rawImage && !rawImage.startsWith('http') && !rawImage.startsWith('/')) {
           provisionalImage = `/${rawImage}`;
         } else {
@@ -66,8 +79,7 @@ const saveLink = async (req, res) => {
       scrapingAttempts: 0
     };
 
-    console.log('--- DEBUG SAVE LINK ---');
-    console.log('linkData:', JSON.stringify(linkData, null, 2));
+    logger.debug('Guardando nuevo enlace', { linkData });
 
     // Guardado inmediato
     const link = new Link(linkData);
@@ -78,7 +90,7 @@ const saveLink = async (req, res) => {
       await updateTagsCount(userId, linkData.tags, 'increment');
     }
 
-    console.log(`✅ Enlace guardado (provisional): ${link.title} - status=${link.status}`);
+    logger.info(`Enlace guardado (provisional): ${link.title}`, { status: link.status, linkId: link._id });
 
     // Si requiere scraping en segundo plano, encolamos la tarea (no await)
     if (link.status === 'processing') {
@@ -90,10 +102,10 @@ const saveLink = async (req, res) => {
           // compatibilidad por si la implementación exporta add
           await queue.add('scrape', { linkId: link._id.toString(), url, userId: req.user._id }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
         } else {
-          console.warn('No queue available to enqueue scraping job');
+          logger.warn('No hay cola disponible para encolar job de scraping');
         }
       } catch (e) {
-        console.error('No se pudo encolar job de scraping:', e);
+        logger.error('No se pudo encolar job de scraping', e);
       }
     }
 
@@ -105,7 +117,7 @@ const saveLink = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en saveLink:', error);
+    logger.error('Error en saveLink', error, { url: req.body?.url, userId: req.user?._id });
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({ success: false, message: messages.join('. ') });
@@ -167,7 +179,7 @@ const getLinks = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getLinks:', error);
+    logger.error('Error en getLinks', error, { userId: req.user?._id, query: req.query });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -198,7 +210,7 @@ const getLinkById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getLinkById:', error);
+    logger.error('Error en getLinkById', error, { linkId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -213,16 +225,21 @@ const updateLink = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-  const { title, description, image, tags = [], isFavorite, isArchived } = req.body;
+  const { title, description, image, isFavorite, isArchived } = req.body;
+    // Normalizar tags: en multipart con un solo tag viene como string, no array
+    let tags = req.body.tags;
+    if (tags === undefined || tags === null) {
+      tags = [];
+    } else if (typeof tags === 'string') {
+      tags = [tags];
+    } else if (!Array.isArray(tags)) {
+      tags = [];
+    }
     // Determinar si se pidió subida a Cloudinary (form fields vienen como strings en multipart)
     const uploadToCloudinary = (req.body.uploadToCloudinary === 'true' || req.body.uploadToCloudinary === true);
 
     // Debug: log corto para entender por qué req.file podría no llegar
-    console.log(`updateLink: id=${id}, user=${userId}, uploadToCloudinary=${uploadToCloudinary}, hasFile=${!!req.file}`);
-    if (!req.file) {
-      console.log('updateLink: req.body keys =', Object.keys(req.body));
-      console.log('updateLink: content-type =', req.headers['content-type']);
-    }
+    logger.debug('updateLink invocado', { id, userId: userId.toString(), uploadToCloudinary, hasFile: !!req.file, bodyKeys: Object.keys(req.body), contentType: req.headers['content-type'] });
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -247,7 +264,7 @@ const updateLink = async (req, res) => {
     if (req.file) {
       // Si la imagen anterior estaba en Cloudinary, eliminarla antes
       if (link.imageIsCloudinary && link.imagePublicId) {
-        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { console.error('Error deleting old cloud image:', e); }
+        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa de Cloudinary', e, { publicId: link.imagePublicId }); }
       }
 
       if (!uploadToCloudinary) {
@@ -261,13 +278,13 @@ const updateLink = async (req, res) => {
         link.imagePublicId = up.public_id;
         link.imageIsCloudinary = true;
       } else {
-        console.error('Error subiendo imagen multipart a Cloudinary:', up && up.error ? up.error : up);
+        logger.error('Error subiendo imagen multipart a Cloudinary', up?.error || up);
         return res.status(500).json({ success: false, message: 'No se pudo subir la imagen a Cloudinary' });
       }
     } else if (image !== undefined) {
       // Si la imagen cambia y la anterior estaba en Cloudinary, eliminarla
       if (link.imageIsCloudinary && link.imagePublicId) {
-        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { console.error('Error deleting old cloud image:', e); }
+        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa de Cloudinary', e, { publicId: link.imagePublicId }); }
       }
 
       // Si se proporciona una URL y pide subida a Cloudinary, intentar subir desde URL
@@ -303,7 +320,7 @@ const updateLink = async (req, res) => {
 
     await link.save();
 
-    console.log(`✅ Enlace actualizado: ${link.title}`);
+    logger.info(`Enlace actualizado: ${link.title}`, { linkId: id });
 
     res.json({
       success: true,
@@ -312,7 +329,7 @@ const updateLink = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en updateLink:', error);
+    logger.error('Error en updateLink', error, { linkId: req.params?.id, userId: req.user?._id });
     
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
@@ -356,13 +373,13 @@ const deleteLink = async (req, res) => {
       try {
         await cloudinaryService.deleteImage(link.imagePublicId);
       } catch (e) {
-        console.error('Error eliminando imagen en Cloudinary:', e);
+        logger.error('Error eliminando imagen en Cloudinary', e, { publicId: link.imagePublicId });
       }
     }
 
     await Link.deleteOne({ _id: id });
 
-    console.log(`✅ Enlace eliminado: ${link.title}`);
+    logger.info(`Enlace eliminado: ${link.title}`, { linkId: id });
 
     res.json({
       success: true,
@@ -370,7 +387,7 @@ const deleteLink = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en deleteLink:', error);
+    logger.error('Error en deleteLink', error, { linkId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -404,7 +421,7 @@ const incrementClickCount = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en incrementClickCount:', error);
+    logger.error('Error en incrementClickCount', error, { linkId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -438,7 +455,7 @@ const toggleFavorite = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en toggleFavorite:', error);
+    logger.error('Error en toggleFavorite', error, { linkId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -455,7 +472,7 @@ const updateTagsCount = async (userId, tags, operation) => {
     const normalizedTagName = tagName.toLowerCase().trim().replace(/\s+/g, ' ');
     
     if (!normalizedTagName || normalizedTagName.length < 2) {
-      console.warn(`Tag inválido o demasiado corto: "${tagName}"`);
+      logger.warn(`Tag inválido o demasiado corto: "${tagName}"`);
       continue;
     }
     
@@ -466,7 +483,7 @@ const updateTagsCount = async (userId, tags, operation) => {
         // Crear nueva etiqueta
         tag = new Tag({ userId, name: normalizedTagName, linkCount: 1 });
         await tag.save();
-        console.log(`✅ Nueva etiqueta creada: ${normalizedTagName}`);
+        logger.info(`Nueva etiqueta creada: ${normalizedTagName}`);
       } else if (tag) {
         if (operation === 'increment') {
           await tag.incrementLinkCount();
@@ -476,12 +493,12 @@ const updateTagsCount = async (userId, tags, operation) => {
           // Eliminar etiqueta si no tiene enlaces
           if (tag.linkCount === 0) {
             await Tag.deleteOne({ _id: tag._id });
-            console.log(`✅ Etiqueta eliminada (sin referencias): ${normalizedTagName}`);
+            logger.info(`Etiqueta eliminada (sin referencias): ${normalizedTagName}`);
           }
         }
       }
     } catch (err) {
-      console.error(`Error procesando tag "${tagName}":`, err.message);
+      logger.error(`Error procesando tag "${tagName}"`, err);
       // Continuar con otros tags si uno falla
       continue;
     }
@@ -513,7 +530,7 @@ const toggleArchive = async (req, res) => {
     });
 
   }catch(error){
-    console.error('Error en toggleArchive:', error);
+    logger.error('Error en toggleArchive', error, { linkId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -589,7 +606,7 @@ const batchUpdate = async (req, res) => {
 
     return res.json({ success: true, modified: result.modifiedCount || result.deletedCount || 0, action });
   } catch (error) {
-    console.error('Error en batchUpdate:', error);
+    logger.error('Error en batchUpdate', error, { action: req.body?.action, userId: req.user?._id });
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };

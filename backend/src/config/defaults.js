@@ -2,6 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cloudinaryService from '../services/cloudinaryService.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('Defaults');
 
 // __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +27,7 @@ try {
   });
 } catch (e) {
   // Si no existe la carpeta o falla, dejar array vacío
+  logger.warn('No se pudieron cargar imágenes por defecto', { error: e.message, dir: publicDefaultsDir });
   defaultImages = [];
 }
 
@@ -116,6 +120,7 @@ export async function getNextDefaultImageWithCloudinary() {
     }
   } catch (e) {
     // Fall through to fallback
+    logger.warn('Error subiendo imagen por defecto a Cloudinary', { error: e.message, rawImage });
   }
 
   const fallback = { url: rawImage, publicId: '', isCloudinary: false };

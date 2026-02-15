@@ -1,5 +1,8 @@
 import Link from '../models/Link.js';
 import Tag from '../models/Tag.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('DashboardController');
 
 // @desc    Obtener overview optimizado para dashboard (con métricas)
 // @route   GET /api/dashboard/overview
@@ -64,7 +67,7 @@ const getOverview = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en dashboard.getOverview:', error);
+    logger.error('Error en dashboard.getOverview', error, { userId: req.user?._id });
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };

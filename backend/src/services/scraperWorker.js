@@ -3,6 +3,9 @@ import scraperService from './scraperService.js';
 import Link from '../models/Link.js';
 import cloudinaryService from './cloudinaryService.js';
 import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('ScraperWorker');
 
 const resolveDefaultImage = async () => {
   const fallback = await getNextDefaultImageWithCloudinary();
@@ -36,7 +39,7 @@ const processJob = async (job) => {
       status: 'processing'
     });
 
-    console.log(`[Worker] Procesando scraping para ${linkId} -> ${url} (job ${job.id})`);
+    logger.info(`Procesando scraping para ${linkId}`, { url, jobId: job.id });
 
     const scrapingResult = await scraperService.scrapeUrl(url);
 
@@ -80,14 +83,14 @@ const processJob = async (job) => {
 
       // Aplicar actualizaciones
       await Link.findByIdAndUpdate(linkId, updates, { new: true });
-      console.log(`[Worker] Scraping completado para ${linkId}`);
+      logger.info(`Scraping completado para ${linkId}`);
       return true;
     } else {
       // Scraping falló, pero NO marcar como failed - usar valores predeterminados
       const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
       const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
       
-      console.warn(`[Worker] Scraping falló para ${linkId}: ${errMsg} (tipo: ${errType}), usando valores predeterminados`);
+      logger.warn(`Scraping falló para ${linkId}, usando valores predeterminados`, { error: errMsg, errorType: errType });
       
       // Obtener imagen predeterminada
       const fallback = await resolveDefaultImage();
@@ -118,7 +121,7 @@ const processJob = async (job) => {
     }
   } catch (err) {
     // Si hay un error crítico, registrarlo pero marcar el link como completado con predeterminados
-    console.error(`[Worker] Error procesando job ${job.id} para link ${linkId}:`, err.message || err);
+    logger.error(`Error procesando job ${job.id} para link ${linkId}`, err);
     
     try {
       const fallback = await resolveDefaultImage();
@@ -140,12 +143,12 @@ const processJob = async (job) => {
       }
       
       await Link.findByIdAndUpdate(linkId, updates, { new: true });
-      console.log(`[Worker] Link ${linkId} marcado como completado con valores predeterminados tras error`);
+      logger.info(`Link ${linkId} marcado como completado con valores predeterminados tras error`);
       
       // Retornar true para evitar reintentos
       return true;
     } catch (updateErr) {
-      console.error(`[Worker] Error crítico actualizando link ${linkId}:`, updateErr);
+      logger.error(`Error crítico actualizando link ${linkId}`, updateErr);
       throw err;
     }
   }
@@ -156,13 +159,13 @@ try {
   scraperQueue.process(processJob);
 
   // Registrar event listeners para logging/observabilidad
-  scraperQueue.on('enqueued', (job) => console.log('[Queue] enqueued', job.id));
-  scraperQueue.on('processing', (job) => console.log('[Queue] processing', job.id));
-  scraperQueue.on('completed', (job) => console.log('[Queue] completed', job.id));
-  scraperQueue.on('failed', (job, err) => console.warn('[Queue] failed', job.id, err && err.message));
-  scraperQueue.on('requeued', (job) => console.log('[Queue] requeued', job.id, 'attempts=', job.attempts));
+  scraperQueue.on('enqueued', (job) => logger.debug('Job enqueued', { jobId: job.id }));
+  scraperQueue.on('processing', (job) => logger.debug('Job processing', { jobId: job.id }));
+  scraperQueue.on('completed', (job) => logger.info('Job completed', { jobId: job.id }));
+  scraperQueue.on('failed', (job, err) => logger.warn('Job failed', { jobId: job.id, error: err?.message }));
+  scraperQueue.on('requeued', (job) => logger.info('Job requeued', { jobId: job.id, attempts: job.attempts }));
   scraperQueue.on('exhausted', async (job, err) => {
-    console.error('[Queue] exhausted job', job.id, 'error=', err && err.message);
+    logger.error('Job exhausted', err, { jobId: job.id });
     // Si el job se agotó, marcar link como completado con valores predeterminados
     try {
       const linkId = job.data && job.data.linkId;
@@ -185,16 +188,16 @@ try {
         }
         
         await Link.findByIdAndUpdate(linkId, updates);
-        console.log(`[Queue] Link ${linkId} marcado como completado tras agotamiento`);
+        logger.info(`Link ${linkId} marcado como completado tras agotamiento`);
       }
     } catch (e) {
-      console.error('Error marcando link como completado tras agotamiento:', e);
+      logger.error('Error marcando link como completado tras agotamiento', e);
     }
   });
 
-  console.log('[Worker] Scraper worker (in-process) iniciado');
+  logger.info('Scraper worker (in-process) iniciado');
 } catch (e) {
-  console.error('No se pudo iniciar scraperWorker:', e);
+  logger.error('No se pudo iniciar scraperWorker', e);
 }
 
 export default { processJob };

@@ -19,9 +19,9 @@ const linkSchema = new mongoose.Schema({
   },
   title: {
     type: String,
-    required: [true, 'El título es obligatorio'],
     trim: true,
-    maxlength: [200, 'El título no puede exceder 200 caracteres']
+    maxlength: [200, 'El título no puede exceder 200 caracteres'],
+    default: ''
   },
   description: {
     type: String,
