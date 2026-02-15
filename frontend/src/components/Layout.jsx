@@ -14,6 +14,7 @@ import {
   Plus
 } from 'lucide-react'
 import DarkModeToggle from './DarkModeToggle'
+import ConnectionStatus from './ConnectionStatus'
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -27,7 +28,7 @@ const Layout = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Mis Enlaces', href: '/my-links', icon: Bookmark },
+    { name: 'Mis Enlaces', href: '/mylinks', icon: Bookmark },
     { name: 'Etiquetas', href: '/tags', icon: Tag },
     { name: 'Configuración', href: '/settings', icon: Settings },
   ]
@@ -159,6 +160,9 @@ const Layout = ({ children }) => {
           {children}
         </main>
       </div>
+      
+      {/* Connection Status Indicator */}
+      <ConnectionStatus />
     </div>
   )
 }
