@@ -15,8 +15,8 @@ test.describe('🔐 Autenticación', () => {
   test('Toggle password visibility funciona', async ({ page }) => {
     await page.goto('/login');
     
-    const passwordInput = page.locator('input[type="password"]');
-    const toggleButton = page.locator('button').filter({ has: page.locator('svg') }).first();
+    const passwordInput = page.getByTestId('password-input');
+    const toggleButton = page.getByTestId('password-toggle');
     
     // Inicialmente es password
     await expect(passwordInput).toHaveAttribute('type', 'password');
@@ -260,19 +260,13 @@ test.describe('⌨️ Accesibilidad', () => {
     await page.goto('/login');
     
     // Ejecutar audit de accesibilidad básico
-    const accessibilityResult = await page.evaluate(() => {
-      const buttons = document.querySelectorAll('button');
-      let allValid = true;
-      
-      buttons.forEach(btn => {
+    const accessibilityResult = await page.$$eval('button', (buttons) => {
+      return buttons.every((btn) => {
         const style = window.getComputedStyle(btn);
         const bgColor = style.backgroundColor;
         const textColor = style.color;
-        // Solo verificación básica
-        expect(bgColor).not.toBe('transparent');
+        return bgColor !== 'transparent' && !!textColor;
       });
-      
-      return true;
     });
     
     expect(accessibilityResult).toBe(true);
@@ -298,10 +292,9 @@ test.describe('❌ Manejo de Errores', () => {
   });
 
   test('Errores de red manejados correctamente', async ({ page }) => {
-    // Simular fallo de red
-    await page.context().setOffline(true);
-    
+    // Navegar primero, luego simular fallo de red
     await page.goto('/login');
+    await page.context().setOffline(true);
     
     // Rellenar formulario
     await page.locator('input[type="email"]').fill('test@test.com');
@@ -311,7 +304,6 @@ test.describe('❌ Manejo de Errores', () => {
     await page.locator('button:has-text("Iniciar Sesión")').click();
     
     // Debe mostrar error amigable (no crash)
-    // Offline mode, pero UI debería responder
     expect(page).toBeDefined();
     
     // Restaurar conexión
