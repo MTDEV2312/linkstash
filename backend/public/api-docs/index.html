@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LinkStash API Docs</title>
+  <link rel="stylesheet" href="/api-docs/styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">LinkStash API</div>
+      <div class="tagline">Documentacion estilo api-docs</div>
+      <nav class="nav">
+        <a href="#intro">Inicio</a>
+        <a href="#auth">Autenticacion</a>
+        <a href="#errors">Errores</a>
+        <a href="#schemas">Schemas</a>
+        <a href="#auth-routes">/api/auth <small>(publico + privado)</small></a>
+        <a href="#link-routes">/api/links <small>(privado)</small></a>
+        <a href="#tag-routes">/api/tags <small>(privado)</small></a>
+        <a href="#dashboard-routes">/api/dashboard <small>(privado)</small></a>
+        <a href="#metrics-routes">/api/metrics <small>(privado)</small></a>
+        <a href="#health">/health</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <section id="intro">
+        <h1>LinkStash API Docs</h1>
+        <p>API REST para gestion de enlaces, etiquetas y panel de control. Todas las rutas bajo <code>/api</code> usan JSON, salvo uploads en <code>multipart/form-data</code>.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Base URL</h3>
+            <p><code>http://localhost:5000</code></p>
+          </div>
+          <div class="card">
+            <h3>Version</h3>
+            <p>v2.0.0 (segun respuesta de <code>/</code>)</p>
+          </div>
+          <div class="card">
+            <h3>Rate limit</h3>
+            <p>Ventana por defecto: 60s, max 60 requests (configurable).</p>
+          </div>
+        </div>
+        <div class="note">Los headers <code>X-Request-ID</code> y <code>X-Response-Time</code> se exponen en respuestas.</div>
+      </section>
+
+      <section id="auth">
+        <h2>Autenticacion</h2>
+        <p>Las rutas privadas requieren header <code>Authorization: Bearer &lt;token&gt;</code>. El token dura 7 dias.</p>
+        <pre>{
+  "Authorization": "Bearer eyJhbGciOi..."
+}</pre>
+      </section>
+
+      <section id="errors">
+        <h2>Formato de errores</h2>
+        <p>Los errores estandar incluyen <code>success</code>, <code>message</code>, <code>errorCode</code> y <code>requestId</code>.</p>
+        <pre>{
+  "success": false,
+  "message": "Token invalido",
+  "errorCode": "INVALID_TOKEN",
+  "requestId": "req_123"
+}</pre>
+        <p>Errores de validacion pueden incluir <code>errors</code> con detalles por campo.</p>
+        <pre>{
+  "success": false,
+  "message": "Validacion fallida",
+  "errors": [
+    { "field": "email", "message": "Debes proporcionar un email valido" }
+  ]
+}</pre>
+      </section>
+
+      <section id="schemas">
+        <h2>Schemas</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>User</h3>
+            <pre>{
+  "id": "ObjectId",
+  "username": "string",
+  "email": "string",
+  "createdAt": "date",
+  "updatedAt": "date"
+}</pre>
+          </div>
+          <div class="card">
+            <h3>Link</h3>
+            <pre>{
+  "id": "ObjectId",
+  "url": "string",
+  "title": "string",
+  "description": "string",
+  "image": "string",
+  "tags": ["string"],
+  "isFavorite": true,
+  "isArchived": false,
+  "clickCount": 0,
+  "lastVisited": "date|null",
+  "status": "processing|completed|failed",
+  "createdAt": "date",
+  "updatedAt": "date"
+}</pre>
+          </div>
+          <div class="card">
+            <h3>Tag</h3>
+            <pre>{
+  "id": "ObjectId",
+  "name": "string",
+  "color": "#RRGGBB",
+  "description": "string",
+  "linkCount": 0,
+  "createdAt": "date",
+  "updatedAt": "date"
+}</pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="auth-routes">
+        <h2>/api/auth</h2>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/auth/register</div>
+          <p>Registro de usuario.</p>
+          <pre>{
+  "username": "string (3-20, alfanum)",
+  "email": "string (email)",
+  "password": "string (min 6, mayus, minus, numero, especial)"
+}</pre>
+          <pre>{
+  "success": true,
+  "message": "Usuario registrado exitosamente",
+  "data": {
+    "token": "jwt",
+    "user": { "id": "...", "username": "...", "email": "...", "createdAt": "...", "updatedAt": "..." },
+    "expiresIn": "7d"
+  }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/auth/login</div>
+          <p>Login.</p>
+          <pre>{
+  "email": "string",
+  "password": "string"
+}</pre>
+          <pre>{
+  "success": true,
+  "message": "Inicio de sesion exitoso",
+  "data": { "token": "jwt", "user": { "id": "..." }, "expiresIn": "7d" }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/auth/me <span class="badge">Privado</span></div>
+          <p>Perfil del usuario actual.</p>
+          <pre>{
+  "success": true,
+  "message": "Perfil obtenido",
+  "data": { "user": { "id": "..." } }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-put">PUT</span> /api/auth/profile <span class="badge">Privado</span></div>
+          <p>Actualizar username y/o email.</p>
+          <pre>{
+  "username": "string",
+  "email": "string"
+}</pre>
+          <pre>{
+  "success": true,
+  "message": "Perfil actualizado exitosamente",
+  "data": { "user": { "id": "..." } }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-put">PUT</span> /api/auth/change-password <span class="badge">Privado</span></div>
+          <p>Cambiar password.</p>
+          <pre>{
+  "currentPassword": "string",
+  "newPassword": "string"
+}</pre>
+          <pre>{
+  "success": true,
+  "message": "Contrasena actualizada exitosamente"
+}</pre>
+        </div>
+      </section>
+
+      <section id="link-routes">
+        <h2>/api/links</h2>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/links <span class="badge">Privado</span></div>
+          <p>Listado paginado con filtros.</p>
+          <table class="table">
+            <thead><tr><th>Query</th><th>Tipo</th><th>Notas</th></tr></thead>
+            <tbody>
+              <tr><td>page</td><td>int</td><td>default 1</td></tr>
+              <tr><td>limit</td><td>int</td><td>max 50, default 20</td></tr>
+              <tr><td>search</td><td>string</td><td>texto libre</td></tr>
+              <tr><td>tags</td><td>string</td><td>lista separada por coma</td></tr>
+              <tr><td>archived</td><td>"true"|"false"</td><td>default false</td></tr>
+              <tr><td>favorite</td><td>"true"|"false"|""</td><td>default ""</td></tr>
+              <tr><td>sortBy</td><td>createdAt|title|lastVisited|clickCount</td><td>default createdAt</td></tr>
+              <tr><td>sortOrder</td><td>asc|desc</td><td>default desc</td></tr>
+            </tbody>
+          </table>
+          <pre>{
+  "success": true,
+  "data": {
+    "links": [ { "id": "..." } ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 3,
+      "totalLinks": 42,
+      "hasNextPage": true,
+      "hasPrevPage": false
+    }
+  }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links/save-link <span class="badge">Privado</span></div>
+          <p>Guardar enlace. Si no se envia <code>title</code>, se procesa metadata y devuelve 202.</p>
+          <pre>{
+  "url": "string (http/https)",
+  "title": "string (opcional)",
+  "description": "string (opcional)",
+  "tags": ["string"]
+}</pre>
+          <pre>{
+  "success": true,
+  "message": "Link guardado, procesando metadata...",
+  "data": { "link": { "id": "...", "status": "processing" } }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links <span class="badge">Privado</span></div>
+          <p>Alias compatible de <code>/save-link</code>.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/links/:id <span class="badge">Privado</span></div>
+          <p>Obtener un enlace por ID.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-put">PUT</span> /api/links/:id <span class="badge">Privado</span></div>
+          <p>Actualizar enlace. Acepta JSON o <code>multipart/form-data</code> con campo <code>image</code> y <code>uploadToCloudinary=true</code>.</p>
+          <pre>{
+  "title": "string",
+  "description": "string",
+  "image": "string (url o ruta /defaults/...) ",
+  "tags": ["string"],
+  "isFavorite": true,
+  "isArchived": false,
+  "uploadToCloudinary": true
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-delete">DELETE</span> /api/links/:id <span class="badge">Privado</span></div>
+          <p>Eliminar enlace.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links/:id/click <span class="badge">Privado</span></div>
+          <p>Incrementar contador de clicks.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links/:id/favorite <span class="badge">Privado</span></div>
+          <p>Alternar favorito.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links/:id/archive <span class="badge">Privado</span></div>
+          <p>Alternar archivado.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/links/batch <span class="badge">Privado</span></div>
+          <p>Operaciones en lote: delete | archive | unarchive | addTag.</p>
+          <pre>{
+  "action": "delete|archive|unarchive|addTag",
+  "linkIds": ["id1", "id2"],
+  "tag": "string (requerido solo para addTag)"
+}</pre>
+          <pre>{
+  "success": true,
+  "modified": 2,
+  "action": "archive"
+}</pre>
+        </div>
+      </section>
+
+      <section id="tag-routes">
+        <h2>/api/tags</h2>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/tags <span class="badge">Privado</span></div>
+          <p>Listado de etiquetas. Parametros:</p>
+          <table class="table">
+            <thead><tr><th>Query</th><th>Tipo</th><th>Notas</th></tr></thead>
+            <tbody>
+              <tr><td>search</td><td>string</td><td>texto libre</td></tr>
+              <tr><td>popular</td><td>"true"|"false"</td><td>default false</td></tr>
+              <tr><td>limit</td><td>int</td><td>default 50</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-post">POST</span> /api/tags <span class="badge">Privado</span></div>
+          <pre>{
+  "name": "string",
+  "color": "#RRGGBB",
+  "description": "string"
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/tags/stats <span class="badge">Privado</span></div>
+          <p>Estadisticas de etiquetas (total, promedio, mas usada).</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/tags/:id <span class="badge">Privado</span></div>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-put">PUT</span> /api/tags/:id <span class="badge">Privado</span></div>
+          <pre>{
+  "name": "string",
+  "color": "#RRGGBB",
+  "description": "string"
+}</pre>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-delete">DELETE</span> /api/tags/:id <span class="badge">Privado</span></div>
+        </div>
+      </section>
+
+      <section id="dashboard-routes">
+        <h2>/api/dashboard</h2>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/dashboard/summary <span class="badge">Privado</span></div>
+          <p>Resumen con totales, top tags y enlaces recientes.</p>
+        </div>
+
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/dashboard/overview <span class="badge">Privado</span></div>
+          <p>Resumen completo (summary + topTags + recentLinks + popularDomains).</p>
+        </div>
+      </section>
+
+      <section id="metrics-routes">
+        <h2>/api/metrics</h2>
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /api/metrics <span class="badge">Privado</span></div>
+          <p>Metricas de sistema y estado de cola.</p>
+          <pre>{
+  "success": true,
+  "data": {
+    "uptime": 123.45,
+    "memory": { "rss": 0, "heapTotal": 0, "heapUsed": 0, "external": 0 },
+    "nodeVersion": "v18.x",
+    "env": "development",
+    "dbStatus": "connected",
+    "queueStats": { "info": "..." },
+    "timestamp": "2026-02-13T00:00:00.000Z"
+  }
+}</pre>
+        </div>
+      </section>
+
+      <section id="health">
+        <h2>/health</h2>
+        <div class="endpoint">
+          <div><span class="method m-get">GET</span> /health</div>
+          <p>Health check publico.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

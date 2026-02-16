@@ -128,6 +128,7 @@ SECURITY.md
 
 *.sh
 test/
+tests/
 mejoras.md
 PLAN-DE-IMPLEMENTACION.md
 INFORME-FASE-5.md
@@ -143,3 +144,6 @@ VERIFICACION-INTEGRAL.md
 IMPLEMENTACION-COMPLETADA.md
 MEJORAS-TECNICAS.md
 *.txt
+test-results/
+frontend/tests
+frontend/tests/e2e

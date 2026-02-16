@@ -1,5 +1,8 @@
 import inProcessQueue from '../services/scraperQueue.js';
 import mongoose from 'mongoose';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('Queue');
 
 let backend = {
   mode: 'inprocess',
@@ -22,7 +25,7 @@ const init = async () => {
     const useRedis = (hasRedisUrl || hasRedisHost) && process.env.ENABLE_BULLMQ !== 'false';
     
     if (!useRedis) {
-      console.log('[Queue] Usando cola in-process (no se detectó REDIS_URL ni REDIS_HOST)');
+      logger.info('Usando cola in-process (no se detectó REDIS_URL ni REDIS_HOST)');
       backend = {
         mode: 'inprocess',
         addJob: async (data, opts = {}) => { inProcessQueue.addJob(data, opts); return { id: 'inproc-' + Date.now() }; },
@@ -32,7 +35,7 @@ const init = async () => {
     }
 
     try {
-      console.log('[Queue] Intentando inicializar BullMQ (Redis)...');
+      logger.info('Intentando inicializar BullMQ (Redis)...');
       const { Queue, Worker } = await import('bullmq');
       const IORedis = (await import('ioredis')).default;
 
@@ -40,7 +43,7 @@ const init = async () => {
 
       // Priorizar REDIS_URL (Upstash y otros servicios cloud)
       if (hasRedisUrl) {
-        console.log('[Queue] Usando REDIS_URL para conexión (Upstash)');
+        logger.info('Usando REDIS_URL para conexión (Upstash)');
         connection = new IORedis(process.env.REDIS_URL, {
           maxRetriesPerRequest: null,
           enableReadyCheck: false,
@@ -48,7 +51,7 @@ const init = async () => {
         });
       } else {
         // Fallback a configuración tradicional (Docker local, etc.)
-        console.log('[Queue] Usando configuración tradicional (REDIS_HOST)');
+        logger.info('Usando configuración tradicional (REDIS_HOST)');
         const redisConfig = {
           host: process.env.REDIS_HOST || 'localhost',
           port: parseInt(process.env.REDIS_PORT || '6379', 10),
@@ -74,7 +77,23 @@ const init = async () => {
           const scraperService = (await import('../services/scraperService.js')).default;
           const Link = (await import('../models/Link.js')).default;
           const cloudinaryService = (await import('../services/cloudinaryService.js')).default;
-          const { getNextDefaultImage } = await import('../config/defaults.js');
+          const { getNextDefaultImageWithCloudinary } = await import('../config/defaults.js');
+
+          const resolveDefaultImage = async () => {
+            const fallback = await getNextDefaultImageWithCloudinary();
+            let url = fallback.url || '';
+            let isCloudinary = fallback.isCloudinary;
+            let publicId = fallback.publicId || '';
+
+            if (url && url.startsWith('/')) {
+              const backendUrl = process.env.BACKEND_BASE_URL || 'http://localhost:5000';
+              url = `${backendUrl.replace(/\/$/, '')}${url}`;
+              isCloudinary = false;
+              publicId = '';
+            }
+
+            return { url, isCloudinary, publicId };
+          };
 
           const { linkId, url, userId } = job.data || {};
           if (!linkId || !url) throw new Error('Invalid job payload');
@@ -100,16 +119,39 @@ const init = async () => {
                 updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsCloudinary = false;
               }
             } else {
-              const defaultImg = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
-              if (defaultImg) updates.image = defaultImg;
+              const fallback = await resolveDefaultImage();
+              if (fallback.url) {
+                updates.image = fallback.url;
+                updates.imagePublicId = fallback.publicId;
+                updates.imageIsCloudinary = fallback.isCloudinary;
+              }
             }
 
             await Link.findByIdAndUpdate(linkId, updates, { new: true });
             return { success: true };
           } else {
             const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
-            await Link.findByIdAndUpdate(linkId, { status: 'failed', scrapingError: errMsg });
-            throw new Error(errMsg);
+            const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
+
+            const updates = {
+              status: 'completed',
+              scrapingError: errMsg,
+              scrapingErrorType: errType,
+              needsDescription: true
+            };
+
+            const currentLink = await Link.findById(linkId);
+            if (!currentLink.image || currentLink.image === '') {
+              const fallback = await resolveDefaultImage();
+              if (fallback.url) {
+                updates.image = fallback.url;
+                updates.imagePublicId = fallback.publicId;
+                updates.imageIsCloudinary = fallback.isCloudinary;
+              }
+            }
+
+            await Link.findByIdAndUpdate(linkId, updates, { new: true });
+            return { success: true };
           }
         },
         {
@@ -122,8 +164,8 @@ const init = async () => {
         }
       );
 
-      worker.on('completed', (job) => console.log('[BullMQ] Job completed', job.id));
-      worker.on('failed', (job, err) => console.error('[BullMQ] Job failed', job && job.id, err && err.message));
+      worker.on('completed', (job) => logger.info('BullMQ Job completed', { jobId: job.id }));
+      worker.on('failed', (job, err) => logger.error('BullMQ Job failed', err, { jobId: job?.id }));
 
       backend = {
         mode: 'bull',
@@ -146,10 +188,10 @@ const init = async () => {
         }
       };
 
-      console.log('[Queue] BullMQ inicializada correctamente');
+      logger.info('BullMQ inicializada correctamente');
       return backend;
     } catch (err) {
-      console.error('No se pudo inicializar BullMQ, fallback a in-process queue:', err);
+      logger.error('No se pudo inicializar BullMQ, fallback a in-process queue', err);
       backend = {
         mode: 'inprocess',
         addJob: async (data, opts = {}) => { inProcessQueue.addJob(data, opts); return { id: 'inproc-' + Date.now() }; },
@@ -162,7 +204,7 @@ const init = async () => {
 };
 
 // Iniciar inicialización en background
-init().catch(err => console.error('Error inicializando queue:', err));
+init().catch(err => logger.error('Error inicializando queue', err));
 
 export default {
   addJob: async (data, opts = {}) => {

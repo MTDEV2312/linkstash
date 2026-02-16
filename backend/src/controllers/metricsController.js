@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 import queue from '../config/queue.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('MetricsController');
 
 const getMetrics = async (req, res) => {
   try {
@@ -36,7 +39,7 @@ const getMetrics = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error en getMetrics:', error);
+    logger.error('Error en getMetrics', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };

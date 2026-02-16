@@ -33,7 +33,7 @@ const Dashboard = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const res = await dashboardService.getSummary()
+      const res = await dashboardService.getOverview()
       if (res && res.success) {
         setSummary(res.data.summary || null)
         setTopTags(res.data.topTags || [])

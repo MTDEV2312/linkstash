@@ -61,6 +61,12 @@ self.addEventListener('fetch', (event) => {
     return
   }
   
+  // NO interceptar peticiones cross-origin (al backend, APIs externas, etc)
+  // Solo cachear recursos del mismo origen
+  if (url.origin !== self.location.origin) {
+    return // Dejar que el navegador maneje peticiones cross-origin normalmente
+  }
+  
   // Estrategia de caché según el tipo de petición
   if (request.method === 'GET') {
     // Para archivos estáticos: Cache First

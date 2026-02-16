@@ -1,47 +1,85 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import LinkCard from '../components/LinkCard'
 import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
 import UpdateIndicator from '../components/UpdateIndicator'
 import LinkForm from '../components/LinkForm'
 import SearchBar from '../components/SearchBar'
+import KeyboardHelpModal from '../components/KeyboardHelpModal'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
 import { Plus, Grid, List, Filter } from 'lucide-react'
 
 const MyLinks = () => {
   const [showLinkForm, setShowLinkForm] = useState(false)
   const [viewMode, setViewMode] = useState('grid') // 'grid' o 'list'
   const [showFilters, setShowFilters] = useState(false)
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
+  const searchBarRef = useRef(null)
   
-  const { 
-    links, 
-    isLoading, 
-    pagination, 
-    filters,
-    fetchLinks,
-    setFilters
-  } = useLinkStore()
+  // Usar selectores para asegurar re-renders exactos
+  const isLoading = useLinkStore(state => state.isLoading)
+  const pagination = useLinkStore(state => state.pagination)
+  const filters = useLinkStore(state => state.filters)
+  const fetchLinks = useLinkStore(state => state.fetchLinks)
+  const setFilters = useLinkStore(state => state.setFilters)
+  const prefetchNextPage = useLinkStore(state => state.prefetchNextPage)
+  const getLinks = useLinkStore(state => state.getLinks)
+  const linksById = useLinkStore(state => state.linksById)
+  const linkIds = useLinkStore(state => state.linkIds)
+  
+  // Computar links basado en cambios de linksById y linkIds
+  const links = useMemo(() => {
+    return linkIds.map(id => linksById[id]).filter(Boolean)
+  }, [linkIds, linksById])
 
   const [loadError, setLoadError] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
+  const lastLinkRef = useRef(null)
 
+  // Integrar infinity scroll para prefetch
+  const sentinelRef = useInfiniteScroll(
+    () => {
+      // Solo prefetchear si hay siguiente página y no estamos cargando
+      if (pagination?.hasNextPage && !isLoading && !isUpdating) {
+        prefetchNextPage()
+      }
+    },
+    { threshold: 0.5, rootMargin: '200px' }
+  )
+
+  // Integrar atajos de teclado globales
+  useKeyboardShortcuts({
+    onSearchFocus: () => {
+      searchBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    },
+    onNewLink: () => setShowLinkForm(true),
+    onHelp: () => setShowKeyboardHelp(!showKeyboardHelp)
+  })
+
+  // Cargar enlaces al montar el componente
   useEffect(() => {
     let mounted = true
-    ;(async () => {
+    const initialFetch = async () => {
       const res = await fetchLinks()
       if (mounted && res && res.success === false) {
         setLoadError(res.message || 'Error al cargar enlaces')
       } else {
         setLoadError('')
       }
-    })()
-    return () => { mounted = false }
-  }, [fetchLinks])
+    }
 
-  const handleSearch = async (query) => {
+    initialFetch()
+    return () => { mounted = false }
+    // Solo ejecutar una vez al montar el componente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleSearch = async (query, signal = null) => {
     setIsUpdating(true)
     setFilters({ ...filters, search: query, page: 1 })
-    const res = await fetchLinks({ ...filters, search: query, page: 1 })
-    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    const res = await fetchLinks({ ...filters, search: query, page: 1 }, signal)
+    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
     setIsUpdating(false)
   }
 
@@ -50,21 +88,21 @@ const MyLinks = () => {
     const updatedFilters = { ...filters, ...newFilters, page: 1 }
     setFilters(updatedFilters)
     const res = await fetchLinks(updatedFilters)
-    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
     setIsUpdating(false)
   }
 
   const handlePageChange = async (page) => {
     setIsUpdating(true)
     const res = await fetchLinks({ ...filters, page })
-    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
     setIsUpdating(false)
   }
 
   const handleLinkSaved = async () => {
     setShowLinkForm(false)
     const res = await fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
-    if (res && res.success === false) setLoadError(res.message || 'Error al cargar enlaces')
+    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
   }
 
   // Carga inicial: mostrar skeletons en lugar de spinner
@@ -135,7 +173,9 @@ const MyLinks = () => {
       </div>
 
       {/* Barra de búsqueda */}
-      <SearchBar onSearch={handleSearch} initialValue={filters.search} />
+      <div ref={searchBarRef}>
+        <SearchBar onSearch={handleSearch} initialValue={filters.search} />
+      </div>
 
       {/* Filtros */}
       {showFilters && (
@@ -228,95 +268,109 @@ const MyLinks = () => {
         </div>
       )}
 
-      {/* Lista de enlaces */}
-      {!links || links.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            No tienes enlaces guardados
-          </h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Comienza agregando tu primer enlace para organizarlo mejor.
-          </p>
-          <button
-            onClick={() => setShowLinkForm(true)}
-            className="btn-primary btn-md"
-          >
-            Agregar primer enlace
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className={
-            viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'space-y-4'
-          }>
-            {links?.map((link) => (
-              <LinkCard 
-                key={link._id} 
-                link={link} 
-                viewMode={viewMode}
-                mode="full"
-                onUpdate={() => fetchLinks(filters)}
-              />
-            ))}
-          </div>
+       {/* Lista de enlaces */}
+       {!links || links.length === 0 ? (
+         <div className="text-center py-12">
+           <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+             </svg>
+           </div>
+           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+             {filters.search ? 'Sin resultados' : 'No tienes enlaces guardados'}
+           </h3>
+           <p className="text-gray-600 dark:text-gray-300 mb-6">
+             {filters.search ? 'No hay enlaces que coincidan con tu búsqueda.' : 'Comienza agregando tu primer enlace para organizarlo mejor.'}
+           </p>
+           {!filters.search && (
+             <button
+               onClick={() => setShowLinkForm(true)}
+               className="btn-primary btn-md"
+             >
+               Agregar primer enlace
+             </button>
+           )}
+         </div>
+       ) : (
+         <>
+           <div className={
+             viewMode === 'grid' 
+               ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+               : 'space-y-4'
+           }>
+             {links?.map((link) => (
+               <LinkCard 
+                 key={link._id} 
+                 link={link} 
+                 viewMode={viewMode}
+                 mode="full"
+                 onUpdate={() => fetchLinks(filters)}
+               />
+             ))}
+           </div>
 
-          {/* Paginación */}
-          {pagination?.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
-              <div className="flex flex-1 justify-between sm:hidden">
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={!pagination?.hasPrevPage}
-                  className="btn-outline btn-md disabled:opacity-50"
-                >
-                  Anterior
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={!pagination?.hasNextPage}
-                  className="btn-outline btn-md disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
-              </div>
-              
-              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Mostrando página <span className="font-medium">{pagination?.currentPage || 1}</span> de{' '}
-                    <span className="font-medium">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
-                  </p>
-                </div>
-                <div>
-                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={!pagination?.hasPrevPage}
-                      className="btn-outline btn-sm disabled:opacity-50"
-                    >
-                      Anterior
-                    </button>
-                    <button
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={!pagination?.hasNextPage}
-                      className="btn-outline btn-sm disabled:opacity-50 ml-2"
-                    >
-                      Siguiente
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+           {/* Infinity scroll sentinel - Detecta cuando usuario está cerca del final */}
+           <div 
+             ref={sentinelRef}
+             className="py-4 text-center text-gray-500"
+             aria-live="polite"
+           >
+             {pagination?.hasNextPage && (
+               <span className="text-xs">Cargando más...</span>
+             )}
+           </div>
+ 
+           {/* Paginación */}
+           {pagination?.totalPages > 1 && (
+             <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
+               <div className="flex flex-1 justify-between sm:hidden">
+                 <button
+                   onClick={() => handlePageChange(pagination.currentPage - 1)}
+                   disabled={!pagination?.hasPrevPage}
+                   className="btn-outline btn-md disabled:opacity-50"
+                 >
+                   Anterior
+                 </button>
+                 <button
+                   onClick={() => handlePageChange(pagination.currentPage + 1)}
+                   disabled={!pagination?.hasNextPage}
+                   className="btn-outline btn-md disabled:opacity-50"
+                 >
+                   Siguiente
+                 </button>
+               </div>
+               
+               <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                 <div>
+                   <p className="text-sm text-gray-700 dark:text-gray-300">
+                     Mostrando página <span className="font-medium">{pagination?.currentPage || 1}</span> de{' '}
+                     <span className="font-medium">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
+                   </p>
+                 </div>
+                 <div>
+                   <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
+                     <button
+                       onClick={() => handlePageChange(pagination.currentPage - 1)}
+                       disabled={!pagination?.hasPrevPage}
+                       className="btn-outline btn-sm disabled:opacity-50"
+                     >
+                       Anterior
+                     </button>
+                     <button
+                       onClick={() => handlePageChange(pagination.currentPage + 1)}
+                       disabled={!pagination?.hasNextPage}
+                       className="btn-outline btn-sm disabled:opacity-50 ml-2"
+                     >
+                       Siguiente
+                     </button>
+                   </nav>
+                 </div>
+               </div>
+             </div>
+           )}
+         </>
+       )}
+
 
       {/* Modal de formulario */}
       {showLinkForm && (
@@ -333,6 +387,9 @@ const MyLinks = () => {
           </div>
         </div>
       )}
+
+      {/* Keyboard Help Modal */}
+      <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
     </div>
   )
 }

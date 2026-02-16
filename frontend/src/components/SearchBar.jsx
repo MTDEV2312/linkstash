@@ -4,18 +4,66 @@ import { Search, X, Filter } from 'lucide-react'
 const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces...' }) => {
   const [searchTerm, setSearchTerm] = useState(initialValue)
   const [isFocused, setIsFocused] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const inputRef = useRef(null)
+  const searchTimeoutRef = useRef(null)
+  const abortControllerRef = useRef(null)
   
-  // Debounce para búsqueda automática
+  // Debounce para búsqueda automática con AbortController
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== initialValue) {
-        onSearch(searchTerm)
+    // Limpiar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Si el término es igual al inicial, no buscar
+    if (searchTerm === initialValue) {
+      setIsSearching(false)
+      return
+    }
+
+    setIsSearching(true)
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      // Cancelar búsqueda anterior
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Crear nuevo controller para esta búsqueda
+      abortControllerRef.current = new AbortController()
+
+      try {
+        await onSearch(searchTerm, abortControllerRef.current.signal)
+      } catch (error) {
+        // Ignorar errores de AbortError
+        if (error?.name !== 'AbortError') {
+          console.error('Error en búsqueda:', error)
+        }
+      } finally {
+        setIsSearching(false)
       }
     }, 300) // 300ms de delay
 
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm, onSearch, initialValue])
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchTerm, initialValue, onSearch])
+
+  // Atajo de teclado: Cmd+K or Ctrl+K para enfocar (manejado en useKeyboardShortcuts)
+  // Este efecto se mantiene por compatibilidad, pero ahora también marcamos el input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Actualizar cuando cambie el valor inicial
   useEffect(() => {
@@ -48,9 +96,15 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
         }`}>
           {/* Icono de búsqueda */}
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className={`h-5 w-5 transition-colors duration-200 ${
-              isFocused ? 'text-primary-500' : 'text-gray-400'
-            }`} />
+            {isSearching ? (
+              <div className="animate-spin">
+                <Search className="h-5 w-5 text-primary-500" />
+              </div>
+            ) : (
+              <Search className={`h-5 w-5 transition-colors duration-200 ${
+                isFocused ? 'text-primary-500' : 'text-gray-400'
+              }`} />
+            )}
           </div>
 
           {/* Input */}
@@ -64,6 +118,10 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
             onKeyDown={handleKeyDown}
             className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
             placeholder={placeholder}
+            aria-label="Buscar enlaces por título, URL o descripción"
+            aria-describedby="search-tips"
+            aria-autocomplete="none"
+            data-shortcut-enabled="true"
           />
 
           {/* Botón de limpiar */}
@@ -124,7 +182,7 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
       )}
 
       {/* Atajos de teclado */}
-      <div className="mt-2 text-xs text-gray-500 text-center">
+      <div className="mt-2 text-xs text-gray-500 text-center" id="search-tips">
         <span className="inline-flex items-center">
           <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">
             ⌘ + K

@@ -1,8 +1,10 @@
 import express from 'express';
 import Tag from '../models/Tag.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { getLogger } from '../utils/logger.js';
 
 const router = express.Router();
+const logger = getLogger('TagRoutes');
 
 // Todas las rutas requieren autenticación
 router.use(authMiddleware);
@@ -31,7 +33,7 @@ const getTags = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getTags:', error);
+    logger.error('Error en getTags', error, { userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -80,7 +82,7 @@ const createTag = async (req, res) => {
 
     await tag.save();
 
-    console.log(`✅ Etiqueta creada: ${tag.name}`);
+    logger.info(`Etiqueta creada: ${tag.name}`, { userId: req.user?._id });
 
     res.status(201).json({
       success: true,
@@ -89,7 +91,7 @@ const createTag = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en createTag:', error);
+    logger.error('Error en createTag', error, { userId: req.user?._id });
     
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
@@ -129,7 +131,7 @@ const getTagById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getTagById:', error);
+    logger.error('Error en getTagById', error, { tagId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -179,7 +181,7 @@ const updateTag = async (req, res) => {
 
     await tag.save();
 
-    console.log(`✅ Etiqueta actualizada: ${tag.name}`);
+    logger.info(`Etiqueta actualizada: ${tag.name}`, { tagId: id });
 
     res.json({
       success: true,
@@ -188,7 +190,7 @@ const updateTag = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en updateTag:', error);
+    logger.error('Error en updateTag', error, { tagId: req.params?.id, userId: req.user?._id });
     
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
@@ -240,7 +242,7 @@ const deleteTag = async (req, res) => {
 
     await Tag.deleteOne({ _id: id });
 
-    console.log(`✅ Etiqueta eliminada: ${tag.name}`);
+    logger.info(`Etiqueta eliminada: ${tag.name}`, { tagId: id });
 
     res.json({
       success: true,
@@ -248,7 +250,7 @@ const deleteTag = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en deleteTag:', error);
+    logger.error('Error en deleteTag', error, { tagId: req.params?.id, userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -289,7 +291,7 @@ const getTagStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getTagStats:', error);
+    logger.error('Error en getTagStats', error, { userId: req.user?._id });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

@@ -3,16 +3,17 @@ import { PassThrough } from 'stream';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getLogger } from '../utils/logger.js';
 
-// Configuración vía env: CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET
-// También toleramos variables en minúsculas sin prefijo (por si .env fue rellenado con otro formato)
+const logger = getLogger('CloudinaryService');
+
 const env = process.env;
 if (env.CLOUDINARY_URL) {
   cloudinary.config({ secure: true });
 } else {
-  const cloudName = env.CLOUDINARY_CLOUD_NAME || env.cloud_name || env.CLOUDINARY_CLOUDNAME;
-  const apiKey = env.CLOUDINARY_API_KEY || env.api_key || env.CLOUDINARY_APIKEY;
-  const apiSecret = env.CLOUDINARY_API_SECRET || env.api_secret || env.CLOUDINARY_APISECRET;
+  const cloudName = env.CLOUDINARY_CLOUD_NAME
+  const apiKey = env.CLOUDINARY_API_KEY
+  const apiSecret = env.CLOUDINARY_API_SECRET
   if (cloudName && apiKey && apiSecret) {
     cloudinary.config({
       cloud_name: cloudName,
@@ -51,7 +52,7 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
           // seguir al error de abajo si no encontramos o falló
         }
         const err = new Error('Local path provided and could not be uploaded (no BACKEND_BASE_URL and local file not found)');
-        console.error('Cloudinary uploadFromUrl error:', err.message);
+        logger.error('Cloudinary uploadFromUrl error: ruta local no resuelta', err, { imageUrl });
         return { success: false, error: err };
       }
     }
@@ -65,7 +66,7 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
     const result = await cloudinary.uploader.upload(imageUrl, uploadOpts);
     return { success: true, url: result.secure_url || result.url, public_id: result.public_id, raw: result };
   } catch (err) {
-    console.error('Cloudinary uploadFromUrl error:', err && err.message ? err.message : err);
+    logger.error('Cloudinary uploadFromUrl error', err, { imageUrl });
     return { success: false, error: err };
   }
 };
@@ -81,7 +82,7 @@ const uploadImageFromBuffer = async (buffer, options = {}) => {
     return await new Promise((resolve) => {
       const stream = cloudinary.uploader.upload_stream(uploadOpts, (error, result) => {
         if (error) {
-          console.error('Cloudinary uploadFromBuffer error:', error && error.message ? error.message : error);
+          logger.error('Cloudinary uploadFromBuffer error (stream)', error);
           return resolve({ success: false, error });
         }
         return resolve({ success: true, url: result.secure_url || result.url, public_id: result.public_id, raw: result });
@@ -92,7 +93,7 @@ const uploadImageFromBuffer = async (buffer, options = {}) => {
       passthrough.pipe(stream);
     });
   } catch (err) {
-    console.error('Cloudinary uploadFromBuffer error:', err && err.message ? err.message : err);
+    logger.error('Cloudinary uploadFromBuffer error', err);
     return { success: false, error: err };
   }
 };
@@ -104,7 +105,7 @@ const deleteImage = async (publicId) => {
     // result.result === 'ok' or 'not found'
     return { success: true, raw: result };
   } catch (err) {
-    console.error('Cloudinary deleteImage error:', err && err.message ? err.message : err);
+    logger.error('Cloudinary deleteImage error', err, { publicId });
     return { success: false, error: err };
   }
 };

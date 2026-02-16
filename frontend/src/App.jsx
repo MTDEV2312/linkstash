@@ -84,7 +84,7 @@ function App() {
             } 
           />
           <Route 
-            path="/my-links" 
+            path="/mylinks" 
             element={
               <ProtectedRoute>
                 <Layout>

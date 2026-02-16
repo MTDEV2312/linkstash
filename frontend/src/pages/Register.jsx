@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
-import { Mail, Lock, User, Eye, EyeOff, UserPlus } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react'
 import FormError from '../components/FormError'
 import extractServerMessage from '../utils/errorUtils'
 
@@ -17,7 +17,7 @@ const Register = () => {
     handleSubmit,
     watch,
     formState: { errors }
-  } = useForm()
+  } = useForm({ mode: 'onChange' })
 
   const password = watch('password')
 
@@ -39,33 +39,44 @@ const Register = () => {
   const [serverError, setServerError] = useState(null)
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 relative">
+       {/* Botón volver a landing */}
+       <Link
+         to="/"
+         className="absolute top-4 left-4 sm:top-6 sm:left-6 inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+         aria-label="Volver al inicio"
+       >
+         <ArrowLeft className="w-4 h-4" />
+         <span className="hidden sm:inline">Inicio</span>
+       </Link>
+
+       <div className="container mx-auto max-w-md w-full space-y-6 sm:space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
             <UserPlus className="h-6 w-6 text-primary-600 dark:text-primary-300" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Crea tu cuenta
+          <h2 data-testid="register-title" className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+            Crear Cuenta
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+             <p className="mt-2 text-center text-sm text-gray-700 dark:text-gray-200">
             O{' '}
             <Link
               to="/login"
+              data-testid="to-login-link"
               className="font-medium text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300"
             >
-              inicia sesión si ya tienes cuenta
+              ¿Ya tienes cuenta?
             </Link>
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+         <form className="mt-6 sm:mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {serverError && <FormError message={serverError} />}
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Nombre de usuario
-              </label>
+               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                 Nombre de usuario
+               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -99,24 +110,24 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Correo electrónico
-              </label>
+               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                 Correo electrónico
+               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   {...register('email', {
-                    required: 'El email es obligatorio',
+                    required: 'Este campo es requerido',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                       message: 'Email inválido'
-                    }
-                  ,
+                    },
                     onChange: () => serverError && setServerError(null)
                   })}
                   type="email"
+                  aria-label="Correo electrónico"
                   className="input pl-10"
                   placeholder="tu@ejemplo.com"
                 />
@@ -127,32 +138,38 @@ const Register = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña
-              </label>
+               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                 Contraseña
+               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
-                  {...register('password', {
-                    required: 'La contraseña es obligatoria',
-                    minLength: {
-                      value: 6,
-                      message: 'La contraseña debe tener al menos 6 caracteres'
-                    }
-                  ,
-                    onChange: () => serverError && setServerError(null)
-                  })}
-                  type={showPassword ? 'text' : 'password'}
-                  className="input pl-10 pr-10"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
+                  <input
+                    {...register('password', {
+                      required: 'Este campo es requerido',
+                      minLength: {
+                        value: 8,
+                        message: 'La contraseña debe tener al menos 8 caracteres'
+                      },
+                      pattern: {
+                        value: /^(?=.*[A-Za-z])(?=.*\d).+$/,
+                        message: 'La contraseña debe incluir letras y números'
+                      },
+                      onChange: () => serverError && setServerError(null)
+                    })}
+                    type={showPassword ? 'text' : 'password'}
+                    aria-label="Contraseña"
+                    data-testid="register-password"
+                    className="input pl-10 pr-10"
+                    placeholder="••••••••"
+                 />
+                 <button
+                   type="button"
+                   aria-label="Mostrar u ocultar contraseña"
+                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                   onClick={() => setShowPassword(!showPassword)}
+                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400" />
                   ) : (
@@ -165,29 +182,31 @@ const Register = () => {
               )}
             </div>
 
+            {password && (
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirmar contraseña
-              </label>
+               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                 Confirmar contraseña
+               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
-                  {...register('confirmPassword', {
-                    required: 'Debes confirmar la contraseña',
-                    validate: value =>
-                      value === password || 'Las contraseñas no coinciden'
-                  ,
-                    onChange: () => serverError && setServerError(null)
-                  })}
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  className="input pl-10 pr-10"
-                  placeholder="••••••••"
-                />
-                <button
+                   <input
+                    {...register('confirmPassword', {
+                      required: 'Debes confirmar la contraseña',
+                      validate: value =>
+                        value === password || 'Las contraseñas no coinciden',
+                      onChange: () => serverError && setServerError(null)
+                    })}
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    data-testid="register-confirm"
+                    className="input pl-10 pr-10"
+                    placeholder="••••••••"
+                  />
+                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  aria-label="Mostrar u ocultar confirmación de contraseña"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
@@ -201,21 +220,22 @@ const Register = () => {
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
             </div>
+            )}
           </div>
-
+ 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+               {isLoading ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Creando cuenta...
                 </div>
               ) : (
-                'Crear cuenta'
+                'Registrarse'
               )}
             </button>
           </div>

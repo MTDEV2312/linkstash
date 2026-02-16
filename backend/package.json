@@ -8,7 +8,9 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:unit": "node test/scraper_unit_tests.mjs && node test/scraper_redirect_tests.mjs"
+    "test:unit": "node test/scraper_unit_tests.mjs && node test/scraper_redirect_tests.mjs",
+    "lint": "eslint . --ignore-path .gitignore",
+    "inspect": "node --inspect app.js"
   },
   "keywords": [
     "links",
@@ -24,15 +26,21 @@
     "bullmq": "5.66.1",
     "cheerio": "1.0.0-rc.12",
     "cloudinary": "2.8.0",
+    "compression": "^1.7.4",
     "cors": "2.8.5",
     "dotenv": "16.3.1",
     "express": "4.21.2",
     "express-rate-limit": "^6.7.0",
+    "helmet": "^7.1.0",
     "ioredis": "5.8.2",
     "ipaddr.js": "2.2.0",
+    "joi": "^17.11.0",
     "jsonwebtoken": "9.0.2",
     "mongoose": "7.8.7",
-    "multer": "2.0.2"
+    "multer": "2.0.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "3.0.1"

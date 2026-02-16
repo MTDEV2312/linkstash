@@ -1,85 +1,63 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { AuthenticationError, asyncHandler } from '../utils/customErrors.js';
+import { getLogger } from '../utils/logger.js';
 
-const authMiddleware = async (req, res, next) => {
-  try {
-    // Obtener el token del header
-    const authHeader = req.header('Authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Acceso denegado. Token no proporcionado.'
-      });
-    }
+const logger = getLogger('AuthMiddleware');
 
-    // Extraer el token (quitar "Bearer ")
-    const token = authHeader.slice(7);
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Acceso denegado. Token no válido.'
-      });
-    }
-
-    try {
-      // Verificar el token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Buscar el usuario en la base de datos
-      const user = await User.findById(decoded.userId).select('-password');
-      
-      if (!user) {
-        console.warn('Usuario no encontrado para token:', decoded.userId);
-        return res.status(401).json({
-          success: false,
-          message: 'Token no válido. Usuario no encontrado.'
-        });
-      }
-
-      // Agregar el usuario al objeto request
-      req.user = user;
-      next();
-
-    } catch (jwtError) {
-      console.error('Error de JWT:', jwtError.name, jwtError.message);
-      
-      if (jwtError.name === 'TokenExpiredError') {
-        return res.status(401).json({
-          success: false,
-          message: 'Token expirado. Por favor, inicia sesión nuevamente.',
-          code: 'TOKEN_EXPIRED'
-        });
-      }
-      
-      if (jwtError.name === 'JsonWebTokenError') {
-        console.warn('Token inválido (malformado):', jwtError.message);
-        return res.status(401).json({
-          success: false,
-          message: 'Token no válido.',
-          code: 'INVALID_TOKEN'
-        });
-      }
-
-      return res.status(401).json({
-        success: false,
-        message: 'Error de autenticación.',
-        code: 'AUTH_ERROR'
-      });
-    }
-
-  } catch (error) {
-    console.error('Error en authMiddleware:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor.'
-    });
-  }
+const parseList = (value) => {
+  if (!value) return [];
+  return value.split(',').map(v => v.trim()).filter(Boolean);
 };
 
+export const authMiddleware = asyncHandler(async (req, res, next) => {
+  // Obtener el token del header
+  const authHeader = req.header('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new AuthenticationError('Acceso denegado. Token no proporcionado.');
+  }
+
+  // Extraer el token (quitar "Bearer ")
+  const token = authHeader.slice(7);
+
+  if (!token) {
+    throw new AuthenticationError('Acceso denegado. Token no válido.');
+  }
+
+  try {
+    // Verificar el token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Buscar el usuario en la base de datos
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      logger.warn('Usuario no encontrado para token', { userId: decoded.userId });
+      throw new AuthenticationError('Token no válido. Usuario no encontrado.');
+    }
+
+    // Agregar el usuario al objeto request
+    req.user = user;
+    next();
+
+  } catch (jwtError) {
+    logger.warn('Error de JWT', { code: jwtError.name, message: jwtError.message });
+    
+    if (jwtError.name === 'TokenExpiredError') {
+      throw new AuthenticationError('Token expirado. Por favor, inicia sesión nuevamente.');
+    }
+    
+    if (jwtError.name === 'JsonWebTokenError') {
+      throw new AuthenticationError('Token no válido.');
+    }
+
+    throw jwtError;
+  }
+});
+
 // Middleware opcional - no falla si no hay token
-const optionalAuth = async (req, res, next) => {
+export const optionalAuth = asyncHandler(async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
     
@@ -95,20 +73,42 @@ const optionalAuth = async (req, res, next) => {
             req.user = user;
           }
         } catch (jwtError) {
-          // Silenciosamente ignorar errores de JWT en modo opcional
-          console.log('Token opcional no válido:', jwtError.message);
+          logger.debug('Token opcional no válido', { message: jwtError.message });
         }
       }
     }
     
     next();
   } catch (error) {
-    console.error('Error en optionalAuth:', error);
-    next(); // Continuar sin autenticación
+    // En modo opcional, ignorar errores
+    next();
   }
+});
+
+export const adminMiddleware = (req, res, next) => {
+  const adminEmails = parseList(process.env.ADMIN_EMAILS).map(v => v.toLowerCase());
+  const adminUserIds = parseList(process.env.ADMIN_USER_IDS);
+  const userEmail = req.user?.email?.toLowerCase();
+  const userId = req.user?._id?.toString();
+
+  const isAdminByEmail = userEmail && adminEmails.includes(userEmail);
+  const isAdminById = userId && adminUserIds.includes(userId);
+
+  if (isAdminByEmail || isAdminById) {
+    return next();
+  }
+
+  logger.warn('Acceso admin denegado', {
+    userId,
+    email: userEmail
+  });
+
+  return res.status(403).json({
+    success: false,
+    message: 'Acceso denegado. Requiere permisos de administrador.',
+    errorCode: 'ADMIN_ONLY',
+    requestId: req.requestId
+  });
 };
 
-export {
-  authMiddleware,
-  optionalAuth
-};
+export default authMiddleware;
