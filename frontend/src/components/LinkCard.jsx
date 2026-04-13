@@ -218,7 +218,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                     height={100}
                     className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                     quality={70}
-                    isCloudinary={link.imageIsCloudinary}
+                    isStored={link.imageIsStored}
                     onError={(e) => {
                       e.target.style.display = 'none'
                     }}
@@ -265,8 +265,8 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
                       </span>
                     )}
                     <span className="text-primary-600 dark:text-primary-400 flex items-center">
-                      {link.imageIsCloudinary && (
-                        <Cloud className="w-3 h-3 mr-1" title="Imagen en Cloudinary" />
+                      {link.imageIsStored && (
+                        <Cloud className="w-3 h-3 mr-1" title="Imagen en Storage" />
                       )}
                       {getDomainFromUrl(link.url)}
                     </span>
@@ -414,7 +414,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
             height={225}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
             quality={75}
-            isCloudinary={link.imageIsCloudinary}
+            isStored={link.imageIsStored}
             onError={(e) => {
               e.target.parentElement.style.display = 'none'
             }}
@@ -527,8 +527,8 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
         
         <div className="flex items-center justify-between">
           <span className="text-xs text-primary-600 font-medium truncate flex items-center">
-            {link.imageIsCloudinary && (
-              <Cloud className="w-3 h-3 mr-1" title="Imagen en Cloudinary" />
+            {link.imageIsStored && (
+              <Cloud className="w-3 h-3 mr-1" title="Imagen en Storage" />
             )}
             {getDomainFromUrl(link.url)}
           </span>

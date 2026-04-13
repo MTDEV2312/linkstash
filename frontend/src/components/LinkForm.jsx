@@ -12,7 +12,7 @@ const LinkForm = ({ onSave, onCancel }) => {
   const [urlPreview, setUrlPreview] = useState(null)
   const [imageFile, setImageFile] = useState(null)
   const [imageUrl, setImageUrl] = useState('')
-  const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
+  const [uploadToStorage, setUploadToStorage] = useState(true)
   const [imagePreview, setImagePreview] = useState('')
   const { saveLink, refetchLinks } = useLinkStore()
   const { refetchTags, markTagsForRefresh } = useTagStore()

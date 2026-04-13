@@ -108,7 +108,7 @@ const DescriptionModal = ({ link, isOpen, onClose, onUpdate }) => {
                 height={150}
                 className="w-full h-32 object-cover rounded-lg mb-3"
                 quality={75}
-                isCloudinary={link.imageIsCloudinary}
+                isStored={link.imageIsStored}
                 onError={(e) => e.target.style.display = 'none'}
               />
             )}

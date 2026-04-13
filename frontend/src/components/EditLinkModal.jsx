@@ -14,7 +14,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   const [imageFile, setImageFile] = useState(null)
   const [serverError, setServerError] = useState(null)
   const [imageUrl, setImageUrl] = useState(link?.image || '')
-  const [uploadToCloudinary, setUploadToCloudinary] = useState(true)
+  const [uploadToStorage, setUploadToStorage] = useState(true)
   const [imagePreview, setImagePreview] = useState(link?.image || '')
   const { updateLink, refetchLinks } = useLinkStore()
   const { refetchTags, markTagsForRefresh } = useTagStore()
@@ -202,10 +202,10 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       let result
       if (imageFile) {
         // Actualizar con archivo de imagen
-        result = await updateLink(link._id, linkData, imageFile, uploadToCloudinary)
+        result = await updateLink(link._id, linkData, imageFile, uploadToStorage)
       } else {
         // Actualizar solo datos (incluye URL de imagen si existe)
-        result = await updateLink(link._id, linkData, null, uploadToCloudinary && imageUrl)
+        result = await updateLink(link._id, linkData, null, uploadToStorage && imageUrl)
       }
 
       if (result.success) {
@@ -403,7 +403,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                     height={300}
                     className="w-40 h-40 object-cover rounded-lg border"
                     quality={70}
-                    isCloudinary={link?.imageIsCloudinary && imagePreview === link.image}
+                    isStored={link?.imageIsStored && imagePreview === link.image}
                     onError={(e) => {
                       e.target.style.display = 'none'
                     }}
@@ -415,10 +415,10 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {link?.imageIsCloudinary && imagePreview === link.image && (
+                  {link?.imageIsStored && imagePreview === link.image && (
                     <span className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded flex items-center">
                       <Cloud className="w-3 h-3 mr-1" />
-                      Cloudinary
+                      Storage
                     </span>
                   )}
                 </div>
@@ -490,18 +490,18 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                 </button>
               </div>
 
-              {/* Opción de Cloudinary */}
+              {/* Opción de Storage */}
               {(imageFile || imageUrl) && (
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="uploadToCloudinary"
-                    checked={uploadToCloudinary}
-                    onChange={(e) => setUploadToCloudinary(e.target.checked)}
+                    id="uploadToStorage"
+                    checked={uploadToStorage}
+                    onChange={(e) => setUploadToStorage(e.target.checked)}
                     className="mr-2"
                   />
-                  <label htmlFor="uploadToCloudinary" className="text-sm text-gray-700 dark:text-gray-300">
-                    Subir a Cloudinary (recomendado para mejor rendimiento)
+                  <label htmlFor="uploadToStorage" className="text-sm text-gray-700 dark:text-gray-300">
+                    Subir al Storage (recomendado para mejor rendimiento)
                   </label>
                 </div>
               )}

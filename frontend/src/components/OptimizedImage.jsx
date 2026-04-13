@@ -12,13 +12,14 @@ const OptimizedImage = memo(({
   height = 300,
   className = 'w-full h-full object-cover',
   quality = 80,
+  isStored = false,
   isCloudinary = false,
   onLoad,
   onError,
   eager = false,
   ...props
 }) => {
-  const normalizedSrc = normalizeImageUrl(src, { isCloudinary })
+  const normalizedSrc = normalizeImageUrl(src, { isStored, isCloudinary })
   const optimized = getOptimizedImageUrl(normalizedSrc, width, quality)
   const placeholder = getBlurPlaceholderUrl(normalizedSrc)
   const [useOptimized, setUseOptimized] = useState(optimized && optimized !== normalizedSrc)
