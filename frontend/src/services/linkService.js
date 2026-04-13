@@ -66,7 +66,7 @@ class LinkService {
   }
 
   // Actualizar enlace (soporta FormData para imágenes multipart)
-  async updateLink(id, linkData, uploadFile = null, uploadToCloudinary = false) {
+  async updateLink(id, linkData, uploadFile = null, uploadToStorage = false) {
     let payload = linkData
 
     // Si hay archivo para subir, usar FormData
@@ -86,12 +86,14 @@ class LinkService {
       
       // Agregar archivo
       payload.append('image', uploadFile)
-      payload.append('uploadToCloudinary', uploadToCloudinary.toString())
-    } else if (linkData.image && uploadToCloudinary) {
-      // Si solo hay URL de imagen y se quiere subir a Cloudinary
+      payload.append('uploadToStorage', uploadToStorage.toString())
+      payload.append('uploadToCloudinary', uploadToStorage.toString())
+    } else if (linkData.image && uploadToStorage) {
+      // Si solo hay URL de imagen y se quiere subir a storage
       payload = { 
         ...linkData, 
-        uploadToCloudinary: uploadToCloudinary 
+        uploadToStorage,
+        uploadToCloudinary: uploadToStorage 
       }
     }
 
