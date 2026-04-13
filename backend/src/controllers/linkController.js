@@ -9,6 +9,20 @@ import { asyncHandler } from '../utils/customErrors.js';
 
 const logger = getLogger('LinkController');
 
+const normalizeTags = (tags = []) => {
+  if (!Array.isArray(tags)) return [];
+  return [...new Set(tags.map(tag => String(tag || '').toLowerCase().trim().replace(/\s+/g, ' ')).filter(Boolean))];
+};
+
+const keepExistingTagsOnly = async (userId, tags = []) => {
+  const normalizedTags = normalizeTags(tags);
+  if (normalizedTags.length === 0) return [];
+
+  const existingTags = await Tag.find({ userId, name: { $in: normalizedTags } }).select('name').lean();
+  const allowed = new Set(existingTags.map(tag => tag.name));
+  return normalizedTags.filter(tag => allowed.has(tag));
+};
+
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
 // @access  Private
@@ -64,6 +78,8 @@ const saveLink = async (req, res) => {
       }
     }
 
+    const validTags = await keepExistingTagsOnly(userId, tags);
+
     const linkData = {
       userId,
       url,
@@ -73,7 +89,7 @@ const saveLink = async (req, res) => {
       imagePublicId: provisionalImage && fallback.url === provisionalImage ? fallback.publicId : '',
       imageIsStored: provisionalImage && fallback.url === provisionalImage ? fallback.isStored : false,
       needsDescription: false,
-      tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean),
+      tags: validTags,
       status: title ? 'completed' : 'processing',
       scrapingError: null,
       scrapingAttempts: 0
@@ -315,7 +331,7 @@ const updateLink = async (req, res) => {
     if (isArchived !== undefined) link.isArchived = isArchived;
     
     if (tags !== undefined) {
-      link.tags = tags.map(tag => tag.toLowerCase().trim()).filter(Boolean);
+      link.tags = await keepExistingTagsOnly(userId, tags);
       
       // Actualizar contadores de etiquetas
       await updateTagsCount(userId, oldTags, 'decrement');
@@ -469,26 +485,19 @@ const toggleFavorite = async (req, res) => {
 
 // Función auxiliar para actualizar contadores de etiquetas
 const updateTagsCount = async (userId, tags, operation) => {
-  if (!tags || tags.length === 0) return;
+  const normalizedTags = normalizeTags(tags);
+  if (normalizedTags.length === 0) return;
   
-  for (const tagName of tags) {
-    // Normalizar nombre: trim, lowercase, remover espacios múltiples
-    const normalizedTagName = tagName.toLowerCase().trim().replace(/\s+/g, ' ');
-    
-    if (!normalizedTagName || normalizedTagName.length < 2) {
-      logger.warn(`Tag inválido o demasiado corto: "${tagName}"`);
+  for (const normalizedTagName of normalizedTags) {
+    if (normalizedTagName.length < 2) {
+      logger.warn(`Tag inválido o demasiado corto: "${normalizedTagName}"`);
       continue;
     }
     
     try {
       let tag = await Tag.findOne({ userId, name: normalizedTagName });
       
-      if (!tag && operation === 'increment') {
-        // Crear nueva etiqueta
-        tag = new Tag({ userId, name: normalizedTagName, linkCount: 1 });
-        await tag.save();
-        logger.info(`Nueva etiqueta creada: ${normalizedTagName}`);
-      } else if (tag) {
+      if (tag) {
         if (operation === 'increment') {
           await tag.incrementLinkCount();
         } else if (operation === 'decrement') {
@@ -502,7 +511,7 @@ const updateTagsCount = async (userId, tags, operation) => {
         }
       }
     } catch (err) {
-      logger.error(`Error procesando tag "${tagName}"`, err);
+      logger.error(`Error procesando tag "${normalizedTagName}"`, err);
       // Continuar con otros tags si uno falla
       continue;
     }
@@ -597,10 +606,22 @@ const batchUpdate = async (req, res) => {
         if (!tag || typeof tag !== 'string') {
           return res.status(400).json({ success: false, message: 'Tag is required for addTag action' });
         }
-        result = await Link.updateMany({ _id: { $in: linkIds }, userId }, { $addToSet: { tags: tag.toLowerCase().trim() } });
+        {
+          const normalizedTag = normalizeTags([tag])[0];
+          if (!normalizedTag) {
+            return res.status(400).json({ success: false, message: 'Tag inválido' });
+          }
+
+          const existingTag = await Tag.findOne({ userId, name: normalizedTag }).select('_id').lean();
+          if (!existingTag) {
+            return res.status(400).json({ success: false, message: 'La etiqueta no existe. Creala desde la pestaña Etiquetas.' });
+          }
+
+          result = await Link.updateMany({ _id: { $in: linkIds }, userId }, { $addToSet: { tags: normalizedTag } });
+        }
         // Update tag counts (approximate: increment by number of modified docs)
         if (result && result.modifiedCount > 0) {
-          await updateTagsCount(userId, [tag.toLowerCase().trim()], 'increment');
+          await updateTagsCount(userId, [normalizeTags([tag])[0]], 'increment');
         }
         break;
 

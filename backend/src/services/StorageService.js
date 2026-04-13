@@ -46,6 +46,10 @@ const inferExtension = (mimeType = '') => {
     'image/jpg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
+    'image/avif': 'avif',
+    'image/bmp': 'bmp',
+    'image/tiff': 'tiff',
+    'image/x-icon': 'ico',
     'image/gif': 'gif',
     'image/svg+xml': 'svg'
   };
@@ -141,6 +145,10 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
           jpg: 'image/jpeg',
           jpeg: 'image/jpeg',
           webp: 'image/webp',
+          avif: 'image/avif',
+          bmp: 'image/bmp',
+          tiff: 'image/tiff',
+          ico: 'image/x-icon',
           gif: 'image/gif',
           svg: 'image/svg+xml'
         };
