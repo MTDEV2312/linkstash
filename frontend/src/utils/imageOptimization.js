@@ -12,11 +12,12 @@
 export const normalizeImageUrl = (url, options = {}) => {
   if (!url) return ''
 
-  const { isCloudinary = false } = options
+  const { isStored = false, isCloudinary = false } = options
+  const isManagedStorage = isStored || isCloudinary
   const isAbsolute = /^(https?:)?\/\//i.test(url) || /^data:/i.test(url) || /^blob:/i.test(url)
   if (isAbsolute) return url
 
-  if (!isCloudinary) return url
+  if (!isManagedStorage) return url
 
   const cloudName =
     import.meta.env.VITE_CLOUDINARY_CLOUD_NAME ||

@@ -185,10 +185,10 @@ export const useLinkStore = create(
       },
 
       // Actualizar enlace (con soporte para imágenes)
-      updateLink: async (id, linkData, uploadFile = null, uploadToCloudinary = false) => {
+      updateLink: async (id, linkData, uploadFile = null, uploadToStorage = false) => {
         set({ isLoading: true })
         try {
-          const response = await linkService.updateLink(id, linkData, uploadFile, uploadToCloudinary)
+          const response = await linkService.updateLink(id, linkData, uploadFile, uploadToStorage)
           const updatedLink = response.data.link
           
           set(state => ({
