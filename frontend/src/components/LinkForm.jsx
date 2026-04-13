@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
+import ExistingTagsMenu from './ExistingTagsMenu'
 import { linkFormRules, normalizeUrl, linkValidators } from '../utils/linkValidators'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -14,8 +15,9 @@ const LinkForm = ({ onSave, onCancel }) => {
   const [imageUrl, setImageUrl] = useState('')
   const [uploadToStorage, setUploadToStorage] = useState(true)
   const [imagePreview, setImagePreview] = useState('')
+  const [selectedTags, setSelectedTags] = useState([])
   const { saveLink, refetchLinks } = useLinkStore()
-  const { refetchTags, markTagsForRefresh } = useTagStore()
+  const { tags, fetchTags, refetchTags, markTagsForRefresh } = useTagStore()
   
   const {
     register,
@@ -28,15 +30,19 @@ const LinkForm = ({ onSave, onCancel }) => {
     defaultValues: {
       url: '',
       title: '',
-      description: '',
-      tags: ''
+      description: ''
     }
   })
 
   const watchedUrl = watch('url')
   const watchedTitle = watch('title')
   const watchedDescription = watch('description')
-  const watchedTags = watch('tags')
+
+  useEffect(() => {
+    if (!tags || tags.length === 0) {
+      fetchTags()
+    }
+  }, [tags, fetchTags])
 
   // Función para validar URL (solo formato)
   const isValidUrl = (string) => linkValidators.isValidUrl(string)
@@ -116,9 +122,7 @@ const LinkForm = ({ onSave, onCancel }) => {
         url: normalizeUrl(data.url),
         title: data.title?.trim() || '',
         description: data.description?.trim() || '',
-        tags: data.tags 
-          ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean)
-          : []
+        tags: selectedTags
       }
 
       // Agregar imagen si hay URL
@@ -270,29 +274,11 @@ const LinkForm = ({ onSave, onCancel }) => {
 
         {/* Etiquetas */}
         <div>
-          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Etiquetas
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(Separadas por comas)</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Tag className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              {...register('tags', linkFormRules.tags)}
-              type="text"
-              className={`input pl-10 ${errors.tags ? 'border-red-500 focus:ring-red-500' : ''}`}
-              placeholder="programación, tutorial, react (separadas por comas)"
-            />
-          </div>
-          {errors.tags && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-              {errors.tags.message}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            Separa las etiquetas con comas. Se generarán automáticamente si se dejan vacías.
-          </p>
+          <ExistingTagsMenu
+            availableTags={tags}
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+          />
         </div>
 
         {/* Botones */}

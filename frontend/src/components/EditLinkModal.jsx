@@ -4,6 +4,7 @@ import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
 import PlaceholderImage from './PlaceholderImage'
 import OptimizedImage from './OptimizedImage'
+import ExistingTagsMenu from './ExistingTagsMenu'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload, Cloud, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -16,8 +17,9 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   const [imageUrl, setImageUrl] = useState(link?.image || '')
   const [uploadToStorage, setUploadToStorage] = useState(true)
   const [imagePreview, setImagePreview] = useState(link?.image || '')
+  const [selectedTags, setSelectedTags] = useState([])
   const { updateLink, refetchLinks } = useLinkStore()
-  const { refetchTags, markTagsForRefresh } = useTagStore()
+  const { tags, fetchTags, refetchTags, markTagsForRefresh } = useTagStore()
   const textareaRef = useRef(null)
 
   const {
@@ -31,10 +33,15 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
     defaultValues: {
       url: '',
       title: '',
-      description: '',
-      tags: ''
+      description: ''
     }
   })
+
+  useEffect(() => {
+    if (!tags || tags.length === 0) {
+      fetchTags()
+    }
+  }, [tags, fetchTags])
 
   // Función para auto-resize del textarea
   const adjustTextareaHeight = () => {
@@ -52,8 +59,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       const formData = {
         url: link.url || '',
         title: link.title || '',
-        description: link.description || '',
-        tags: (link.tags || []).join(', ')
+        description: link.description || ''
       }
       
       // Resetear el formulario
@@ -66,6 +72,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       setImageUrl(link.image || '')
       setImagePreview(link.image || '')
       setImageFile(null)
+      setSelectedTags(Array.isArray(link.tags) ? link.tags : [])
       
       // Ajustar altura del textarea después de establecer los valores
       setTimeout(() => {
@@ -182,9 +189,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         url: normalizeUrl(data.url),
         title: data.title?.trim() || '',
         description: data.description?.trim() || '',
-        tags: data.tags 
-          ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean)
-          : []
+        tags: selectedTags
       }
 
       // Agregar imagen si hay URL
@@ -437,7 +442,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                 <div className="relative">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,.bmp,.tiff,.ico,image/*"
                     onChange={handleImageFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
@@ -451,6 +456,10 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                   </div>
                 </div>
               </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Formatos soportados: JPG, PNG, WEBP, AVIF, GIF, SVG, BMP, TIFF, ICO (hasta 5MB).
+              </p>
 
               {/* URL de imagen */}
               <div>
@@ -510,20 +519,11 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Etiquetas */}
           <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Etiquetas
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Tag className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                {...register('tags')}
-                type="text"
-                className="input pl-10"
-                placeholder="programación, tutorial, react (separadas por comas)"
-              />
-            </div>
+            <ExistingTagsMenu
+              availableTags={tags}
+              selectedTags={selectedTags}
+              onChange={setSelectedTags}
+            />
           </div>
 
           {/* Botones */}
