@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLinkStore } from '../stores/linkStore'
+import useTagStore from '../stores/tagStore'
 import LinkCard from '../components/LinkCard'
 import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
 import UpdateIndicator from '../components/UpdateIndicator'
 import LinkForm from '../components/LinkForm'
+import ExistingTagsMenu from '../components/ExistingTagsMenu'
 import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
@@ -27,6 +29,8 @@ const MyLinks = () => {
   const getLinks = useLinkStore(state => state.getLinks)
   const linksById = useLinkStore(state => state.linksById)
   const linkIds = useLinkStore(state => state.linkIds)
+  const tags = useTagStore(state => state.tags)
+  const fetchTags = useTagStore(state => state.fetchTags)
   
   // Computar links basado en cambios de linksById y linkIds
   const links = useMemo(() => {
@@ -74,6 +78,12 @@ const MyLinks = () => {
     // Solo ejecutar una vez al montar el componente
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!tags || tags.length === 0) {
+      fetchTags()
+    }
+  }, [tags, fetchTags])
 
   const handleSearch = async (query, signal = null) => {
     setIsUpdating(true)
@@ -181,7 +191,7 @@ const MyLinks = () => {
       {showFilters && (
         <div className="card">
           <div className="card-content">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Estado
@@ -242,6 +252,16 @@ const MyLinks = () => {
                   <option value="desc">Descendente</option>
                   <option value="asc">Ascendente</option>
                 </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <ExistingTagsMenu
+                  label="Filtrar por etiquetas"
+                  availableTags={tags}
+                  selectedTags={filters.tags || []}
+                  onChange={(newTags) => handleFilterChange({ tags: newTags })}
+                  helperText="Mostrando enlaces que tengan al menos una de las etiquetas seleccionadas."
+                />
               </div>
             </div>
           </div>
