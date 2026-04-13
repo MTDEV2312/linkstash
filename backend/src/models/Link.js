@@ -47,14 +47,14 @@ const linkSchema = new mongoose.Schema({
     },
     default: ''
   },
-  // Si la imagen fue subida a Cloudinary, guardamos el public_id
+  // Si la imagen fue subida al storage, guardamos el object key/public id
   imagePublicId: {
     type: String,
     trim: true,
     default: ''
   },
-  // Indica si la imagen actual está almacenada en Cloudinary (true) o es externa/ruta relativa (false)
-  imageIsCloudinary: {
+  // Indica si la imagen actual está almacenada en storage (true) o es externa/ruta relativa (false)
+  imageIsStored: {
     type: Boolean,
     default: false
   },
@@ -104,8 +104,19 @@ const linkSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// Compatibilidad retroactiva para clientes antiguos.
+linkSchema.virtual('imageIsCloudinary')
+  .get(function() {
+    return this.imageIsStored;
+  })
+  .set(function(value) {
+    this.imageIsStored = value;
+  });
 
 // Índices para mejorar el rendimiento
 linkSchema.index({ userId: 1, createdAt: -1 });
