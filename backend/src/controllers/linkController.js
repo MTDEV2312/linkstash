@@ -1,8 +1,8 @@
 import Link from '../models/Link.js';
 import Tag from '../models/Tag.js';
 import scraperService from '../services/scraperService.js';
-import cloudinaryService from '../services/cloudinaryService.js';
-import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
+import storageService from '../services/StorageService.js';
+import { getNextDefaultImageWithStorage } from '../config/defaults.js';
 import queue from '../config/queue.js';
 import { getLogger } from '../utils/logger.js';
 import { asyncHandler } from '../utils/customErrors.js';
@@ -48,9 +48,9 @@ const saveLink = async (req, res) => {
     
     // Si el usuario proporciona título, usar imagen predeterminada
     let provisionalImage = '';
-    let fallback = { url: '', publicId: '', isCloudinary: false };
+    let fallback = { url: '', publicId: '', isStored: false };
     if (title && title.trim()) {
-      fallback = await getNextDefaultImageWithCloudinary();
+      fallback = await getNextDefaultImageWithStorage();
       const rawImage = fallback.url;
       if (rawImage && /^(https?:\/\/.+|\/[\S].*)/i.test(rawImage)) {
         provisionalImage = rawImage;
@@ -71,7 +71,7 @@ const saveLink = async (req, res) => {
       description: provisionalDescription,
       image: provisionalImage,
       imagePublicId: provisionalImage && fallback.url === provisionalImage ? fallback.publicId : '',
-      imageIsCloudinary: provisionalImage && fallback.url === provisionalImage ? fallback.isCloudinary : false,
+      imageIsStored: provisionalImage && fallback.url === provisionalImage ? fallback.isStored : false,
       needsDescription: false,
       tags: tags.map(tag => tag.toLowerCase().trim()).filter(Boolean),
       status: title ? 'completed' : 'processing',
@@ -235,11 +235,15 @@ const updateLink = async (req, res) => {
     } else if (!Array.isArray(tags)) {
       tags = [];
     }
-    // Determinar si se pidió subida a Cloudinary (form fields vienen como strings en multipart)
-    const uploadToCloudinary = (req.body.uploadToCloudinary === 'true' || req.body.uploadToCloudinary === true);
+    // Mantener compatibilidad: uploadToCloudinary (legado) y uploadToStorage (nuevo)
+    const uploadToStorage =
+      req.body.uploadToStorage === 'true' ||
+      req.body.uploadToStorage === true ||
+      req.body.uploadToCloudinary === 'true' ||
+      req.body.uploadToCloudinary === true;
 
     // Debug: log corto para entender por qué req.file podría no llegar
-    logger.debug('updateLink invocado', { id, userId: userId.toString(), uploadToCloudinary, hasFile: !!req.file, bodyKeys: Object.keys(req.body), contentType: req.headers['content-type'] });
+    logger.debug('updateLink invocado', { id, userId: userId.toString(), uploadToStorage, hasFile: !!req.file, bodyKeys: Object.keys(req.body), contentType: req.headers['content-type'] });
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -263,48 +267,48 @@ const updateLink = async (req, res) => {
 
     if (req.file) {
       // Si la imagen anterior estaba en Cloudinary, eliminarla antes
-      if (link.imageIsCloudinary && link.imagePublicId) {
-        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa de Cloudinary', e, { publicId: link.imagePublicId }); }
+      if ((link.imageIsStored || link.imageIsCloudinary) && link.imagePublicId) {
+        try { await storageService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa del storage', e, { publicId: link.imagePublicId }); }
       }
 
-      if (!uploadToCloudinary) {
-        return res.status(400).json({ success: false, message: 'Para subir un archivo multipart debe enviar uploadToCloudinary=true' });
+      if (!uploadToStorage) {
+        return res.status(400).json({ success: false, message: 'Para subir un archivo multipart debe enviar uploadToStorage=true (o uploadToCloudinary=true por compatibilidad)' });
       }
 
-      // Subir buffer a Cloudinary
-      const up = await cloudinaryService.uploadImageFromBuffer(req.file.buffer);
+      // Subir buffer a InsForge Storage
+      const up = await storageService.uploadImageFromBuffer(req.file.buffer, { mimeType: req.file.mimetype });
       if (up && up.success) {
         link.image = up.url;
         link.imagePublicId = up.public_id;
-        link.imageIsCloudinary = true;
+        link.imageIsStored = true;
       } else {
-        logger.error('Error subiendo imagen multipart a Cloudinary', up?.error || up);
-        return res.status(500).json({ success: false, message: 'No se pudo subir la imagen a Cloudinary' });
+        logger.error('Error subiendo imagen multipart a InsForge Storage', up?.error || up);
+        return res.status(500).json({ success: false, message: 'No se pudo subir la imagen al storage' });
       }
     } else if (image !== undefined) {
       // Si la imagen cambia y la anterior estaba en Cloudinary, eliminarla
-      if (link.imageIsCloudinary && link.imagePublicId) {
-        try { await cloudinaryService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa de Cloudinary', e, { publicId: link.imagePublicId }); }
+      if ((link.imageIsStored || link.imageIsCloudinary) && link.imagePublicId) {
+        try { await storageService.deleteImage(link.imagePublicId); } catch (e) { logger.error('Error eliminando imagen previa del storage', e, { publicId: link.imagePublicId }); }
       }
 
-      // Si se proporciona una URL y pide subida a Cloudinary, intentar subir desde URL
-      if (uploadToCloudinary && image) {
-        const up = await cloudinaryService.uploadImageFromUrl(image);
+      // Si se proporciona una URL y pide subida al storage, intentar subir desde URL
+      if (uploadToStorage && image) {
+        const up = await storageService.uploadImageFromUrl(image);
         if (up && up.success) {
           link.image = up.url;
           link.imagePublicId = up.public_id;
-          link.imageIsCloudinary = true;
+          link.imageIsStored = true;
         } else {
           // Fallback: guardar la URL tal cual
           link.image = image;
           link.imagePublicId = '';
-          link.imageIsCloudinary = false;
+          link.imageIsStored = false;
         }
       } else {
-        // No subir a cloudinary: simplemente actualizar URL/flag
+        // No subir al storage: simplemente actualizar URL/flag
         link.image = image;
         link.imagePublicId = '';
-        link.imageIsCloudinary = false;
+        link.imageIsStored = false;
       }
     }
     if (isFavorite !== undefined) link.isFavorite = isFavorite;
@@ -369,11 +373,11 @@ const deleteLink = async (req, res) => {
     }
 
     // Si la imagen está en Cloudinary, eliminarla
-    if (link.imageIsCloudinary && link.imagePublicId) {
+    if ((link.imageIsStored || link.imageIsCloudinary) && link.imagePublicId) {
       try {
-        await cloudinaryService.deleteImage(link.imagePublicId);
+        await storageService.deleteImage(link.imagePublicId);
       } catch (e) {
-        logger.error('Error eliminando imagen en Cloudinary', e, { publicId: link.imagePublicId });
+        logger.error('Error eliminando imagen en storage', e, { publicId: link.imagePublicId });
       }
     }
 
