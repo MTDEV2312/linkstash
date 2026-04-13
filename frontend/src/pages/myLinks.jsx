@@ -10,7 +10,7 @@ import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
-import { Plus, Grid, List, Filter } from 'lucide-react'
+import { Plus, Grid, List, Filter, X } from 'lucide-react'
 
 const MyLinks = () => {
   const [showLinkForm, setShowLinkForm] = useState(false)
@@ -109,6 +109,8 @@ const MyLinks = () => {
     setIsUpdating(false)
   }
 
+  const hasActiveFilters = Boolean(filters.search) || (filters.tags?.length || 0) > 0 || filters.archived || filters.favorite !== null
+
   const handleLinkSaved = async () => {
     setShowLinkForm(false)
     const res = await fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
@@ -186,6 +188,78 @@ const MyLinks = () => {
       <div ref={searchBarRef}>
         <SearchBar onSearch={handleSearch} initialValue={filters.search} />
       </div>
+
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          {filters.search ? (
+            <button
+              type="button"
+              onClick={() => handleSearch('')}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+            >
+              Búsqueda: {filters.search}
+              <X className="w-3 h-3" />
+            </button>
+          ) : null}
+
+          {(filters.tags || []).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => handleFilterChange({ tags: (filters.tags || []).filter((item) => item !== tag) })}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-200"
+            >
+              Tag: {tag}
+              <X className="w-3 h-3" />
+            </button>
+          ))}
+
+          {filters.archived ? (
+            <button
+              type="button"
+              onClick={() => handleFilterChange({ archived: false })}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+            >
+              Archivados
+              <X className="w-3 h-3" />
+            </button>
+          ) : null}
+
+          {filters.favorite !== null ? (
+            <button
+              type="button"
+              onClick={() => handleFilterChange({ favorite: null })}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+            >
+              {filters.favorite ? 'Solo favoritos' : 'Sin favoritos'}
+              <X className="w-3 h-3" />
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={async () => {
+              const resetFilters = {
+                search: '',
+                tags: [],
+                archived: false,
+                favorite: null,
+                sortBy: filters.sortBy,
+                sortOrder: filters.sortOrder,
+                page: 1
+              }
+              setIsUpdating(true)
+              setFilters(resetFilters)
+              const res = await fetchLinks(resetFilters)
+              if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
+              setIsUpdating(false)
+            }}
+            className="text-xs text-primary-700 hover:text-primary-800 dark:text-primary-300"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
 
       {/* Filtros */}
       {showFilters && (
@@ -297,12 +371,12 @@ const MyLinks = () => {
              </svg>
            </div>
            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-             {filters.search ? 'Sin resultados' : 'No tienes enlaces guardados'}
+             {hasActiveFilters ? 'Sin resultados' : 'No tienes enlaces guardados'}
            </h3>
            <p className="text-gray-600 dark:text-gray-300 mb-6">
-             {filters.search ? 'No hay enlaces que coincidan con tu búsqueda.' : 'Comienza agregando tu primer enlace para organizarlo mejor.'}
+             {hasActiveFilters ? 'No hay enlaces que coincidan con tus filtros actuales.' : 'Comienza agregando tu primer enlace para organizarlo mejor.'}
            </p>
-           {!filters.search && (
+           {!hasActiveFilters && (
              <button
                onClick={() => setShowLinkForm(true)}
                className="btn-primary btn-md"
