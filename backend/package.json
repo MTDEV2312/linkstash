@@ -9,6 +9,7 @@
     "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:unit": "node test/scraper_unit_tests.mjs && node test/scraper_redirect_tests.mjs",
+    "test:tags": "node test/tags_existing_only_integration.mjs",
     "lint": "eslint . --ignore-path .gitignore",
     "inspect": "node --inspect app.js"
   },
