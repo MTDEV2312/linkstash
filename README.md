@@ -43,7 +43,7 @@ Cada sub-proyecto (backend y frontend) incluye:
 - JWT para autenticación
 - Cheerio para web scraping
 - Bcryptjs para hash de contraseñas
-- Cloudinary para almacenamiento de imágenes
+- InsForge Storage para almacenamiento de imágenes
 
 ### Frontend
 - React 18.2.0 + Vite 7.1.7
