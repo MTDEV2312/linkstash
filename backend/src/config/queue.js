@@ -4,6 +4,11 @@ import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('Queue');
 
+const shouldStoreScrapedExternalImage = () => {
+  const flag = String(process.env.SCRAPER_STORE_EXTERNAL_IMAGES || '').trim().toLowerCase();
+  return flag === 'true' || flag === '1' || flag === 'yes';
+};
+
 let backend = {
   mode: 'inprocess',
   addJob: async (data, opts = {}) => {
@@ -76,23 +81,23 @@ const init = async () => {
         async (job) => {
           const scraperService = (await import('../services/scraperService.js')).default;
           const Link = (await import('../models/Link.js')).default;
-          const cloudinaryService = (await import('../services/cloudinaryService.js')).default;
-          const { getNextDefaultImageWithCloudinary } = await import('../config/defaults.js');
+          const storageService = (await import('../services/StorageService.js')).default;
+          const { getNextDefaultImageWithStorage } = await import('../config/defaults.js');
 
           const resolveDefaultImage = async () => {
-            const fallback = await getNextDefaultImageWithCloudinary();
+            const fallback = await getNextDefaultImageWithStorage();
             let url = fallback.url || '';
-            let isCloudinary = fallback.isCloudinary;
+            let isStored = fallback.isStored;
             let publicId = fallback.publicId || '';
 
             if (url && url.startsWith('/')) {
               const backendUrl = process.env.BACKEND_BASE_URL || 'http://localhost:5000';
               url = `${backendUrl.replace(/\/$/, '')}${url}`;
-              isCloudinary = false;
+              isStored = false;
               publicId = '';
             }
 
-            return { url, isCloudinary, publicId };
+            return { url, isStored, publicId };
           };
 
           const { linkId, url, userId } = job.data || {};
@@ -108,22 +113,26 @@ const init = async () => {
 
             const scrapedImage = scraped.image || '';
             if (scrapedImage) {
-              try {
-                const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
-                if (up && up.success) {
-                  updates.image = up.url; updates.imagePublicId = up.public_id; updates.imageIsCloudinary = true;
-                } else {
-                  updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsCloudinary = false;
+              if (shouldStoreScrapedExternalImage()) {
+                try {
+                  const up = await storageService.uploadImageFromUrl(scrapedImage);
+                  if (up && up.success) {
+                    updates.image = up.url; updates.imagePublicId = up.public_id; updates.imageIsStored = true;
+                  } else {
+                    updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsStored = false;
+                  }
+                } catch (e) {
+                  updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsStored = false;
                 }
-              } catch (e) {
-                updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsCloudinary = false;
+              } else {
+                updates.image = scrapedImage; updates.imagePublicId = ''; updates.imageIsStored = false;
               }
             } else {
               const fallback = await resolveDefaultImage();
               if (fallback.url) {
                 updates.image = fallback.url;
                 updates.imagePublicId = fallback.publicId;
-                updates.imageIsCloudinary = fallback.isCloudinary;
+                updates.imageIsStored = fallback.isStored;
               }
             }
 
@@ -146,7 +155,7 @@ const init = async () => {
               if (fallback.url) {
                 updates.image = fallback.url;
                 updates.imagePublicId = fallback.publicId;
-                updates.imageIsCloudinary = fallback.isCloudinary;
+                updates.imageIsStored = fallback.isStored;
               }
             }
 

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import cloudinaryService from '../services/cloudinaryService.js';
+import storageService from '../services/StorageService.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('Defaults');
@@ -15,6 +15,13 @@ const publicDefaultsDir = path.join(__dirname, '..', '..', 'public', 'defaults')
 
 // Estrategia: 'random' o 'roundrobin'
 const strategy = (process.env.DEFAULT_IMAGE_STRATEGY || 'random').toLowerCase();
+
+const isValidDefaultImageUrl = (url) => /^(https?:\/\/.+|\/[\S].*)$/i.test(url || '');
+
+const configuredDefaultImages = (process.env.DEFAULT_IMAGE_URLS || '')
+  .split(',')
+  .map((u) => u.trim())
+  .filter((u) => isValidDefaultImageUrl(u));
 
 let defaultImages = [];
 try {
@@ -33,19 +40,21 @@ try {
 
 let roundRobinIndex = 0;
 
-const cloudinaryCache = new Map();
+const storageCache = new Map();
 
-const hasCloudinaryConfig = () => {
+const hasStorageConfig = () => {
   return !!(
-    process.env.CLOUDINARY_URL ||
-    process.env.CLOUDINARY_CLOUD_NAME ||
-    process.env.cloud_name ||
-    process.env.CLOUDINARY_CLOUDNAME
+    process.env.INSFORGE_URL ||
+    process.env.INSFORGE_BASE_URL
   );
 };
 
-const isCloudinaryUrl = (url) => {
+const isLegacyCloudinaryUrl = (url) => {
   return typeof url === 'string' && url.includes('res.cloudinary.com');
+};
+
+const isInsforgeStorageUrl = (url) => {
+  return typeof url === 'string' && /\/storage\/buckets\/[^/]+\/objects\//i.test(url);
 };
 
 const isLocalhostDefaultsUrl = (url) => {
@@ -59,51 +68,58 @@ const isLocalhostDefaultsUrl = (url) => {
 };
 
 export function getDefaultImages() {
+  if (configuredDefaultImages.length > 0) {
+    return configuredDefaultImages.slice();
+  }
   return defaultImages.slice();
 }
 
 export function getNextDefaultImage() {
-  if (!defaultImages || defaultImages.length === 0) {
+  const pool = configuredDefaultImages.length > 0 ? configuredDefaultImages : defaultImages;
+
+  if (!pool || pool.length === 0) {
     // Fallback conservador
     if (process.env.DEFAULT_IMAGE_URL) return process.env.DEFAULT_IMAGE_URL;
     return '/defaults/default-image.svg';
   }
 
   if (strategy === 'roundrobin') {
-    const idx = roundRobinIndex % defaultImages.length;
+    const idx = roundRobinIndex % pool.length;
     roundRobinIndex += 1;
-    return defaultImages[idx];
+    return pool[idx];
   }
 
   // Por defecto random
-  const idx = Math.floor(Math.random() * defaultImages.length);
-  return defaultImages[idx];
+  const idx = Math.floor(Math.random() * pool.length);
+  return pool[idx];
 }
 
-export async function getNextDefaultImageWithCloudinary() {
-  const rawImage = process.env.DEFAULT_IMAGE_URL || getNextDefaultImage();
+export async function getNextDefaultImageWithStorage() {
+  const envDefaultRaw = (process.env.DEFAULT_IMAGE_URL || '').trim();
+  const envDefaultLooksValid = /^(https?:\/\/.+|\/[\S].*)$/i.test(envDefaultRaw);
+  const rawImage = envDefaultLooksValid ? envDefaultRaw : getNextDefaultImage();
   if (!rawImage) {
-    return { url: '', publicId: '', isCloudinary: false };
+    return { url: '', publicId: '', isStored: false };
   }
 
-  if (cloudinaryCache.has(rawImage)) {
-    return cloudinaryCache.get(rawImage);
+  if (storageCache.has(rawImage)) {
+    return storageCache.get(rawImage);
   }
 
-  if (isCloudinaryUrl(rawImage)) {
-    const cached = { url: rawImage, publicId: '', isCloudinary: false };
-    cloudinaryCache.set(rawImage, cached);
+  if (isLegacyCloudinaryUrl(rawImage) || isInsforgeStorageUrl(rawImage)) {
+    const cached = { url: rawImage, publicId: '', isStored: false };
+    storageCache.set(rawImage, cached);
     return cached;
   }
 
-  if (!hasCloudinaryConfig()) {
-    const fallback = { url: rawImage, publicId: '', isCloudinary: false };
-    cloudinaryCache.set(rawImage, fallback);
+  if (!hasStorageConfig()) {
+    const fallback = { url: rawImage, publicId: '', isStored: false };
+    storageCache.set(rawImage, fallback);
     return fallback;
   }
 
   try {
-    const folderBase = process.env.CLOUDINARY_FOLDER || 'linkstash';
+    const folderBase = process.env.INSFORGE_STORAGE_FOLDER || 'linkstash';
     let uploadSource = rawImage;
     if (isLocalhostDefaultsUrl(rawImage)) {
       const parsed = new URL(rawImage);
@@ -112,24 +128,24 @@ export async function getNextDefaultImageWithCloudinary() {
       uploadSource = `/defaults/${filename}`;
     }
 
-    const up = await cloudinaryService.uploadImageFromUrl(uploadSource, { folder: `${folderBase}/defaults` });
+    const up = await storageService.uploadImageFromUrl(uploadSource, { folder: `${folderBase}/defaults` });
     if (up && up.success) {
-      const result = { url: up.url, publicId: up.public_id || '', isCloudinary: true };
-      cloudinaryCache.set(rawImage, result);
+      const result = { url: up.url, publicId: up.public_id || '', isStored: true };
+      storageCache.set(rawImage, result);
       return result;
     }
   } catch (e) {
     // Fall through to fallback
-    logger.warn('Error subiendo imagen por defecto a Cloudinary', { error: e.message, rawImage });
+    logger.warn('Error subiendo imagen por defecto a InsForge Storage', { error: e.message, rawImage });
   }
 
-  const fallback = { url: rawImage, publicId: '', isCloudinary: false };
-  cloudinaryCache.set(rawImage, fallback);
+  const fallback = { url: rawImage, publicId: '', isStored: false };
+  storageCache.set(rawImage, fallback);
   return fallback;
 }
 
 export default {
   getDefaultImages,
   getNextDefaultImage,
-  getNextDefaultImageWithCloudinary
+  getNextDefaultImageWithStorage
 };
