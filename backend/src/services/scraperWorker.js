@@ -1,26 +1,31 @@
 import scraperQueue from './scraperQueue.js';
 import scraperService from './scraperService.js';
 import Link from '../models/Link.js';
-import cloudinaryService from './cloudinaryService.js';
-import { getNextDefaultImageWithCloudinary } from '../config/defaults.js';
+import storageService from './StorageService.js';
+import { getNextDefaultImageWithStorage } from '../config/defaults.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('ScraperWorker');
 
+const shouldStoreScrapedExternalImage = () => {
+  const flag = String(process.env.SCRAPER_STORE_EXTERNAL_IMAGES || '').trim().toLowerCase();
+  return flag === 'true' || flag === '1' || flag === 'yes';
+};
+
 const resolveDefaultImage = async () => {
-  const fallback = await getNextDefaultImageWithCloudinary();
+  const fallback = await getNextDefaultImageWithStorage();
   let url = fallback.url || '';
-  let isCloudinary = fallback.isCloudinary;
+  let isStored = fallback.isStored;
   let publicId = fallback.publicId || '';
 
   if (url && url.startsWith('/')) {
     const backendUrl = process.env.BACKEND_BASE_URL || 'http://localhost:5000';
     url = `${backendUrl.replace(/\/$/, '')}${url}`;
-    isCloudinary = false;
+    isStored = false;
     publicId = '';
   }
 
-  return { url, isCloudinary, publicId };
+  return { url, isStored, publicId };
 };
 
 // Worker: procesa jobs con forma { data: { linkId, url, userId }, ... }
@@ -56,28 +61,34 @@ const processJob = async (job) => {
       // Manejo de imagen
       const scrapedImage = scraped.image || '';
       if (scrapedImage) {
-        try {
-          const up = await cloudinaryService.uploadImageFromUrl(scrapedImage);
-          if (up && up.success) {
-            updates.image = up.url;
-            updates.imagePublicId = up.public_id;
-            updates.imageIsCloudinary = true;
-          } else {
+        if (shouldStoreScrapedExternalImage()) {
+          try {
+            const up = await storageService.uploadImageFromUrl(scrapedImage);
+            if (up && up.success) {
+              updates.image = up.url;
+              updates.imagePublicId = up.public_id;
+              updates.imageIsStored = true;
+            } else {
+              updates.image = scrapedImage;
+              updates.imagePublicId = '';
+              updates.imageIsStored = false;
+            }
+          } catch (e) {
             updates.image = scrapedImage;
             updates.imagePublicId = '';
-            updates.imageIsCloudinary = false;
+            updates.imageIsStored = false;
           }
-        } catch (e) {
+        } else {
           updates.image = scrapedImage;
           updates.imagePublicId = '';
-          updates.imageIsCloudinary = false;
+          updates.imageIsStored = false;
         }
       } else {
         const fallback = await resolveDefaultImage();
         if (fallback.url) {
           updates.image = fallback.url;
           updates.imagePublicId = fallback.publicId;
-          updates.imageIsCloudinary = fallback.isCloudinary;
+          updates.imageIsStored = fallback.isStored;
         }
       }
 
@@ -110,7 +121,7 @@ const processJob = async (job) => {
         if (fallback.url) {
           updates.image = fallback.url;
           updates.imagePublicId = fallback.publicId;
-          updates.imageIsCloudinary = fallback.isCloudinary;
+          updates.imageIsStored = fallback.isStored;
         }
       }
       
@@ -138,7 +149,7 @@ const processJob = async (job) => {
         if (fallback.url) {
           updates.image = fallback.url;
           updates.imagePublicId = fallback.publicId;
-          updates.imageIsCloudinary = fallback.isCloudinary;
+          updates.imageIsStored = fallback.isStored;
         }
       }
       
@@ -183,7 +194,7 @@ try {
           if (fallback.url) {
             updates.image = fallback.url;
             updates.imagePublicId = fallback.publicId;
-            updates.imageIsCloudinary = fallback.isCloudinary;
+            updates.imageIsStored = fallback.isStored;
           }
         }
         
