@@ -7,6 +7,159 @@ import TagCard from '../components/TagCard'
 import TagCardSkeleton from '../components/Skeletons/TagCardSkeleton'
 import TagService from '../services/tagService'
 
+const TagsHeader = ({ showForm, onToggleForm }) => (
+	<div className="flex items-center justify-between">
+		<div>
+			<h1 className="text-2xl font-bold text-gray-900 dark:text-white">Etiquetas</h1>
+			<p className="text-gray-600 dark:text-gray-300">Organiza y administra tus etiquetas</p>
+		</div>
+
+		<div className="flex items-center gap-2">
+			<button onClick={onToggleForm} className="btn-primary btn-md flex items-center">
+				<Plus className="w-4 h-4 mr-2" />
+				{showForm ? 'Cancelar' : 'Nueva etiqueta'}
+			</button>
+		</div>
+	</div>
+)
+
+const TagFormCard = ({ showForm, formState, setFormState, colorPalette, onSubmit }) => {
+	if (!showForm) return null
+
+	const { name, description, color, editingId } = formState
+
+	return (
+		<div className="card">
+			<div className="card-content">
+				<form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-2 items-start">
+					<div className="flex-1 w-full">
+						<input
+							className="input w-full"
+							placeholder="Nombre de la etiqueta"
+							value={name}
+							onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
+						/>
+						<textarea
+							className="input w-full mt-2"
+							placeholder="Descripción (opcional)"
+							value={description}
+							onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
+							rows={2}
+						/>
+						<div className="mt-2 flex items-center gap-3">
+							<div className="text-sm text-gray-600 dark:text-gray-400">Color:</div>
+							<div className="flex gap-2">
+								{colorPalette.map((c) => (
+									<button
+										key={c}
+										type="button"
+										onClick={() => setFormState((prev) => ({ ...prev, color: c }))}
+										className={`w-7 h-7 rounded-full border-2 ${color === c ? 'ring-2 ring-offset-1 ring-primary-500' : 'border-gray-300 dark:border-gray-600'}`}
+										style={{ backgroundColor: c }}
+									/>
+								))}
+							</div>
+							<input
+								type="color"
+								value={color}
+								onChange={(e) => setFormState((prev) => ({ ...prev, color: e.target.value }))}
+								className="ml-2 h-8 w-10 p-0 rounded border border-gray-300 dark:border-gray-600"
+							/>
+						</div>
+					</div>
+					<div className="flex-shrink-0 self-stretch flex items-center">
+						<button className="btn-primary btn-md" type="submit">
+							{editingId ? 'Guardar' : 'Crear'}
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	)
+}
+
+const TagSearchCard = ({ search, onSearchChange, onSearch, onClear }) => (
+	<div className="card">
+		<div className="card-content flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+			<div className="flex-1 max-w-md">
+				<label htmlFor="tag-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar etiquetas</label>
+				<input
+					id="tag-search"
+					className="input w-full"
+					placeholder="Buscar por nombre"
+					value={search}
+					onChange={(e) => onSearchChange(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') onSearch()
+					}}
+				/>
+			</div>
+			<div className="flex items-center gap-2">
+				<button className="btn-outline btn-sm" type="button" onClick={onSearch}>Buscar</button>
+				{search ? (
+					<button type="button" onClick={onClear} className="btn-outline btn-sm flex items-center gap-1">
+						<X className="w-4 h-4" />
+						Limpiar
+					</button>
+				) : null}
+			</div>
+		</div>
+	</div>
+)
+
+const TagsListSection = ({ pageLoading, mutationLoading, tags, pagination, search, onEdit, onDelete, onPageChange }) => {
+	if (pageLoading || mutationLoading) {
+		return (
+			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+				{Array.from({ length: 6 }).map((_, i) => (
+					<TagCardSkeleton key={i} />
+				))}
+			</div>
+		)
+	}
+
+	if (!tags || tags.length === 0) {
+		return (
+			<div className="text-center py-12">
+				<p className="text-gray-600 dark:text-gray-400">Aún no hay etiquetas. Crea la primera.</p>
+			</div>
+		)
+	}
+
+	return (
+		<>
+			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+				{tags?.map((tag) => (
+					<TagCard key={tag._id} tag={tag} onEdit={onEdit} onDelete={onDelete} />
+				))}
+			</div>
+			<div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+				<p className="text-sm text-gray-600 dark:text-gray-400">
+					Mostrando página <span className="font-medium">{pagination.currentPage}</span> de <span className="font-medium">{pagination.totalPages}</span> ({pagination.totalTags} etiquetas)
+				</p>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={() => onPageChange(pagination.currentPage - 1, search)}
+						disabled={!pagination.hasPrevPage || pageLoading}
+						className="btn-outline btn-sm disabled:opacity-50"
+					>
+						Anterior
+					</button>
+					<button
+						type="button"
+						onClick={() => onPageChange(pagination.currentPage + 1, search)}
+						disabled={!pagination.hasNextPage || pageLoading}
+						className="btn-outline btn-sm disabled:opacity-50"
+					>
+						Siguiente
+					</button>
+				</div>
+			</div>
+		</>
+	)
+}
+
 const Tags = () => {
 	const { isLoading: mutationLoading, createTag, updateTag, deleteTag } = useTagStore()
 	const { refetchLinks, invalidateLinksByTags } = useLinkStore()
@@ -147,74 +300,26 @@ const Tags = () => {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900 dark:text-white">Etiquetas</h1>
-					<p className="text-gray-600 dark:text-gray-300">Organiza y administra tus etiquetas</p>
-				</div>
+			<TagsHeader
+				showForm={showForm}
+				onToggleForm={() => {
+					setFormState((prev) => ({
+						showForm: !prev.showForm,
+						name: '',
+						editingId: null,
+						color: '#6B7280',
+						description: ''
+					}))
+				}}
+			/>
 
-				<div className="flex items-center gap-2">
-					<button
-							onClick={() => {
-								setFormState((prev) => ({
-									showForm: !prev.showForm,
-									name: '',
-									editingId: null,
-									color: '#6B7280',
-									description: ''
-								}))
-							}}
-						className="btn-primary btn-md flex items-center"
-					>
-						<Plus className="w-4 h-4 mr-2" />
-						{showForm ? 'Cancelar' : 'Nueva etiqueta'}
-					</button>
-				</div>
-			</div>
-
-			{showForm && (
-				<div className="card">
-					<div className="card-content">
-						<form onSubmit={editingId ? handleUpdate : handleCreate} className="flex flex-col sm:flex-row gap-2 items-start">
-							<div className="flex-1 w-full">
-								<input
-									className="input w-full"
-									placeholder="Nombre de la etiqueta"
-									value={name}
-									onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-								/>
-								<textarea
-									className="input w-full mt-2"
-									placeholder="Descripción (opcional)"
-									value={description}
-									onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-									rows={2}
-								/>
-								<div className="mt-2 flex items-center gap-3">
-									<div className="text-sm text-gray-600 dark:text-gray-400">Color:</div>
-									<div className="flex gap-2">
-										{COLOR_PALETTE.map(c => (
-											<button
-												key={c}
-												type="button"
-												onClick={() => setFormState((prev) => ({ ...prev, color: c }))}
-												className={`w-7 h-7 rounded-full border-2 ${color === c ? 'ring-2 ring-offset-1 ring-primary-500' : 'border-gray-300 dark:border-gray-600'}`}
-												style={{ backgroundColor: c }}
-											/>
-										))}
-									</div>
-									<input type="color" value={color} onChange={(e) => setFormState((prev) => ({ ...prev, color: e.target.value }))} className="ml-2 h-8 w-10 p-0 rounded border border-gray-300 dark:border-gray-600" />
-								</div>
-							</div>
-							<div className="flex-shrink-0 self-stretch flex items-center">
-								<button className="btn-primary btn-md" type="submit">
-									{editingId ? 'Guardar' : 'Crear'}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
+			<TagFormCard
+				showForm={showForm}
+				formState={formState}
+				setFormState={setFormState}
+				colorPalette={COLOR_PALETTE}
+				onSubmit={editingId ? handleUpdate : handleCreate}
+			/>
 
 			{/* Error inline */}
 			{loadError && (
@@ -233,88 +338,26 @@ const Tags = () => {
 				</div>
 			)}
 
-			<div className="card">
-				<div className="card-content flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-					<div className="flex-1 max-w-md">
-						<label htmlFor="tag-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar etiquetas</label>
-						<input
-							id="tag-search"
-							className="input w-full"
-							placeholder="Buscar por nombre"
-							value={search}
-							onChange={(e) => setListState((prev) => ({ ...prev, search: e.target.value }))}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') {
-									loadTagsPage(1, search)
-								}
-							}}
-						/>
-					</div>
-					<div className="flex items-center gap-2">
-						<button className="btn-outline btn-sm" type="button" onClick={() => loadTagsPage(1, search)}>
-							Buscar
-						</button>
-						{search ? (
-							<button
-								type="button"
-								onClick={() => {
-									setListState((prev) => ({ ...prev, search: '' }))
-									loadTagsPage(1, '')
-								}}
-								className="btn-outline btn-sm flex items-center gap-1"
-							>
-								<X className="w-4 h-4" />
-								Limpiar
-							</button>
-						) : null}
-					</div>
-				</div>
-			</div>
+			<TagSearchCard
+				search={search}
+				onSearchChange={(nextSearch) => setListState((prev) => ({ ...prev, search: nextSearch }))}
+				onSearch={() => loadTagsPage(1, search)}
+				onClear={() => {
+					setListState((prev) => ({ ...prev, search: '' }))
+					loadTagsPage(1, '')
+				}}
+			/>
 
-			{/* Lista */}
-			{pageLoading || mutationLoading ? (
-				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-					{Array.from({ length: 6 }).map((_, i) => (
-						<TagCardSkeleton key={i} />
-					))}
-				</div>
-			) : !tags || tags.length === 0 ? (
-				<div className="text-center py-12">
-					<p className="text-gray-600 dark:text-gray-400">Aún no hay etiquetas. Crea la primera.</p>
-				</div>
-			) : (
-				<>
-					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-						{tags?.map((tag) => (
-							<TagCard key={tag._id} tag={tag} onEdit={startEdit} onDelete={handleDelete} />
-						))}
-					</div>
-					<div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
-						<p className="text-sm text-gray-600 dark:text-gray-400">
-							Mostrando página <span className="font-medium">{pagination.currentPage}</span> de{' '}
-							<span className="font-medium">{pagination.totalPages}</span> ({pagination.totalTags} etiquetas)
-						</p>
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() => loadTagsPage(pagination.currentPage - 1, search)}
-								disabled={!pagination.hasPrevPage || pageLoading}
-								className="btn-outline btn-sm disabled:opacity-50"
-							>
-								Anterior
-							</button>
-							<button
-								type="button"
-								onClick={() => loadTagsPage(pagination.currentPage + 1, search)}
-								disabled={!pagination.hasNextPage || pageLoading}
-								className="btn-outline btn-sm disabled:opacity-50"
-							>
-								Siguiente
-							</button>
-						</div>
-					</div>
-				</>
-			)}
+			<TagsListSection
+				pageLoading={pageLoading}
+				mutationLoading={mutationLoading}
+				tags={tags}
+				pagination={pagination}
+				search={search}
+				onEdit={startEdit}
+				onDelete={handleDelete}
+				onPageChange={loadTagsPage}
+			/>
 		</div>
 	)
 }
