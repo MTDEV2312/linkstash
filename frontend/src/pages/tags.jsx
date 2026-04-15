@@ -10,62 +10,54 @@ import TagService from '../services/tagService'
 const Tags = () => {
 	const { isLoading: mutationLoading, createTag, updateTag, deleteTag } = useTagStore()
 	const { refetchLinks, invalidateLinksByTags } = useLinkStore()
-	const [tags, setTags] = useState([])
-	const [pagination, setPagination] = useState({
+	const [listState, setListState] = useState({
+		tags: [],
+		pagination: {
 		currentPage: 1,
 		totalPages: 1,
 		totalTags: 0,
 		itemsPerPage: 5,
 		hasNextPage: false,
 		hasPrevPage: false
+		},
+		loadError: '',
+		search: '',
+		pageLoading: false
 	})
-	const [showForm, setShowForm] = useState(false)
-	const [name, setName] = useState('')
-	const [editingId, setEditingId] = useState(null)
-	const [color, setColor] = useState('#6B7280')
-	const [description, setDescription] = useState('')
-	const [loadError, setLoadError] = useState('')
-	const [search, setSearch] = useState('')
-	const [pageLoading, setPageLoading] = useState(false)
+	const [formState, setFormState] = useState({
+		showForm: false,
+		name: '',
+		editingId: null,
+		color: '#6B7280',
+		description: ''
+	})
+	const { tags, pagination, loadError, search, pageLoading } = listState
+	const { showForm, name, editingId, color, description } = formState
 
 	const loadTagsPage = async (page = 1, nextSearch = search) => {
-		setPageLoading(true)
+		setListState((prev) => ({ ...prev, pageLoading: true }))
 		try {
 			const res = await TagService.getTagsPage({ page, limit: 5, search: nextSearch })
-			setTags(res.tags || [])
-			setPagination(res.pagination || pagination)
-			setLoadError('')
+			setListState((prev) => ({
+				...prev,
+				tags: res.tags || [],
+				pagination: res.pagination || prev.pagination,
+				loadError: '',
+				pageLoading: false
+			}))
 		} catch (error) {
-			setLoadError(error?.response?.data?.message || 'Error al cargar etiquetas')
-		} finally {
-			setPageLoading(false)
+			setListState((prev) => ({
+				...prev,
+				loadError: error?.response?.data?.message || 'Error al cargar etiquetas',
+				pageLoading: false
+			}))
 		}
 	}
 
 	useEffect(() => {
-		let mounted = true
-		;(async () => {
-			try {
-				const res = await TagService.getTagsPage({ page: 1, limit: 5, search: '' })
-				if (mounted) {
-					setTags(res.tags || [])
-					setPagination(res.pagination || {
-						currentPage: 1,
-						totalPages: 1,
-						totalTags: 0,
-						itemsPerPage: 5,
-						hasNextPage: false,
-						hasPrevPage: false
-					})
-					setLoadError('')
-				}
-			} catch (error) {
-				if (mounted) {
-					setLoadError(error?.response?.data?.message || 'Error al cargar etiquetas')
-				}
-			}
-		})()
-		return () => { mounted = false }
+		loadTagsPage(1, '')
+		// Solo carga inicial
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
 	const handleCreate = async (e) => {
@@ -75,13 +67,15 @@ const Tags = () => {
 			const payload = { name: name.trim(), color: color || '#6B7280', description: description || '' }
 			const res = await createTag(payload)
 			if (res.success) {
-				setName('')
-				setColor('#6B7280')
-				setDescription('')
-				setShowForm(false)
-				setLoadError('')
+				setFormState({
+					showForm: false,
+					name: '',
+					editingId: null,
+					color: '#6B7280',
+					description: ''
+				})
+				setListState((prev) => ({ ...prev, loadError: '', search: '' }))
 				await loadTagsPage(1, '')
-				setSearch('')
 				await invalidateLinksByTags() // Actualiza links que usan estas etiquetas
 			}
 		} catch (err) {
@@ -105,11 +99,13 @@ const Tags = () => {
 	}
 
 	const startEdit = (tag) => {
-		setEditingId(tag._id)
-		setName(tag.name)
-		setColor(tag.color || '#6B7280')
-		setDescription(tag.description || '')
-		setShowForm(true)
+		setFormState({
+			showForm: true,
+			name: tag.name,
+			editingId: tag._id,
+			color: tag.color || '#6B7280',
+			description: tag.description || ''
+		})
 	}
 
 	const handleUpdate = async (e) => {
@@ -119,11 +115,13 @@ const Tags = () => {
 			const payload = { name: name.trim(), color: color || '#6B7280', description: description || '' }
 			const res = await updateTag(editingId, payload)
 			if (res.success) {
-				setName('')
-				setEditingId(null)
-				setColor('#6B7280')
-				setDescription('')
-				setShowForm(false)
+				setFormState({
+					showForm: false,
+					name: '',
+					editingId: null,
+					color: '#6B7280',
+					description: ''
+				})
 				await loadTagsPage(pagination.currentPage, search)
 				await invalidateLinksByTags() // Actualiza links que usan esta etiqueta modificada
 			}
@@ -157,7 +155,15 @@ const Tags = () => {
 
 				<div className="flex items-center gap-2">
 					<button
-						onClick={() => { setShowForm(!showForm); setName(''); setEditingId(null); setColor('#6B7280'); setDescription('') }}
+							onClick={() => {
+								setFormState((prev) => ({
+									showForm: !prev.showForm,
+									name: '',
+									editingId: null,
+									color: '#6B7280',
+									description: ''
+								}))
+							}}
 						className="btn-primary btn-md flex items-center"
 					>
 						<Plus className="w-4 h-4 mr-2" />
@@ -175,13 +181,13 @@ const Tags = () => {
 									className="input w-full"
 									placeholder="Nombre de la etiqueta"
 									value={name}
-									onChange={(e) => setName(e.target.value)}
+									onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
 								/>
 								<textarea
 									className="input w-full mt-2"
 									placeholder="Descripción (opcional)"
 									value={description}
-									onChange={(e) => setDescription(e.target.value)}
+									onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
 									rows={2}
 								/>
 								<div className="mt-2 flex items-center gap-3">
@@ -191,13 +197,13 @@ const Tags = () => {
 											<button
 												key={c}
 												type="button"
-												onClick={() => setColor(c)}
+												onClick={() => setFormState((prev) => ({ ...prev, color: c }))}
 												className={`w-7 h-7 rounded-full border-2 ${color === c ? 'ring-2 ring-offset-1 ring-primary-500' : 'border-gray-300 dark:border-gray-600'}`}
 												style={{ backgroundColor: c }}
 											/>
 										))}
 									</div>
-									<input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="ml-2 h-8 w-10 p-0 rounded border border-gray-300 dark:border-gray-600" />
+									<input type="color" value={color} onChange={(e) => setFormState((prev) => ({ ...prev, color: e.target.value }))} className="ml-2 h-8 w-10 p-0 rounded border border-gray-300 dark:border-gray-600" />
 								</div>
 							</div>
 							<div className="flex-shrink-0 self-stretch flex items-center">
@@ -236,7 +242,7 @@ const Tags = () => {
 							className="input w-full"
 							placeholder="Buscar por nombre"
 							value={search}
-							onChange={(e) => setSearch(e.target.value)}
+							onChange={(e) => setListState((prev) => ({ ...prev, search: e.target.value }))}
 							onKeyDown={(e) => {
 								if (e.key === 'Enter') {
 									loadTagsPage(1, search)
@@ -252,7 +258,7 @@ const Tags = () => {
 							<button
 								type="button"
 								onClick={() => {
-									setSearch('')
+									setListState((prev) => ({ ...prev, search: '' }))
 									loadTagsPage(1, '')
 								}}
 								className="btn-outline btn-sm flex items-center gap-1"

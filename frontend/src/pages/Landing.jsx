@@ -208,7 +208,7 @@ const Landing = () => {
                   { title: 'Tailwind CSS', domain: 'tailwindcss.com', tags: ['CSS', 'Tools'] }
                 ].map((link, idx) => (
                   <div
-                    key={idx}
+                    key={link.title}
                     className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -223,7 +223,7 @@ const Landing = () => {
                     <div className="flex flex-wrap gap-1">
                       {link.tags.map((tag, tidx) => (
                         <span
-                          key={tidx}
+                          key={`${link.title}-${tag}`}
                           className="inline-block px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs rounded"
                         >
                           {tag}
@@ -257,11 +257,11 @@ const Landing = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => {
+            {features.map((feature) => {
               const Icon = feature.icon
               return (
                 <div
-                  key={index}
+                  key={feature.title}
                   className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all duration-200"
                 >
                   <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center mb-4">
@@ -294,8 +294,8 @@ const Landing = () => {
               </p>
               
               <div className="space-y-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-start space-x-3">
+                {benefits.map((benefit) => (
+                  <div key={benefit} className="flex items-start space-x-3">
                     <CheckCircle2 className="w-6 h-6 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700 dark:text-gray-200">{benefit}</span>
                   </div>

@@ -3,7 +3,7 @@ import LinkForm from '../components/LinkForm'
 import LinkCard from '../components/LinkCard'
 import TagCard from '../components/TagCard'
 import dashboardService from '../services/dashboardService'
-import { Plus, Grid, List, Filter, Eye, Heart, Archive, Tag } from 'lucide-react'
+import { Plus, Filter, Eye, Heart, Archive, Tag } from 'lucide-react'
 
 const StatCard = ({ title, value, icon: Icon }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 flex items-center gap-3">
@@ -19,11 +19,13 @@ const StatCard = ({ title, value, icon: Icon }) => (
 
 const Dashboard = () => {
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [viewMode, setViewMode] = useState('grid')
   const [loading, setLoading] = useState(true)
-  const [summary, setSummary] = useState(null)
-  const [topTags, setTopTags] = useState([])
-  const [recentLinks, setRecentLinks] = useState([])
+  const [dashboardData, setDashboardData] = useState({
+    summary: null,
+    topTags: [],
+    recentLinks: []
+  })
+  const { summary, topTags, recentLinks } = dashboardData
 
   const handleLinkSaved = () => {
     setShowLinkForm(false)
@@ -35,9 +37,11 @@ const Dashboard = () => {
     try {
       const res = await dashboardService.getOverview()
       if (res && res.success) {
-        setSummary(res.data.summary || null)
-        setTopTags(res.data.topTags || [])
-        setRecentLinks(res.data.recentLinks || [])
+        setDashboardData({
+          summary: res.data.summary || null,
+          topTags: res.data.topTags || [],
+          recentLinks: res.data.recentLinks || []
+        })
       }
     } catch (e) {
       console.error('Error cargando dashboard:', e)
@@ -118,7 +122,12 @@ const Dashboard = () => {
       {showLinkForm && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowLinkForm(false)} />
+            <button
+              type="button"
+              aria-label="Cerrar modal de nuevo enlace"
+              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+              onClick={() => setShowLinkForm(false)}
+            />
             
             <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <LinkForm 

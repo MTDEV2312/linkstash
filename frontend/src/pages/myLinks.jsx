@@ -12,10 +12,13 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { Plus, Grid, List, Filter, X } from 'lucide-react'
 
 const MyLinks = () => {
-  const [showLinkForm, setShowLinkForm] = useState(false)
-  const [viewMode, setViewMode] = useState('grid') // 'grid' o 'list'
-  const [showFilters, setShowFilters] = useState(false)
-  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
+  const [ui, setUi] = useState({
+    showLinkForm: false,
+    viewMode: 'grid',
+    showFilters: false,
+    showKeyboardHelp: false
+  })
+  const { showLinkForm, viewMode, showFilters, showKeyboardHelp } = ui
   const searchBarRef = useRef(null)
   
   // Usar selectores para asegurar re-renders exactos
@@ -34,16 +37,16 @@ const MyLinks = () => {
     return linkIds.map(id => linksById[id]).filter(Boolean)
   }, [linkIds, linksById])
 
-  const [loadError, setLoadError] = useState('')
-  const [isUpdating, setIsUpdating] = useState(false)
+  const [status, setStatus] = useState({ loadError: '', isUpdating: false })
+  const { loadError, isUpdating } = status
 
   // Integrar atajos de teclado globales
   useKeyboardShortcuts({
     onSearchFocus: () => {
       searchBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     },
-    onNewLink: () => setShowLinkForm(true),
-    onHelp: () => setShowKeyboardHelp(!showKeyboardHelp)
+    onNewLink: () => setUi((prev) => ({ ...prev, showLinkForm: true })),
+    onHelp: () => setUi((prev) => ({ ...prev, showKeyboardHelp: !prev.showKeyboardHelp }))
   })
 
   // Cargar enlaces al montar el componente
@@ -52,9 +55,9 @@ const MyLinks = () => {
     const initialFetch = async () => {
       const res = await fetchLinks()
       if (mounted && res && res.success === false) {
-        setLoadError(res.message || 'Error al cargar enlaces')
+        setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces' }))
       } else {
-        setLoadError('')
+        setStatus((prev) => ({ ...prev, loadError: '' }))
       }
     }
 
@@ -71,35 +74,46 @@ const MyLinks = () => {
   }, [tags, fetchTags])
 
   const handleSearch = async (query, signal = null) => {
-    setIsUpdating(true)
+    setStatus((prev) => ({ ...prev, isUpdating: true }))
     setFilters({ ...filters, search: query, page: 1 })
     const res = await fetchLinks({ ...filters, search: query, page: 1 }, signal)
-    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
-    setIsUpdating(false)
+    if (res && res.success === false && !res.aborted) {
+      setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces', isUpdating: false }))
+      return
+    }
+    setStatus((prev) => ({ ...prev, isUpdating: false }))
   }
 
   const handleFilterChange = async (newFilters) => {
-    setIsUpdating(true)
+    setStatus((prev) => ({ ...prev, isUpdating: true }))
     const updatedFilters = { ...filters, ...newFilters, page: 1 }
     setFilters(updatedFilters)
     const res = await fetchLinks(updatedFilters)
-    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
-    setIsUpdating(false)
+    if (res && res.success === false && !res.aborted) {
+      setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces', isUpdating: false }))
+      return
+    }
+    setStatus((prev) => ({ ...prev, isUpdating: false }))
   }
 
   const handlePageChange = async (page) => {
-    setIsUpdating(true)
+    setStatus((prev) => ({ ...prev, isUpdating: true }))
     const res = await fetchLinks({ ...filters, page })
-    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
-    setIsUpdating(false)
+    if (res && res.success === false && !res.aborted) {
+      setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces', isUpdating: false }))
+      return
+    }
+    setStatus((prev) => ({ ...prev, isUpdating: false }))
   }
 
   const hasActiveFilters = Boolean(filters.search) || (filters.tags?.length || 0) > 0 || filters.archived || filters.favorite !== null
 
   const handleLinkSaved = async () => {
-    setShowLinkForm(false)
+    setUi((prev) => ({ ...prev, showLinkForm: false }))
     const res = await fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
-    if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
+    if (res && res.success === false && !res.aborted) {
+      setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces' }))
+    }
   }
 
   // Carga inicial: mostrar skeletons en lugar de spinner
@@ -137,7 +151,7 @@ const MyLinks = () => {
         
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => setUi((prev) => ({ ...prev, showFilters: !prev.showFilters }))}
             className="btn-outline btn-md flex items-center"
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -146,13 +160,13 @@ const MyLinks = () => {
           
           <div className="flex rounded-md border border-gray-300">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setUi((prev) => ({ ...prev, viewMode: 'grid' }))}
               className={`p-2 ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => setUi((prev) => ({ ...prev, viewMode: 'list' }))}
               className={`p-2 border-l border-gray-300 ${viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
             >
               <List className="w-4 h-4" />
@@ -160,7 +174,7 @@ const MyLinks = () => {
           </div>
           
           <button
-            onClick={() => setShowLinkForm(true)}
+            onClick={() => setUi((prev) => ({ ...prev, showLinkForm: true }))}
             className="btn-primary btn-md flex items-center"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -233,11 +247,14 @@ const MyLinks = () => {
                 sortOrder: filters.sortOrder,
                 page: 1
               }
-              setIsUpdating(true)
+              setStatus((prev) => ({ ...prev, isUpdating: true }))
               setFilters(resetFilters)
               const res = await fetchLinks(resetFilters)
-              if (res && res.success === false && !res.aborted) setLoadError(res.message || 'Error al cargar enlaces')
-              setIsUpdating(false)
+              if (res && res.success === false && !res.aborted) {
+                setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces', isUpdating: false }))
+                return
+              }
+              setStatus((prev) => ({ ...prev, isUpdating: false }))
             }}
             className="text-xs text-primary-700 hover:text-primary-800 dark:text-primary-300"
           >
@@ -252,10 +269,11 @@ const MyLinks = () => {
           <div className="card-content">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="filter-status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Estado
                 </label>
                 <select
+                  id="filter-status"
                   value={filters.archived ? 'archived' : 'active'}
                   onChange={(e) => handleFilterChange({ archived: e.target.value === 'archived' })}
                   className="input"
@@ -266,10 +284,11 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="filter-favorite" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Favoritos
                 </label>
                 <select
+                  id="filter-favorite"
                   value={filters.favorite === true ? 'favorites' : filters.favorite === false ? 'non-favorites' : 'all'}
                   onChange={(e) => {
                     const value = e.target.value === 'favorites' ? true : e.target.value === 'non-favorites' ? false : null
@@ -284,10 +303,11 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="filter-sort-by" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Ordenar por
                 </label>
                 <select
+                  id="filter-sort-by"
                   value={filters.sortBy}
                   onChange={(e) => handleFilterChange({ sortBy: e.target.value })}
                   className="input"
@@ -300,10 +320,11 @@ const MyLinks = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="filter-sort-order" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Orden
                 </label>
                 <select
+                  id="filter-sort-order"
                   value={filters.sortOrder}
                   onChange={(e) => handleFilterChange({ sortOrder: e.target.value })}
                   className="input"
@@ -336,7 +357,10 @@ const MyLinks = () => {
               <button
                 onClick={async () => {
                   const res = await fetchLinks(filters)
-                  setLoadError(res && res.success === false ? (res.message || 'Error al cargar enlaces') : '')
+                  setStatus((prev) => ({
+                    ...prev,
+                    loadError: res && res.success === false ? (res.message || 'Error al cargar enlaces') : ''
+                  }))
                 }}
                 className="btn-outline btn-sm"
               >
@@ -363,7 +387,7 @@ const MyLinks = () => {
            </p>
            {!hasActiveFilters && (
              <button
-               onClick={() => setShowLinkForm(true)}
+               onClick={() => setUi((prev) => ({ ...prev, showLinkForm: true }))}
                className="btn-primary btn-md"
              >
                Agregar primer enlace
@@ -444,12 +468,17 @@ const MyLinks = () => {
       {showLinkForm && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={() => setShowLinkForm(false)} />
+            <button
+              type="button"
+              aria-label="Cerrar modal de nuevo enlace"
+              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+              onClick={() => setUi((prev) => ({ ...prev, showLinkForm: false }))}
+            />
             
             <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <LinkForm 
                 onSave={handleLinkSaved}
-                onCancel={() => setShowLinkForm(false)}
+                onCancel={() => setUi((prev) => ({ ...prev, showLinkForm: false }))}
               />
             </div>
           </div>
@@ -457,7 +486,10 @@ const MyLinks = () => {
       )}
 
       {/* Keyboard Help Modal */}
-      <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
+      <KeyboardHelpModal
+        isOpen={showKeyboardHelp}
+        onClose={() => setUi((prev) => ({ ...prev, showKeyboardHelp: false }))}
+      />
     </div>
   )
 }
