@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { memo } from 'react'
 import { getOptimizedImageUrl, getBlurPlaceholderUrl, normalizeImageUrl } from '../utils/imageOptimization'
 
 /**
@@ -22,15 +22,11 @@ const OptimizedImage = memo(({
   const normalizedSrc = normalizeImageUrl(src, { isStored, isCloudinary })
   const optimized = getOptimizedImageUrl(normalizedSrc, width, quality)
   const placeholder = getBlurPlaceholderUrl(normalizedSrc)
-  const [useOptimized, setUseOptimized] = useState(optimized && optimized !== normalizedSrc)
-
-  useEffect(() => {
-    setUseOptimized(optimized && optimized !== normalizedSrc)
-  }, [optimized, normalizedSrc])
+  const useOptimized = Boolean(optimized && optimized !== normalizedSrc)
 
   const handleError = (event) => {
     if (useOptimized && normalizedSrc && optimized && optimized !== normalizedSrc) {
-      setUseOptimized(false)
+      event.currentTarget.src = normalizedSrc
       return
     }
     onError?.(event)
