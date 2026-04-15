@@ -180,10 +180,10 @@ export const linkSchemas = {
     limit: Joi.number()
       .integer()
       .min(1)
-      .max(50)
-      .default(20)
+      .max(5)
+      .default(5)
       .messages({
-        'number.max': 'El límite no puede exceder 50 elementos'
+        'number.max': 'El límite no puede exceder 5 elementos'
       }),
     search: Joi.string()
       .trim()
