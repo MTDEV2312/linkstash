@@ -11,12 +11,14 @@ import toast from 'react-hot-toast'
 
 const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   const modalRef = useFocusTrap(isOpen)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formStatus, setFormStatus] = useState({ isSubmitting: false, serverError: null })
+  const { isSubmitting, serverError } = formStatus
   const [imageFile, setImageFile] = useState(null)
-  const [serverError, setServerError] = useState(null)
-  const [imageUrl, setImageUrl] = useState(link?.image || '')
-  const [uploadToStorage, setUploadToStorage] = useState(true)
-  const [imagePreview, setImagePreview] = useState(link?.image || '')
+  const [imageState, setImageState] = useState({
+    url: link?.image || '',
+    preview: link?.image || ''
+  })
+  const uploadToStorage = true
   const [selectedTags, setSelectedTags] = useState([])
   const { updateLink, refetchLinks } = useLinkStore()
   const { tags, fetchTags, refetchTags, markTagsForRefresh } = useTagStore()
@@ -64,14 +66,6 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       
       // Resetear el formulario
       reset(formData)
-      
-      // También establecer el valor de descripción explícitamente
-      setValue('description', link.description || '', { shouldDirty: false, shouldTouch: false })
-      
-      // Configurar imágenes
-      setImageUrl(link.image || '')
-      setImagePreview(link.image || '')
-      setImageFile(null)
       setSelectedTags(Array.isArray(link.tags) ? link.tags : [])
       
       // Ajustar altura del textarea después de establecer los valores
@@ -82,7 +76,17 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         }
       }, 100)
     }
-  }, [link, isOpen, reset, setValue])
+  }, [link, isOpen, reset])
+
+  useEffect(() => {
+    if (link && isOpen) {
+      setImageState({
+        url: link.image || '',
+        preview: link.image || ''
+      })
+      setImageFile(null)
+    }
+  }, [link, isOpen])
 
   // Observar cambios en la descripción para auto-resize
   const watchedDescription = watch('description')
@@ -146,19 +150,17 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       
       // Crear preview
       const reader = new FileReader()
-      reader.onload = (e) => setImagePreview(e.target.result)
+      reader.onload = (e) => {
+        setImageState({ url: '', preview: e.target.result })
+      }
       reader.readAsDataURL(file)
-      
-      // Limpiar URL si se selecciona archivo
-      setImageUrl('')
     }
   }
 
   // Manejar cambio de URL de imagen
   const handleImageUrlChange = (e) => {
     const url = e.target.value
-    setImageUrl(url)
-    setImagePreview(url)
+    setImageState({ url, preview: url })
     
     // Limpiar archivo si se ingresa URL
     if (url) {
@@ -169,19 +171,20 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   // Limpiar imagen
   const clearImage = () => {
     setImageFile(null)
-    setImageUrl('')
-    setImagePreview('')
+    setImageState({ url: '', preview: '' })
   }
 
   // Restaurar imagen original
   const restoreOriginalImage = () => {
     setImageFile(null)
-    setImageUrl(link?.image || '')
-    setImagePreview(link?.image || '')
+    setImageState({
+      url: link?.image || '',
+      preview: link?.image || ''
+    })
   }
 
   const onSubmit = async (data) => {
-    setIsSubmitting(true)
+    setFormStatus({ isSubmitting: true, serverError: null })
     
     try {
       // Preparar datos básicos
@@ -193,8 +196,8 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       }
 
       // Agregar imagen si hay URL
-      if (imageUrl && !imageFile) {
-        linkData.image = imageUrl
+      if (imageState.url && !imageFile) {
+        linkData.image = imageState.url
       }
 
       // Validar URL
@@ -210,7 +213,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         result = await updateLink(link._id, linkData, imageFile, uploadToStorage)
       } else {
         // Actualizar solo datos (incluye URL de imagen si existe)
-        result = await updateLink(link._id, linkData, null, uploadToStorage && imageUrl)
+        result = await updateLink(link._id, linkData, null, uploadToStorage && imageState.url)
       }
 
       if (result.success) {
@@ -220,14 +223,15 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
         markTagsForRefresh() // Marcar que tags necesitan refrescar por si hay nuevos
         await refetchTags() // Refrescar tags por si se crearon nuevos tags al actualizar
         onClose()
-        setServerError(null)
+        setFormStatus({ isSubmitting: false, serverError: null })
+        return
       }
     } catch (error) {
-      setServerError('Error inesperado al actualizar el enlace')
+      setFormStatus({ isSubmitting: false, serverError: 'Error inesperado al actualizar el enlace' })
       toast.error('Error inesperado al actualizar el enlace')
-    } finally {
-      setIsSubmitting(false)
     }
+
+    setFormStatus((prev) => ({ ...prev, isSubmitting: false }))
   }
 
   const handleClose = () => {
@@ -237,8 +241,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
       setTimeout(() => {
         reset()
         setImageFile(null)
-        setImageUrl('')
-        setImagePreview('')
+        setImageState({ url: '', preview: '' })
       }, 200)
     }
   }
@@ -246,18 +249,19 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
   if (!isOpen || !link) return null
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      role="presentation"
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <button
+        type="button"
+        aria-label="Cerrar modal de edición"
+        className="absolute inset-0"
+        onClick={handleClose}
+      />
       <div 
         ref={modalRef}
         className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-modal-title"
-        onClick={(e) => e.stopPropagation()}
         tabIndex={0}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
@@ -296,7 +300,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                 {...register('url', {
                   required: 'La URL es obligatoria',
                     validate: value => isValidUrl(value) || 'Por favor ingresa una URL válida',
-                    onChange: () => serverError && setServerError(null)
+                    onChange: () => serverError && setFormStatus((prev) => ({ ...prev, serverError: null }))
                 })}
                 type="text"
                 className="input pl-10"
@@ -334,7 +338,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                     message: 'El título no puede exceder 200 caracteres'
                   }
                     ,
-                    onChange: () => serverError && setServerError(null)
+                    onChange: () => serverError && setFormStatus((prev) => ({ ...prev, serverError: null }))
                 })}
                 type="text"
                 className="input pl-10"
@@ -358,7 +362,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                   message: 'La descripción no puede exceder 500 caracteres'
                 }
                   ,
-                  onChange: () => serverError && setServerError(null)
+                  onChange: () => serverError && setFormStatus((prev) => ({ ...prev, serverError: null }))
               })}
               ref={(e) => {
                 textareaRef.current = e
@@ -393,22 +397,22 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
           {/* Imagen */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="edit-image-file" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Imagen del enlace
             </label>
             
             {/* Preview actual */}
             <div className="mb-4">
-              {imagePreview ? (
+              {imageState.preview ? (
                 <div className="relative inline-block">
                   <OptimizedImage
-                    src={imagePreview}
+                    src={imageState.preview}
                     alt="Preview"
                     width={300}
                     height={300}
                     className="w-40 h-40 object-cover rounded-lg border"
                     quality={70}
-                    isStored={link?.imageIsStored && imagePreview === link.image}
+                    isStored={link?.imageIsStored && imageState.preview === link.image}
                     onError={(e) => {
                       e.target.style.display = 'none'
                     }}
@@ -420,7 +424,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  {link?.imageIsStored && imagePreview === link.image && (
+                  {link?.imageIsStored && imageState.preview === link.image && (
                     <span className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded flex items-center">
                       <Cloud className="w-3 h-3 mr-1" />
                       Storage
@@ -436,11 +440,12 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
             <div className="space-y-4">
               {/* Subir archivo */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                <label htmlFor="edit-image-file" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                   Subir nueva imagen
                 </label>
                 <div className="relative">
                   <input
+                    id="edit-image-file"
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.svg,.bmp,.tiff,.ico,image/*"
                     onChange={handleImageFileChange}
@@ -463,7 +468,7 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
 
               {/* URL de imagen */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                <label htmlFor="edit-image-url" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                   O ingresar URL de imagen
                 </label>
                 <div className="relative">
@@ -471,8 +476,9 @@ const EditLinkModal = ({ link, isOpen, onClose, onUpdate }) => {
                     <Image className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
+                    id="edit-image-url"
                     type="url"
-                    value={imageUrl}
+                    value={imageState.url}
                     onChange={handleImageUrlChange}
                     className="input pl-10 text-sm"
                     placeholder="https://ejemplo.com/imagen.jpg"

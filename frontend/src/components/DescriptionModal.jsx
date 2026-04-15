@@ -65,18 +65,19 @@ const DescriptionModal = ({ link, isOpen, onClose, onUpdate }) => {
   if (!isOpen || !link) return null
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      role="presentation"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <button
+        type="button"
+        aria-label="Cerrar modal de descripción"
+        className="absolute inset-0"
+        onClick={onClose}
+      />
       <div 
         ref={modalRef}
         className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full"
         role="dialog"
         aria-modal="true"
         aria-labelledby="description-modal-title"
-        onClick={(e) => e.stopPropagation()}
         tabIndex={0}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">

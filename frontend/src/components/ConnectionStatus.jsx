@@ -1,27 +1,49 @@
-import React, { useState, useEffect } from 'react'
+import React, { useReducer, useEffect } from 'react'
 import { Wifi, WifiOff } from 'lucide-react'
 import { isOnline, addConnectionListeners } from '../utils/serviceWorker'
 
+const initialState = {
+  online: isOnline(),
+  showStatus: false
+}
+
+const connectionReducer = (state, action) => {
+  switch (action.type) {
+    case 'ONLINE':
+      return { online: true, showStatus: true }
+    case 'OFFLINE':
+      return { online: false, showStatus: true }
+    case 'HIDE_STATUS':
+      return { ...state, showStatus: false }
+    default:
+      return state
+  }
+}
+
 const ConnectionStatus = () => {
-  const [online, setOnline] = useState(isOnline())
-  const [showStatus, setShowStatus] = useState(false)
+  const [{ online, showStatus }, dispatch] = useReducer(connectionReducer, initialState)
 
   useEffect(() => {
+    let timeoutId
+
     const handleOnline = () => {
-      setOnline(true)
-      setShowStatus(true)
-      setTimeout(() => setShowStatus(false), 3000)
+      dispatch({ type: 'ONLINE' })
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => dispatch({ type: 'HIDE_STATUS' }), 3000)
     }
 
     const handleOffline = () => {
-      setOnline(false)
-      setShowStatus(true)
-      setTimeout(() => setShowStatus(false), 3000)
+      dispatch({ type: 'OFFLINE' })
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => dispatch({ type: 'HIDE_STATUS' }), 3000)
     }
 
     const cleanup = addConnectionListeners(handleOnline, handleOffline)
 
-    return cleanup
+    return () => {
+      clearTimeout(timeoutId)
+      cleanup()
+    }
   }, [])
 
   if (!showStatus) return null

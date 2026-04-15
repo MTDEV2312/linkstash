@@ -85,8 +85,9 @@ const AccountForm = ({ mode = 'profile' }) => {
         <h3 className="text-lg font-medium  mb-4">Perfil</h3>
         <form onSubmit={submitProfile}>
           {serverError && <p className="mb-3 text-sm text-red-600">{serverError}</p>}
-          <label className="block mb-2 text-sm font-medium">Nombre de usuario</label>
+          <label htmlFor="profile-username" className="block mb-2 text-sm font-medium">Nombre de usuario</label>
           <input
+            id="profile-username"
             name="username"
             value={form.username}
             onChange={handleChange}
@@ -94,8 +95,9 @@ const AccountForm = ({ mode = 'profile' }) => {
             disabled={isLoading}
           />
 
-          <label className="block mb-2 text-sm font-medium">Email</label>
+          <label htmlFor="profile-email" className="block mb-2 text-sm font-medium">Email</label>
           <input
+            id="profile-email"
             name="email"
             type="email"
             value={form.email}
@@ -123,8 +125,9 @@ const AccountForm = ({ mode = 'profile' }) => {
     <div className="card p-6">
       <h3 className="text-lg font-medium  mb-4">Cambiar contraseña</h3>
       <form onSubmit={submitPassword}>
-        <label className="block mb-2 text-sm font-medium">Contraseña actual</label>
+        <label htmlFor="current-password" className="block mb-2 text-sm font-medium">Contraseña actual</label>
         <input
+          id="current-password"
           name="currentPassword"
           type="password"
           value={passwords.currentPassword}
@@ -133,8 +136,9 @@ const AccountForm = ({ mode = 'profile' }) => {
           disabled={isLoading}
         />
 
-        <label className="block mb-2 text-sm font-medium">Nueva contraseña</label>
+        <label htmlFor="new-password" className="block mb-2 text-sm font-medium">Nueva contraseña</label>
         <input
+          id="new-password"
           name="newPassword"
           type="password"
           value={passwords.newPassword}
@@ -143,8 +147,9 @@ const AccountForm = ({ mode = 'profile' }) => {
           disabled={isLoading}
         />
 
-        <label className="block mb-2 text-sm font-medium">Confirmar nueva contraseña</label>
+        <label htmlFor="confirm-password" className="block mb-2 text-sm font-medium">Confirmar nueva contraseña</label>
         <input
+          id="confirm-password"
           name="confirmPassword"
           type="password"
           value={passwords.confirmPassword}
