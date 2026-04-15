@@ -154,7 +154,7 @@ linkSchema.statics.searchLinks = function(userId, query, options = {}) {
     isArchived = false,
     isFavorite = null,
     page = 1,
-    limit = 20,
+    limit = 5,
     sortBy = 'createdAt',
     sortOrder = -1
   } = options;
