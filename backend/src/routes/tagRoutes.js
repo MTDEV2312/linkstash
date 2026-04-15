@@ -15,21 +15,47 @@ router.use(authMiddleware);
 const getTags = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { search = '', popular = 'false', limit = 50 } = req.query;
+    const {
+      search = '',
+      popular = 'false',
+      all = 'false',
+      page = 1,
+      limit = 5
+    } = req.query;
 
-    let tags;
-    
-    if (popular === 'true') {
-      // Obtener etiquetas populares
-      tags = await Tag.getPopularTags(userId, parseInt(limit));
-    } else {
-      // Buscar etiquetas (con opción de filtro de texto)
-      tags = await Tag.searchTags(userId, search);
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 5);
+    const safePage = Math.max(parseInt(page, 10) || 1, 1);
+
+    const searchCriteria = { userId };
+    if (search) {
+      searchCriteria.name = { $regex: search, $options: 'i' };
     }
+
+    const sort = popular === 'true' ? { linkCount: -1, name: 1 } : { name: 1 };
+    const totalTags = await Tag.countDocuments(searchCriteria);
+
+    let query = Tag.find(searchCriteria).sort(sort);
+
+    if (all !== 'true') {
+      query = query.skip((safePage - 1) * safeLimit).limit(safeLimit);
+    }
+
+    const tags = await query.exec();
+    const totalPages = all === 'true' ? 1 : Math.ceil(totalTags / safeLimit);
 
     res.json({
       success: true,
-      data: { tags }
+      data: {
+        tags,
+        pagination: {
+          currentPage: all === 'true' ? 1 : safePage,
+          totalPages,
+          totalTags,
+          itemsPerPage: all === 'true' ? totalTags : safeLimit,
+          hasNextPage: all === 'true' ? false : safePage < totalPages,
+          hasPrevPage: all === 'true' ? false : safePage > 1
+        }
+      }
     });
 
   } catch (error) {
