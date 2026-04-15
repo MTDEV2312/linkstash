@@ -23,6 +23,18 @@ const keepExistingTagsOnly = async (userId, tags = []) => {
   return normalizedTags.filter(tag => allowed.has(tag));
 };
 
+const parseTagsQuery = (tags) => {
+  if (Array.isArray(tags)) {
+    return normalizeTags(tags);
+  }
+
+  if (typeof tags === 'string') {
+    return normalizeTags(tags.split(','));
+  }
+
+  return [];
+};
+
 // @desc    Guardar nuevo enlace
 // @route   POST /api/links/save-link
 // @access  Private
@@ -165,7 +177,7 @@ const getLinks = async (req, res) => {
       sortBy,
       sortOrder: sortOrder === 'desc' ? -1 : 1,
       isArchived: archived === 'true',
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      tags: parseTagsQuery(tags),
       isFavorite: favorite === 'true' ? true : favorite === 'false' ? false : null
     };
 
