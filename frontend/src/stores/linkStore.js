@@ -4,6 +4,8 @@ import linkService from '../services/linkService'
 import { showSuccess, showError } from '../utils/toastUtils'
 import { classifyError, ERROR_TYPES } from '../utils/errorClassifier'
 
+const MAX_LINKS_PER_PAGE = 5
+
 // Estado normalizado: links por ID para búsqueda rápida
 export const useLinkStore = create(
   persist(
@@ -56,7 +58,12 @@ export const useLinkStore = create(
         set({ isLoading: true })
         try {
           const { filters, normalizeLinks } = get()
-          const queryParams = { ...filters, ...params }
+          const requestedLimit = params.limit ?? filters.limit ?? MAX_LINKS_PER_PAGE
+          const queryParams = {
+            ...filters,
+            ...params,
+            limit: Math.min(Math.max(parseInt(requestedLimit, 10) || MAX_LINKS_PER_PAGE, 1), MAX_LINKS_PER_PAGE)
+          }
           
           const response = await linkService.getLinks(queryParams, signal)
           const payload = response?.data?.data ?? response?.data

@@ -9,7 +9,6 @@ import ExistingTagsMenu from '../components/ExistingTagsMenu'
 import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
 import { Plus, Grid, List, Filter, X } from 'lucide-react'
 
 const MyLinks = () => {
@@ -25,8 +24,6 @@ const MyLinks = () => {
   const filters = useLinkStore(state => state.filters)
   const fetchLinks = useLinkStore(state => state.fetchLinks)
   const setFilters = useLinkStore(state => state.setFilters)
-  const prefetchNextPage = useLinkStore(state => state.prefetchNextPage)
-  const getLinks = useLinkStore(state => state.getLinks)
   const linksById = useLinkStore(state => state.linksById)
   const linkIds = useLinkStore(state => state.linkIds)
   const tags = useTagStore(state => state.tags)
@@ -39,18 +36,6 @@ const MyLinks = () => {
 
   const [loadError, setLoadError] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
-  const lastLinkRef = useRef(null)
-
-  // Integrar infinity scroll para prefetch
-  const sentinelRef = useInfiniteScroll(
-    () => {
-      // Solo prefetchear si hay siguiente página y no estamos cargando
-      if (pagination?.hasNextPage && !isLoading && !isUpdating) {
-        prefetchNextPage()
-      }
-    },
-    { threshold: 0.5, rootMargin: '200px' }
-  )
 
   // Integrar atajos de teclado globales
   useKeyboardShortcuts({
@@ -146,7 +131,7 @@ const MyLinks = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mis Enlaces</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            {pagination?.totalLinks || 0} enlaces guardados
+            {pagination?.totalLinks || 0} enlaces guardados · 5 por página
           </p>
         </div>
         
@@ -403,17 +388,6 @@ const MyLinks = () => {
              ))}
            </div>
 
-           {/* Infinity scroll sentinel - Detecta cuando usuario está cerca del final */}
-           <div 
-             ref={sentinelRef}
-             className="py-4 text-center text-gray-500"
-             aria-live="polite"
-           >
-             {pagination?.hasNextPage && (
-               <span className="text-xs">Cargando más...</span>
-             )}
-           </div>
- 
            {/* Paginación */}
            {pagination?.totalPages > 1 && (
              <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
