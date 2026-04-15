@@ -7,10 +7,21 @@ class TagService {
       // Normalizar respuesta: backend devuelve { success, data: { tag } }
       return response.data?.data?.tag ?? response.data
   }
-  async getAllTags() {
-      const response = await api.get('/tags')
-      // Normalizar: backend devuelve { success, data: { tags } }
-      return response.data?.data?.tags ?? response.data
+    async getAllTags() {
+            const response = await api.get('/tags', { params: { all: true, limit: 5 } })
+            // Normalizar: backend devuelve { success, data: { tags } }
+            return response.data?.data?.tags ?? response.data
+    }
+    async getTagsPage(params = {}) {
+            const response = await api.get('/tags', {
+                params: {
+                    page: params.page ?? 1,
+                    limit: params.limit ?? 5,
+                    search: params.search ?? '',
+                    popular: params.popular ?? 'false'
+                }
+            })
+            return response.data?.data ?? response.data
   }
   async getTagById(id) {
       const response = await api.get(`/tags/${id}`)
