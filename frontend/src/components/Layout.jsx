@@ -42,7 +42,12 @@ const Layout = ({ children }) => {
     <div className="min-h-screen bg-white dark:bg-gray-950">
       {/* Sidebar móvil */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
+        <button
+          type="button"
+          aria-label="Cerrar menú lateral"
+          className="fixed inset-0 bg-black bg-opacity-25"
+          onClick={() => setSidebarOpen(false)}
+        />
         <div className="fixed top-0 left-0 w-64 h-full bg-white dark:bg-gray-800 shadow-xl flex flex-col">
           <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">LinkStash</h2>

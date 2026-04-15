@@ -1,20 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
 import ExistingTagsMenu from './ExistingTagsMenu'
 import { linkFormRules, normalizeUrl, linkValidators } from '../utils/linkValidators'
-import { X, Link as LinkIcon, FileText, Tag, Loader2, Image, Upload } from 'lucide-react'
+import { X, Link as LinkIcon, FileText, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const LinkForm = ({ onSave, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serverError, setServerError] = useState(null)
-  const [urlPreview, setUrlPreview] = useState(null)
-  const [imageFile, setImageFile] = useState(null)
-  const [imageUrl, setImageUrl] = useState('')
-  const [uploadToStorage, setUploadToStorage] = useState(true)
-  const [imagePreview, setImagePreview] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const { saveLink, refetchLinks } = useLinkStore()
   const { tags, fetchTags, refetchTags, markTagsForRefresh } = useTagStore()
@@ -47,71 +42,23 @@ const LinkForm = ({ onSave, onCancel }) => {
   // Función para validar URL (solo formato)
   const isValidUrl = (string) => linkValidators.isValidUrl(string)
 
-  // Preview de URL cuando cambia
-  useEffect(() => {
-    if (watchedUrl && isValidUrl(watchedUrl)) {
-      const normalizedUrl = normalizeUrl(watchedUrl)
-      try {
-        const urlObj = new URL(normalizedUrl)
-        setUrlPreview({
-          domain: urlObj.hostname,
-          favicon: `https://www.google.com/s2/favicons?domain=${urlObj.hostname}`,
-          isSecure: normalizedUrl.startsWith('https://')
-        })
-      } catch (error) {
-        setUrlPreview(null)
+  const urlPreview = useMemo(() => {
+    if (!watchedUrl || !isValidUrl(watchedUrl)) {
+      return null
+    }
+
+    try {
+      const normalized = normalizeUrl(watchedUrl)
+      const urlObj = new URL(normalized)
+      return {
+        domain: urlObj.hostname,
+        favicon: `https://www.google.com/s2/favicons?domain=${urlObj.hostname}`,
+        isSecure: normalized.startsWith('https://')
       }
-    } else {
-      setUrlPreview(null)
+    } catch {
+      return null
     }
   }, [watchedUrl])
-
-  // Manejar selección de archivo de imagen
-  const handleImageFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      // Validar tipo de archivo
-      if (!file.type.startsWith('image/')) {
-        toast.error('Por favor selecciona un archivo de imagen válido')
-        return
-      }
-
-      // Validar tamaño (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('La imagen no puede ser mayor a 5MB')
-        return
-      }
-
-      setImageFile(file)
-      
-      // Crear preview
-      const reader = new FileReader()
-      reader.onload = (e) => setImagePreview(e.target.result)
-      reader.readAsDataURL(file)
-      
-      // Limpiar URL si se selecciona archivo
-      setImageUrl('')
-    }
-  }
-
-  // Manejar cambio de URL de imagen
-  const handleImageUrlChange = (e) => {
-    const url = e.target.value
-    setImageUrl(url)
-    setImagePreview(url)
-    
-    // Limpiar archivo si se ingresa URL
-    if (url) {
-      setImageFile(null)
-    }
-  }
-
-  // Limpiar imagen
-  const clearImage = () => {
-    setImageFile(null)
-    setImageUrl('')
-    setImagePreview('')
-  }
 
   const onSubmit = async (data) => {
     setIsSubmitting(true)
@@ -123,11 +70,6 @@ const LinkForm = ({ onSave, onCancel }) => {
         title: data.title?.trim() || '',
         description: data.description?.trim() || '',
         tags: selectedTags
-      }
-
-      // Agregar imagen si hay URL
-      if (imageUrl && !imageFile) {
-        linkData.image = imageUrl
       }
 
       // Validar URL

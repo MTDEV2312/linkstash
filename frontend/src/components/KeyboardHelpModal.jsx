@@ -67,11 +67,11 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
 
         {/* Shortcuts List */}
         <div className="p-6 space-y-4">
-          {shortcuts.map((shortcut, index) => {
+          {shortcuts.map((shortcut) => {
             const IconComponent = shortcut.icon
             return (
               <div
-                key={index}
+                key={`${shortcut.key}-${shortcut.action}`}
                 className="flex items-start gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors duration-200"
               >
                 <IconComponent
