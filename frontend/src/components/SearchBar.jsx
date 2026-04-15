@@ -1,23 +1,20 @@
 import { useState, useRef, useEffect } from 'react'
 import { Search, X, Filter } from 'lucide-react'
 
-const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces...' }) => {
-  const [searchTerm, setSearchTerm] = useState(initialValue)
+const SearchBar = ({ onSearch, defaultValue = '', placeholder = 'Buscar enlaces...' }) => {
+  const [searchTerm, setSearchTerm] = useState(() => defaultValue)
   const [isFocused, setIsFocused] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const inputRef = useRef(null)
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
-  
-  // Debounce para búsqueda automática con AbortController
-  useEffect(() => {
-    // Limpiar timeout anterior
+
+  const scheduleSearch = (nextSearchTerm) => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
 
-    // Si el término es igual al inicial, no buscar
-    if (searchTerm === initialValue) {
+    if (nextSearchTerm === defaultValue) {
       setIsSearching(false)
       return
     }
@@ -25,32 +22,34 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
     setIsSearching(true)
 
     searchTimeoutRef.current = setTimeout(async () => {
-      // Cancelar búsqueda anterior
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
 
-      // Crear nuevo controller para esta búsqueda
       abortControllerRef.current = new AbortController()
 
       try {
-        await onSearch(searchTerm, abortControllerRef.current.signal)
+        await onSearch(nextSearchTerm, abortControllerRef.current.signal)
       } catch (error) {
-        // Ignorar errores de AbortError
         if (error?.name !== 'AbortError') {
           console.error('Error en búsqueda:', error)
         }
       } finally {
         setIsSearching(false)
       }
-    }, 300) // 300ms de delay
+    }, 300)
+  }
 
+  useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current)
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
-  }, [searchTerm, initialValue, onSearch])
+  }, [])
 
   // Atajo de teclado: Cmd+K or Ctrl+K para enfocar (manejado en useKeyboardShortcuts)
   // Este efecto se mantiene por compatibilidad, pero ahora también marcamos el input
@@ -65,13 +64,17 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Actualizar cuando cambie el valor inicial
-  useEffect(() => {
-    setSearchTerm(initialValue)
-  }, [initialValue])
-
   const handleClear = () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
     setSearchTerm('')
+    setIsSearching(false)
     onSearch('')
     inputRef.current?.focus()
   }
@@ -112,7 +115,11 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
             ref={inputRef}
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const nextSearchTerm = e.target.value
+              setSearchTerm(nextSearchTerm)
+              scheduleSearch(nextSearchTerm)
+            }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
@@ -145,8 +152,9 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
                 <button
                   type="button"
                   onClick={() => {
-                    setSearchTerm(`${searchTerm} tutorial`)
-                    onSearch(`${searchTerm} tutorial`)
+                    const nextSearchTerm = `${searchTerm} tutorial`
+                    setSearchTerm(nextSearchTerm)
+                    scheduleSearch(nextSearchTerm)
                   }}
                   className="block w-full text-left px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded"
                 >
@@ -155,8 +163,9 @@ const SearchBar = ({ onSearch, initialValue = '', placeholder = 'Buscar enlaces.
                 <button
                   type="button"
                   onClick={() => {
-                    setSearchTerm(`${searchTerm} docs`)
-                    onSearch(`${searchTerm} docs`)
+                    const nextSearchTerm = `${searchTerm} docs`
+                    setSearchTerm(nextSearchTerm)
+                    scheduleSearch(nextSearchTerm)
                   }}
                   className="block w-full text-left px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded"
                 >

@@ -8,7 +8,7 @@ import TagCardSkeleton from '../components/Skeletons/TagCardSkeleton'
 import TagService from '../services/tagService'
 
 const Tags = () => {
-	const { isLoading: mutationLoading, fetchTags, createTag, updateTag, deleteTag, refetchTags, tagsNeedRefresh } = useTagStore()
+	const { isLoading: mutationLoading, createTag, updateTag, deleteTag } = useTagStore()
 	const { refetchLinks, invalidateLinksByTags } = useLinkStore()
 	const [tags, setTags] = useState([])
 	const [pagination, setPagination] = useState({
@@ -67,20 +67,6 @@ const Tags = () => {
 		})()
 		return () => { mounted = false }
 	}, [])
-
-	// Refrescar tags automáticamente si la bandera está activada
-	useEffect(() => {
-		if (tagsNeedRefresh) {
-			const refreshTags = async () => {
-				const res = await refetchTags()
-				if (res && res.success === false) {
-					setLoadError(res.message || 'Error al cargar etiquetas')
-				}
-				await loadTagsPage(pagination.currentPage, search)
-			}
-			refreshTags()
-		}
-	}, [tagsNeedRefresh, refetchTags, pagination.currentPage, search])
 
 	const handleCreate = async (e) => {
 		e.preventDefault()
@@ -244,8 +230,9 @@ const Tags = () => {
 			<div className="card">
 				<div className="card-content flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 					<div className="flex-1 max-w-md">
-						<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar etiquetas</label>
+						<label htmlFor="tag-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar etiquetas</label>
 						<input
+							id="tag-search"
 							className="input w-full"
 							placeholder="Buscar por nombre"
 							value={search}

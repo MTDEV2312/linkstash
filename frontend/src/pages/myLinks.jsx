@@ -171,7 +171,7 @@ const MyLinks = () => {
 
       {/* Barra de búsqueda */}
       <div ref={searchBarRef}>
-        <SearchBar onSearch={handleSearch} initialValue={filters.search} />
+        <SearchBar key={filters.search} onSearch={handleSearch} defaultValue={filters.search} />
       </div>
 
       {hasActiveFilters && (
