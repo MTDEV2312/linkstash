@@ -9,6 +9,18 @@ const normalizeTagName = (tag) => {
   return (tag.name || '').trim()
 }
 
+const normalizeSelectedTags = (tags, allowedTags) => {
+  const allowedSet = new Set(allowedTags)
+
+  return [...new Set((Array.isArray(tags) ? tags : [])
+    .flatMap((tag) => {
+      const normalized = normalizeTagName(tag)
+      if (!normalized) return []
+      if (allowedSet.size > 0 && !allowedSet.has(normalized)) return []
+      return [normalized]
+    }))]
+}
+
 const ExistingTagsMenu = ({
   availableTags = EMPTY_TAGS,
   selectedTags = EMPTY_TAGS,
@@ -22,13 +34,20 @@ const ExistingTagsMenu = ({
 
   const normalizedOptions = useMemo(() => {
     return availableTags
-      .map(normalizeTagName)
-      .filter(Boolean)
+      .flatMap((tag) => {
+        const normalized = normalizeTagName(tag)
+        return normalized ? [normalized] : []
+      })
       .filter((name, idx, arr) => arr.indexOf(name) === idx)
       .sort((a, b) => a.localeCompare(b))
   }, [availableTags])
 
-  const selectedSet = useMemo(() => new Set(selectedTags), [selectedTags])
+  const normalizedSelectedTags = useMemo(
+    () => normalizeSelectedTags(selectedTags, normalizedOptions),
+    [selectedTags, normalizedOptions]
+  )
+
+  const selectedSet = useMemo(() => new Set(normalizedSelectedTags), [normalizedSelectedTags])
 
   useEffect(() => {
     const handleOutside = (event) => {
@@ -44,10 +63,10 @@ const ExistingTagsMenu = ({
   const toggleTag = (tagName) => {
     if (!onChange) return
     if (selectedSet.has(tagName)) {
-      onChange(selectedTags.filter((tag) => tag !== tagName))
+      onChange(normalizedSelectedTags.filter((tag) => tag !== tagName))
       return
     }
-    onChange([...selectedTags, tagName])
+    onChange([...normalizedSelectedTags, tagName])
   }
 
   const clearAll = () => {
@@ -65,8 +84,8 @@ const ExistingTagsMenu = ({
       >
         <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
           <Tag className="w-4 h-4 text-gray-400" />
-          {selectedTags.length > 0
-            ? `${selectedTags.length} seleccionada${selectedTags.length > 1 ? 's' : ''}`
+          {normalizedSelectedTags.length > 0
+            ? `${normalizedSelectedTags.length} seleccionada${normalizedSelectedTags.length > 1 ? 's' : ''}`
             : 'Seleccionar etiquetas existentes'}
         </span>
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -97,9 +116,9 @@ const ExistingTagsMenu = ({
         </div>
       )}
 
-      {selectedTags.length > 0 && (
+      {normalizedSelectedTags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          {selectedTags.map((tagName) => (
+          {normalizedSelectedTags.map((tagName) => (
             <span
               key={tagName}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
