@@ -25,6 +25,17 @@ const normalizeUrl = (url) => {
   return url.startsWith('http') ? url : `https://${url}`
 }
 
+const normalizeTagSelections = (tags = []) => {
+  return [...new Set((Array.isArray(tags) ? tags : [])
+    .flatMap((tagItem) => {
+      const normalized = typeof tagItem === 'object' && tagItem !== null
+        ? (tagItem.name || tagItem._id || '').trim()
+        : String(tagItem || '').trim()
+
+      return normalized ? [normalized] : []
+    }))]
+}
+
 const formatDateLong = (value) => {
   if (!value) return 'N/A'
   return new Date(value).toLocaleString('es-AR', {
@@ -48,6 +59,7 @@ const LinkDetailSheet = ({
   onDelete,
   onSave,
   onFormChange,
+  onTagsChange,
   onImageUrlChange,
   onFileChange,
   onRestoreImage,
@@ -180,6 +192,17 @@ const LinkDetailSheet = ({
                 </div>
               </div>
 
+              <div>
+                <ExistingTagsMenu
+                  label="Etiquetas"
+                  availableTags={allTags}
+                  selectedTags={formState.tags || []}
+                  onChange={onTagsChange}
+                  emptyText="No hay etiquetas creadas todavía"
+                  helperText="Solo podés seleccionar etiquetas existentes."
+                />
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={onCancelEdit} className="btn-outline btn-md">Cancelar</button>
                 <button type="button" onClick={onSave} className="btn-primary btn-md flex items-center">
@@ -217,7 +240,7 @@ const LinkDetailSheet = ({
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Etiquetas</p>
                   <div className="flex flex-wrap gap-2">
                     {link.tags.map((tagItem, index) => (
-                      <span key={`${typeof tagItem === 'object' ? tagItem?._id : tagItem}-${index}`} className="badge-secondary">
+                      <span key={typeof tagItem === 'object' && tagItem !== null ? (tagItem._id || tagItem.name || index) : (tagItem || index)} className="badge-secondary">
                         {resolveTagName(tagItem)}
                       </span>
                     ))}
@@ -515,7 +538,10 @@ const MyLinks = () => {
   
   // Computar links basado en cambios de linksById y linkIds
   const links = useMemo(() => {
-    return linkIds.map(id => linksById[id]).filter(Boolean)
+    return linkIds.flatMap((id) => {
+      const link = linksById[id]
+      return link ? [link] : []
+    })
   }, [linkIds, linksById])
 
   const [status, setStatus] = useState({ loadError: '', isUpdating: false })
@@ -617,6 +643,7 @@ const MyLinks = () => {
         title: link.title || '',
         url: link.url || '',
         description: link.description || '',
+        tags: normalizeTagSelections(link.tags),
         imageUrl: link.image || '',
         imagePreview: link.image || '',
         imageFileName: ''
@@ -643,6 +670,7 @@ const MyLinks = () => {
         title: selectedLink.title || '',
         url: selectedLink.url || '',
         description: selectedLink.description || '',
+        tags: normalizeTagSelections(selectedLink.tags),
         imageUrl: selectedLink.image || '',
         imagePreview: selectedLink.image || '',
         imageFileName: ''
@@ -664,6 +692,7 @@ const MyLinks = () => {
         title: selectedLink.title || '',
         url: selectedLink.url || '',
         description: selectedLink.description || '',
+        tags: normalizeTagSelections(selectedLink.tags),
         imageUrl: selectedLink.image || '',
         imagePreview: selectedLink.image || '',
         imageFileName: ''
@@ -763,7 +792,7 @@ const MyLinks = () => {
       title: form.title.trim(),
       url: normalizedUrl,
       description: form.description.trim(),
-      tags: selectedLink.tags || [],
+      tags: form.tags || selectedLink.tags || [],
       image: form.imageUrl?.trim() || ''
     }
 
@@ -918,6 +947,7 @@ const MyLinks = () => {
         onDelete={handleDeleteFromDetail}
         onSave={saveDetailEdit}
         onFormChange={handleDetailFormChange}
+        onTagsChange={(nextTags) => handleDetailFormChange('tags', nextTags)}
         onImageUrlChange={handleDetailImageUrlChange}
         onFileChange={handleDetailImageFileChange}
         onRestoreImage={handleRestoreDetailImage}
