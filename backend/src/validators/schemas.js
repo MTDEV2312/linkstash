@@ -5,12 +5,12 @@ export const authSchemas = {
   // Registro de usuario
   register: Joi.object({
     username: Joi.string()
-      .alphanum()
+      .pattern(/^[a-zA-Z0-9_-]+$/)
       .min(3)
       .max(20)
       .required()
       .messages({
-        'string.alphanum': 'El nombre de usuario solo puede contener letras y números',
+        'string.pattern.base': 'El nombre de usuario solo puede contener letras, números, guiones y guiones bajos',
         'string.min': 'El nombre de usuario debe tener al menos 3 caracteres',
         'string.max': 'El nombre de usuario no puede exceder 20 caracteres',
         'any.required': 'El nombre de usuario es obligatorio'
@@ -23,13 +23,13 @@ export const authSchemas = {
         'any.required': 'El email es obligatorio'
       }),
     password: Joi.string()
-      .min(6)
+      .min(8)
       .max(50)
       .required()
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/)
+      .pattern(/^(?=.*[A-Za-z])(?=.*\d).+$/)
       .messages({
-        'string.min': 'La contraseña debe tener al menos 6 caracteres',
-        'string.pattern.base': 'La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales',
+        'string.min': 'La contraseña debe tener al menos 8 caracteres',
+        'string.pattern.base': 'La contraseña debe incluir letras y números',
         'any.required': 'La contraseña es obligatoria'
       })
   }).strict(),
@@ -53,12 +53,12 @@ export const authSchemas = {
   // Actualizar perfil
   updateProfile: Joi.object({
     username: Joi.string()
-      .alphanum()
+      .pattern(/^[a-zA-Z0-9_-]+$/)
       .min(3)
       .max(20)
       .optional()
       .messages({
-        'string.alphanum': 'El nombre de usuario solo puede contener letras y números',
+        'string.pattern.base': 'El nombre de usuario solo puede contener letras, números, guiones y guiones bajos',
         'string.min': 'El nombre de usuario debe tener al menos 3 caracteres',
         'string.max': 'El nombre de usuario no puede exceder 20 caracteres'
       }),
