@@ -162,7 +162,7 @@ const getLinks = async (req, res) => {
     const userId = req.user._id;
     const {
       page = 1,
-      limit = 5,
+      limit = 6,
       search = '',
       tags = '',
       archived = 'false',
@@ -173,7 +173,7 @@ const getLinks = async (req, res) => {
 
     const options = {
       page: parseInt(page),
-      limit: Math.min(parseInt(limit), 5), // Máximo 5 por página
+      limit: Math.min(parseInt(limit), 6), // Máximo 6 por página
       sortBy,
       sortOrder: sortOrder === 'desc' ? -1 : 1,
       isArchived: archived === 'true',
