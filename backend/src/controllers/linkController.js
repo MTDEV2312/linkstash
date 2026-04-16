@@ -350,6 +350,12 @@ const updateLink = async (req, res) => {
       await updateTagsCount(userId, link.tags, 'increment');
     }
 
+    // Limpiar el estado de scraping previo para que una edición manual retire la alerta vieja.
+    link.status = 'completed';
+    link.scrapingError = null;
+    link.scrapingErrorType = null;
+    link.scrapingAttempts = 0;
+
     await link.save();
 
     logger.info(`Enlace actualizado: ${link.title}`, { linkId: id });
