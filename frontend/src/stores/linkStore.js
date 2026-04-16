@@ -4,7 +4,7 @@ import linkService from '../services/linkService'
 import { showSuccess, showError } from '../utils/toastUtils'
 import { classifyError, ERROR_TYPES } from '../utils/errorClassifier'
 
-const MAX_LINKS_PER_PAGE = 5
+const MAX_LINKS_PER_PAGE = 6
 
 // Estado normalizado: links por ID para búsqueda rápida
 export const useLinkStore = create(

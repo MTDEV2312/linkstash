@@ -9,13 +9,245 @@ import ExistingTagsMenu from '../components/ExistingTagsMenu'
 import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
-import { Plus, Grid, List, Filter, X } from 'lucide-react'
+import { Plus, Grid, List, Filter, X, Pencil, Trash2, ExternalLink, Save, Upload, Image as ImageIcon } from 'lucide-react'
+
+const isValidUrl = (value) => {
+  try {
+    new URL(value.startsWith('http') ? value : `https://${value}`)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const normalizeUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `https://${url}`
+}
+
+const formatDateLong = (value) => {
+  if (!value) return 'N/A'
+  return new Date(value).toLocaleString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const LinkDetailSheet = ({
+  link,
+  allTags,
+  isOpen,
+  isEditing,
+  formState,
+  onClose,
+  onStartEdit,
+  onCancelEdit,
+  onDelete,
+  onSave,
+  onFormChange,
+  onImageUrlChange,
+  onFileChange,
+  onRestoreImage,
+  onClearImage
+}) => {
+  if (!isOpen || !link) return null
+
+  const resolveTagName = (tagItem) => {
+    if (typeof tagItem === 'object' && tagItem !== null) {
+      return tagItem.name || tagItem._id || 'Tag'
+    }
+
+    const fromCatalog = (allTags || []).find((tag) => tag._id === tagItem || tag.name === tagItem)
+    return fromCatalog?.name || tagItem
+  }
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Cerrar detalle del enlace"
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+
+      <aside className="absolute right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-gray-900 shadow-xl overflow-y-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Detalle del enlace</h2>
+          <button type="button" onClick={onClose} className="btn-outline btn-sm">Cerrar</button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {link.image ? (
+            <img src={link.image} alt={link.title || 'Vista previa'} className="w-full h-56 object-cover rounded-xl border border-gray-200 dark:border-gray-700" />
+          ) : (
+            <div className="w-full h-56 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+              Sin imagen disponible
+            </div>
+          )}
+
+          {isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="detail-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
+                <input
+                  id="detail-title"
+                  value={formState.title}
+                  onChange={(event) => onFormChange('title', event.target.value)}
+                  className="input"
+                  maxLength={200}
+                  placeholder="Título del enlace"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="detail-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                <input
+                  id="detail-url"
+                  value={formState.url}
+                  onChange={(event) => onFormChange('url', event.target.value)}
+                  className="input"
+                  placeholder="https://ejemplo.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="detail-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                <textarea
+                  id="detail-description"
+                  value={formState.description}
+                  onChange={(event) => onFormChange('description', event.target.value)}
+                  className="input min-h-[140px] resize-none"
+                  maxLength={500}
+                  placeholder="Descripción del enlace"
+                />
+                <p className="text-xs text-gray-500 mt-1">{formState.description.length}/500</p>
+              </div>
+
+              <div>
+                <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Imagen del enlace</p>
+
+                {formState.imagePreview ? (
+                  <img
+                    src={formState.imagePreview}
+                    alt="Preview de imagen"
+                    className="w-full h-48 object-cover rounded-xl border border-gray-200 dark:border-gray-700 mb-3"
+                  />
+                ) : (
+                  <div className="w-full h-48 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    Sin imagen seleccionada
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <label htmlFor="detail-image-file" className="flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition-colors">
+                    <Upload className="w-4 h-4 mr-2 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {formState.imageFileName || 'Subir imagen desde tu computadora'}
+                    </span>
+                  </label>
+                  <input
+                    id="detail-image-file"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onFileChange}
+                  />
+
+                  <div>
+                    <label htmlFor="detail-image-url" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">O pegar URL de imagen</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <ImageIcon className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        id="detail-image-url"
+                        value={formState.imageUrl}
+                        onChange={(event) => onImageUrlChange(event.target.value)}
+                        className="input pl-10"
+                        placeholder="https://ejemplo.com/imagen.jpg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={onRestoreImage} className="btn-outline btn-sm">Restaurar original</button>
+                    <button type="button" onClick={onClearImage} className="btn-outline btn-sm text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20">Quitar imagen</button>
+                  </div>
+                  <p className="text-xs text-gray-500">Si subís desde tu dispositivo, se almacenará en cloud para servirla desde el frontend.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={onCancelEdit} className="btn-outline btn-md">Cancelar</button>
+                <button type="button" onClick={onSave} className="btn-primary btn-md flex items-center">
+                  <Save className="w-4 h-4 mr-2" />
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white break-words">{link.title || 'Sin título'}</h3>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline break-all"
+                >
+                  <ExternalLink className="w-4 h-4 mr-1" />
+                  {link.url}
+                </a>
+              </div>
+
+              <div className="card">
+                <div className="card-content space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                  <p><span className="font-medium">Descripción:</span> {link.description || 'Sin descripción'}</p>
+                  <p><span className="font-medium">Creado:</span> {formatDateLong(link.createdAt)}</p>
+                  <p><span className="font-medium">Última visita:</span> {formatDateLong(link.lastVisited)}</p>
+                  <p><span className="font-medium">Visitas:</span> {link.clickCount || 0}</p>
+                </div>
+              </div>
+
+              {Array.isArray(link.tags) && link.tags.length > 0 ? (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Etiquetas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {link.tags.map((tagItem, index) => (
+                      <span key={`${typeof tagItem === 'object' ? tagItem?._id : tagItem}-${index}`} className="badge-secondary">
+                        {resolveTagName(tagItem)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center gap-3 pt-2">
+                <button type="button" onClick={onStartEdit} className="btn-primary btn-md flex items-center">
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Editar
+                </button>
+                <button type="button" onClick={onDelete} className="btn-outline btn-md text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20 flex items-center">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
 
 const MyLinksHeader = ({ pagination, viewMode, onToggleFilters, onSetViewMode, onOpenForm }) => (
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mis Enlaces</h1>
-      <p className="text-gray-600 dark:text-gray-300">{pagination?.totalLinks || 0} enlaces guardados · 5 por página</p>
+      <p className="text-gray-600 dark:text-gray-300">{pagination?.totalLinks || 0} enlaces guardados · 6 por página</p>
     </div>
 
     <div className="flex items-center gap-2">
@@ -185,10 +417,10 @@ const EmptyLinksState = ({ hasActiveFilters, onOpenForm }) => (
   </div>
 )
 
-const LinksList = ({ links, viewMode, filters, fetchLinks }) => (
+const LinksList = ({ links, viewMode, filters, fetchLinks, onOpenDetail }) => (
   <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
     {links?.map((link) => (
-      <LinkCard key={link._id} link={link} viewMode={viewMode} mode="full" onUpdate={() => fetchLinks(filters)} />
+      <LinkCard key={link._id} link={link} viewMode={viewMode} mode="full" onUpdate={() => fetchLinks(filters)} onOpenDetail={onOpenDetail} />
     ))}
   </div>
 )
@@ -251,7 +483,21 @@ const MyLinks = () => {
     showFilters: false,
     showKeyboardHelp: false
   })
+  const [detail, setDetail] = useState({
+    selectedLinkId: null,
+    isEditing: false,
+    imageFile: null,
+    form: {
+      title: '',
+      url: '',
+      description: '',
+      imageUrl: '',
+      imagePreview: '',
+      imageFileName: ''
+    }
+  })
   const { showLinkForm, viewMode, showFilters, showKeyboardHelp } = ui
+  const { selectedLinkId, isEditing, form } = detail
   const searchBarRef = useRef(null)
   
   // Usar selectores para asegurar re-renders exactos
@@ -260,6 +506,8 @@ const MyLinks = () => {
   const filters = useLinkStore(state => state.filters)
   const fetchLinks = useLinkStore(state => state.fetchLinks)
   const setFilters = useLinkStore(state => state.setFilters)
+  const updateLink = useLinkStore(state => state.updateLink)
+  const deleteLink = useLinkStore(state => state.deleteLink)
   const linksById = useLinkStore(state => state.linksById)
   const linkIds = useLinkStore(state => state.linkIds)
   const tags = useTagStore(state => state.tags)
@@ -272,6 +520,17 @@ const MyLinks = () => {
 
   const [status, setStatus] = useState({ loadError: '', isUpdating: false })
   const { loadError, isUpdating } = status
+  const selectedLink = selectedLinkId ? linksById[selectedLinkId] : null
+
+  useEffect(() => {
+    if (selectedLinkId && !selectedLink) {
+      setDetail((prev) => ({
+        ...prev,
+        selectedLinkId: null,
+        isEditing: false
+      }))
+    }
+  }, [selectedLinkId, selectedLink])
 
   // Integrar atajos de teclado globales
   useKeyboardShortcuts({
@@ -347,6 +606,204 @@ const MyLinks = () => {
     if (res && res.success === false && !res.aborted) {
       setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces' }))
     }
+  }
+
+  const openLinkDetail = (link) => {
+    setDetail({
+      selectedLinkId: link._id,
+      isEditing: false,
+      imageFile: null,
+      form: {
+        title: link.title || '',
+        url: link.url || '',
+        description: link.description || '',
+        imageUrl: link.image || '',
+        imagePreview: link.image || '',
+        imageFileName: ''
+      }
+    })
+  }
+
+  const closeLinkDetail = () => {
+    setDetail((prev) => ({
+      ...prev,
+      selectedLinkId: null,
+      isEditing: false,
+      imageFile: null
+    }))
+  }
+
+  const startDetailEdit = () => {
+    if (!selectedLink) return
+    setDetail((prev) => ({
+      ...prev,
+      isEditing: true,
+      imageFile: null,
+      form: {
+        title: selectedLink.title || '',
+        url: selectedLink.url || '',
+        description: selectedLink.description || '',
+        imageUrl: selectedLink.image || '',
+        imagePreview: selectedLink.image || '',
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const cancelDetailEdit = () => {
+    if (!selectedLink) {
+      setDetail((prev) => ({ ...prev, isEditing: false }))
+      return
+    }
+
+    setDetail((prev) => ({
+      ...prev,
+      isEditing: false,
+      imageFile: null,
+      form: {
+        title: selectedLink.title || '',
+        url: selectedLink.url || '',
+        description: selectedLink.description || '',
+        imageUrl: selectedLink.image || '',
+        imagePreview: selectedLink.image || '',
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const handleDetailImageFileChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setStatus((prev) => ({ ...prev, loadError: 'El archivo seleccionado no es una imagen válida.' }))
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setStatus((prev) => ({ ...prev, loadError: 'La imagen no puede superar los 5MB.' }))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      setDetail((prev) => ({
+        ...prev,
+        imageFile: file,
+        form: {
+          ...prev.form,
+          imageUrl: '',
+          imagePreview: loadEvent.target?.result || '',
+          imageFileName: file.name
+        }
+      }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRestoreDetailImage = () => {
+    setDetail((prev) => ({
+      ...prev,
+      imageFile: null,
+      form: {
+        ...prev.form,
+        imageUrl: selectedLink?.image || '',
+        imagePreview: selectedLink?.image || '',
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const handleClearDetailImage = () => {
+    setDetail((prev) => ({
+      ...prev,
+      imageFile: null,
+      form: {
+        ...prev.form,
+        imageUrl: '',
+        imagePreview: '',
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const handleDetailFormChange = (field, value) => {
+    setDetail((prev) => ({
+      ...prev,
+      form: {
+        ...prev.form,
+        [field]: value
+      }
+    }))
+  }
+
+  const handleDetailImageUrlChange = (value) => {
+    setDetail((prev) => ({
+      ...prev,
+      imageFile: null,
+      form: {
+        ...prev.form,
+        imageUrl: value,
+        imagePreview: value,
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const saveDetailEdit = async () => {
+    if (!selectedLink) return
+
+    const normalizedUrl = normalizeUrl(form.url.trim())
+    if (!isValidUrl(normalizedUrl)) {
+      setStatus((prev) => ({ ...prev, loadError: 'Ingresá una URL válida para guardar cambios.' }))
+      return
+    }
+
+    const payload = {
+      title: form.title.trim(),
+      url: normalizedUrl,
+      description: form.description.trim(),
+      tags: selectedLink.tags || [],
+      image: form.imageUrl?.trim() || ''
+    }
+
+    setStatus((prev) => ({ ...prev, isUpdating: true }))
+    const result = detail.imageFile
+      ? await updateLink(selectedLink._id, payload, detail.imageFile, true)
+      : await updateLink(selectedLink._id, payload, null, Boolean(payload.image))
+
+    if (!result?.success) {
+      setStatus((prev) => ({ ...prev, isUpdating: false, loadError: result?.message || 'No se pudo actualizar el enlace.' }))
+      return
+    }
+
+    await fetchLinks({ ...filters, page: pagination.currentPage || 1 })
+    setStatus((prev) => ({ ...prev, isUpdating: false, loadError: '' }))
+    setDetail((prev) => ({
+      ...prev,
+      isEditing: false,
+      imageFile: null,
+      form: {
+        ...prev.form,
+        imageFileName: ''
+      }
+    }))
+  }
+
+  const handleDeleteFromDetail = async () => {
+    if (!selectedLink) return
+    if (!window.confirm('¿Eliminar este enlace? Esta acción no se puede deshacer.')) return
+
+    setStatus((prev) => ({ ...prev, isUpdating: true }))
+    const result = await deleteLink(selectedLink._id)
+    if (!result?.success) {
+      setStatus((prev) => ({ ...prev, isUpdating: false, loadError: result?.message || 'No se pudo eliminar el enlace.' }))
+      return
+    }
+
+    await fetchLinks({ ...filters, page: pagination.currentPage || 1 })
+    setStatus((prev) => ({ ...prev, isUpdating: false, loadError: '' }))
+    closeLinkDetail()
   }
 
   // Carga inicial: mostrar skeletons en lugar de spinner
@@ -444,10 +901,29 @@ const MyLinks = () => {
          <EmptyLinksState hasActiveFilters={hasActiveFilters} onOpenForm={() => setUi((prev) => ({ ...prev, showLinkForm: true }))} />
        ) : (
          <>
-           <LinksList links={links} viewMode={viewMode} filters={filters} fetchLinks={fetchLinks} />
+           <LinksList links={links} viewMode={viewMode} filters={filters} fetchLinks={fetchLinks} onOpenDetail={openLinkDetail} />
            <LinksPagination pagination={pagination} onPageChange={handlePageChange} />
          </>
        )}
+
+      <LinkDetailSheet
+        link={selectedLink}
+        allTags={tags}
+        isOpen={Boolean(selectedLink)}
+        isEditing={isEditing}
+        formState={form}
+        onClose={closeLinkDetail}
+        onStartEdit={startDetailEdit}
+        onCancelEdit={cancelDetailEdit}
+        onDelete={handleDeleteFromDetail}
+        onSave={saveDetailEdit}
+        onFormChange={handleDetailFormChange}
+        onImageUrlChange={handleDetailImageUrlChange}
+        onFileChange={handleDetailImageFileChange}
+        onRestoreImage={handleRestoreDetailImage}
+        onClearImage={handleClearDetailImage}
+      />
+
       <LinkFormModal
         isOpen={showLinkForm}
         onClose={() => setUi((prev) => ({ ...prev, showLinkForm: false }))}

@@ -6,8 +6,6 @@ import { useSwipe } from '../hooks/useSwipe'
 import {
   ExternalLink,
   Heart,
-  Edit,
-  Trash2,
   Eye,
   Calendar,
   Archive,
@@ -21,7 +19,6 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const DescriptionModal = lazy(() => import('./DescriptionModal'))
-const EditLinkModal = lazy(() => import('./EditLinkModal'))
 
 const ModalFallback = () => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -65,10 +62,13 @@ const getContrastTextColor = (hex) => {
   return lum > 0.179 ? '#000' : '#fff'
 }
 
-const CardMenu = ({ link, isOpen, onToggle, onEdit, onArchive, onDelete, compact = false }) => (
+const CardMenu = ({ link, isOpen, onToggle, onArchive, compact = false }) => (
   <div className="relative">
     <button
-      onClick={onToggle}
+      onClick={(event) => {
+        event.stopPropagation()
+        onToggle()
+      }}
       className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
       aria-label="Abrir menú"
       aria-expanded={isOpen}
@@ -82,17 +82,15 @@ const CardMenu = ({ link, isOpen, onToggle, onEdit, onArchive, onDelete, compact
     {isOpen && (
       <div className={`absolute right-0 mt-2 ${compact ? 'w-36' : 'w-48'} bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-600`}>
         <div className="py-1">
-          <button onClick={onEdit} className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
-            <Edit className="w-3 h-3 mr-2" />
-            Editar
-          </button>
-          <button onClick={onArchive} className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              onArchive()
+            }}
+            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+          >
             <Archive className="w-3 h-3 mr-2" />
             {link.isArchived ? 'Desarchivar' : 'Archivar'}
-          </button>
-          <button onClick={onDelete} className="flex items-center w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-            <Trash2 className="w-3 h-3 mr-2" />
-            Eliminar
           </button>
         </div>
       </div>
@@ -157,8 +155,20 @@ const MinimalView = ({ link, handleVisit, handleToggleFavorite }) => (
   </article>
 )
 
-const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleEditToggle, handleToggleArchive, handleDelete, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag }) => (
-  <article className="card hover:shadow-md transition-shadow duration-200" role="article" aria-labelledby={`link-${link._id}-title`}>
+const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+  <article
+    className="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
+    role="button"
+    tabIndex={0}
+    aria-labelledby={`link-${link._id}-title`}
+    onClick={() => onOpenDetail?.(link)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onOpenDetail?.(link)
+      }
+    }}
+  >
     <div className="p-4">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -198,7 +208,13 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
               </div>
 
               {needsDescription && (
-                <button onClick={() => setShowDescriptionModal(true)} className="flex items-center mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors">
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setShowDescriptionModal(true)
+                  }}
+                  className="flex items-center mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+                >
                   <AlertCircle className="w-3 h-3 mr-1" />
                   Agregar descripción
                 </button>
@@ -214,21 +230,46 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
         </div>
 
         <div className="flex items-center space-x-2 ml-4">
-          <button onClick={handleToggleFavorite} className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}>
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              handleToggleFavorite()
+            }}
+            className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+          >
             <Heart className={`w-5 h-5 ${link.isFavorite ? 'fill-current' : ''}`} />
           </button>
-          <button onClick={handleVisit} className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-primary-600 rounded-full transition-colors">
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              handleVisit()
+            }}
+            className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-primary-600 rounded-full transition-colors"
+          >
             <ExternalLink className="w-5 h-5" />
           </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onEdit={handleEditToggle} onArchive={handleToggleArchive} onDelete={handleDelete} />
+          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} />
         </div>
       </div>
     </div>
   </article>
 )
 
-const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleEditToggle, handleToggleArchive, handleDelete, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag }) => (
-  <div ref={swipeRef} className={`card hover:shadow-lg transition-all duration-200 group ${link.status === 'processing' ? 'opacity-75' : ''}`} role="article" aria-labelledby={`link-${link._id}-title`}>
+const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+  <div
+    ref={swipeRef}
+    className={`card hover:shadow-lg transition-all duration-200 group ${link.status === 'processing' ? 'opacity-75' : ''} cursor-pointer`}
+    role="button"
+    tabIndex={0}
+    aria-labelledby={`link-${link._id}-title`}
+    onClick={() => onOpenDetail?.(link)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onOpenDetail?.(link)
+      }
+    }}
+  >
     {link.status === 'processing' && (
       <div className="absolute top-2 right-2 z-10 flex items-center space-x-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
         <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
@@ -262,7 +303,13 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
     <div className="p-4">
       <div className="flex items-start justify-between mb-2">
         <h3 id={`link-${link._id}-title`} className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 flex-1">{link.title}</h3>
-        <button onClick={handleToggleFavorite} className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ml-2 ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}>
+        <button
+          onClick={(event) => {
+            event.stopPropagation()
+            handleToggleFavorite()
+          }}
+          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ml-2 ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+        >
           <Heart className={`w-5 h-5 ${link.isFavorite ? 'fill-current' : ''}`} />
         </button>
       </div>
@@ -294,7 +341,13 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
       </div>
 
       {needsDescription && (
-        <button onClick={() => setShowDescriptionModal(true)} className="flex items-center mb-3 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors">
+        <button
+          onClick={(event) => {
+            event.stopPropagation()
+            setShowDescriptionModal(true)
+          }}
+          className="flex items-center mb-3 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+        >
           <AlertCircle className="w-3 h-3 mr-1" />
           Agregar descripción
         </button>
@@ -304,23 +357,28 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
         <span className="text-xs text-primary-600 font-medium truncate flex items-center">{link.imageIsStored && <Cloud className="w-3 h-3 mr-1" />}{getDomainFromUrl(link.url)}</span>
 
         <div className="flex items-center space-x-1">
-          <button onClick={handleVisit} className="btn-primary btn-sm flex items-center">
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              handleVisit()
+            }}
+            className="btn-primary btn-sm flex items-center"
+          >
             <ExternalLink className="w-3 h-3 mr-1" />
             Visitar
           </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onEdit={handleEditToggle} onArchive={handleToggleArchive} onDelete={handleDelete} compact />
+          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} compact />
         </div>
       </div>
     </div>
   </div>
 )
 
-const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
+const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDetail }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showDescriptionModal, setShowDescriptionModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
 
-  const { toggleFavorite, deleteLink, incrementClickCount, toggleArchive } = useLinkStore()
+  const { toggleFavorite, incrementClickCount, toggleArchive } = useLinkStore()
   const { tags: allTags, fetchTags: fetchAllTags } = useTagStore()
 
   useEffect(() => {
@@ -350,22 +408,10 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
     onUpdate?.()
   }
 
-  const handleDelete = async () => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este enlace?')) {
-      await deleteLink(link._id)
-      onUpdate?.()
-    }
-  }
-
   const handleToggleArchive = async () => {
     await toggleArchive(link._id)
     setIsMenuOpen(false)
     onUpdate?.()
-  }
-
-  const handleEditToggle = () => {
-    setShowEditModal(true)
-    setIsMenuOpen(false)
   }
 
   const hasScrapingError = link.status === 'error' || link.scrapingError
@@ -373,7 +419,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
 
   const swipeRef = useSwipe(
     () => {
-      if (window.confirm('¿Eliminar este enlace?')) handleDelete()
+      onOpenDetail?.(link)
     },
     () => {
       handleToggleFavorite()
@@ -392,13 +438,12 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
         setIsMenuOpen={setIsMenuOpen}
         handleVisit={handleVisit}
         handleToggleFavorite={handleToggleFavorite}
-        handleEditToggle={handleEditToggle}
         handleToggleArchive={handleToggleArchive}
-        handleDelete={handleDelete}
         hasScrapingError={hasScrapingError}
         needsDescription={needsDescription}
         setShowDescriptionModal={setShowDescriptionModal}
         resolveTag={resolveTag}
+        onOpenDetail={onOpenDetail}
       />
     )
   } else {
@@ -410,13 +455,12 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
         setIsMenuOpen={setIsMenuOpen}
         handleVisit={handleVisit}
         handleToggleFavorite={handleToggleFavorite}
-        handleEditToggle={handleEditToggle}
         handleToggleArchive={handleToggleArchive}
-        handleDelete={handleDelete}
         hasScrapingError={hasScrapingError}
         needsDescription={needsDescription}
         setShowDescriptionModal={setShowDescriptionModal}
         resolveTag={resolveTag}
+        onOpenDetail={onOpenDetail}
       />
     )
   }
@@ -429,9 +473,6 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full' }) => {
         <>
           <Suspense fallback={<ModalFallback />}>
             <DescriptionModal link={link} isOpen={showDescriptionModal} onClose={() => setShowDescriptionModal(false)} onUpdate={onUpdate} />
-          </Suspense>
-          <Suspense fallback={<ModalFallback />}>
-            <EditLinkModal link={link} isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={onUpdate} />
           </Suspense>
         </>
       )}
@@ -446,7 +487,8 @@ const LinkCardMemo = React.memo(LinkCard, (prevProps, nextProps) => {
     prevProps.link?.isArchived === nextProps.link?.isArchived &&
     prevProps.link?.clickCount === nextProps.link?.clickCount &&
     prevProps.viewMode === nextProps.viewMode &&
-    prevProps.mode === nextProps.mode
+    prevProps.mode === nextProps.mode &&
+    prevProps.onOpenDetail === nextProps.onOpenDetail
   )
 })
 
