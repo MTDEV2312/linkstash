@@ -93,7 +93,15 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
       originalRelativePath = imageUrl;
       const base = process.env.BACKEND_BASE_URL || '';
       if (base) {
-        imageUrl = `${base.replace(/\/$/, '')}${imageUrl}`;
+        try {
+          const parsedBase = new URL(base);
+          const isLocalBase = parsedBase.hostname === 'localhost' || parsedBase.hostname === '127.0.0.1';
+          if (!isLocalBase) {
+            imageUrl = `${base.replace(/\/$/, '')}${imageUrl}`;
+          }
+        } catch (e) {
+          imageUrl = `${base.replace(/\/$/, '')}${imageUrl}`;
+        }
       } else {
         // Intentar localizar el fichero en disco dentro de public/defaults y subirlo desde buffer
         try {

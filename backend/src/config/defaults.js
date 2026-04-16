@@ -42,6 +42,46 @@ let roundRobinIndex = 0;
 
 const storageCache = new Map();
 
+const getBundledDefaultImage = () => {
+  if (!defaultImages || defaultImages.length === 0) return '';
+
+  const toRelativeDefaultsPath = (value) => {
+    if (!value) return '';
+    if (/^\/defaults\//i.test(value)) return value;
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.pathname.includes('/defaults/')) {
+        const filename = parsed.pathname.split('/').filter(Boolean).pop();
+        return filename ? `/defaults/${filename}` : '';
+      }
+    } catch (e) {
+      // Ignorar y normalizar como archivo local.
+    }
+
+    const filename = value.split('/').filter(Boolean).pop();
+    return filename ? `/defaults/${filename}` : '';
+  };
+
+  if (strategy === 'roundrobin') {
+    const idx = roundRobinIndex % defaultImages.length;
+    roundRobinIndex += 1;
+    return toRelativeDefaultsPath(defaultImages[idx]);
+  }
+
+  const idx = Math.floor(Math.random() * defaultImages.length);
+  return toRelativeDefaultsPath(defaultImages[idx]);
+};
+
+const isReachableUrl = async (url) => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch (e) {
+    return false;
+  }
+};
+
 const hasStorageConfig = () => {
   return !!(
     process.env.INSFORGE_URL ||
@@ -106,10 +146,19 @@ export async function getNextDefaultImageWithStorage() {
     return storageCache.get(rawImage);
   }
 
-  if (isLegacyCloudinaryUrl(rawImage) || isInsforgeStorageUrl(rawImage)) {
+  if (isLegacyCloudinaryUrl(rawImage)) {
     const cached = { url: rawImage, publicId: '', isStored: false };
     storageCache.set(rawImage, cached);
     return cached;
+  }
+
+  if (isInsforgeStorageUrl(rawImage)) {
+    const reachable = await isReachableUrl(rawImage);
+    if (reachable) {
+      const cached = { url: rawImage, publicId: '', isStored: false };
+      storageCache.set(rawImage, cached);
+      return cached;
+    }
   }
 
   if (!hasStorageConfig()) {
@@ -126,6 +175,8 @@ export async function getNextDefaultImageWithStorage() {
       const parts = parsed.pathname.split('/').filter(Boolean);
       const filename = parts[parts.length - 1];
       uploadSource = `/defaults/${filename}`;
+    } else if (isInsforgeStorageUrl(rawImage)) {
+      uploadSource = getBundledDefaultImage() || rawImage;
     }
 
     const up = await storageService.uploadImageFromUrl(uploadSource, { folder: `${folderBase}/defaults` });
@@ -144,8 +195,11 @@ export async function getNextDefaultImageWithStorage() {
   return fallback;
 }
 
+export const getNextDefaultImageWithCloudinary = getNextDefaultImageWithStorage;
+
 export default {
   getDefaultImages,
   getNextDefaultImage,
-  getNextDefaultImageWithStorage
+  getNextDefaultImageWithStorage,
+  getNextDefaultImageWithCloudinary
 };
