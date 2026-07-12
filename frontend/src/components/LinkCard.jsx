@@ -155,7 +155,7 @@ const MinimalView = ({ link, handleVisit, handleToggleFavorite }) => (
   </article>
 )
 
-const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail, imageError, setImageError }) => (
   <article
     className="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
     role="button"
@@ -173,7 +173,7 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-3">
-            {link.image && (
+            {link.image && !imageError ? (
               <OptimizedImage
                 src={link.image}
                 alt={link.title}
@@ -182,10 +182,12 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
                 className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                 quality={70}
                 isStored={link.imageIsStored}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
+                onError={() => setImageError(true)}
               />
+            ) : (
+              <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-lg flex-shrink-0 flex items-center justify-center border border-gray-200 dark:border-gray-700">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400">N/A</span>
+              </div>
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
@@ -255,7 +257,7 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
   </article>
 )
 
-const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail, imageError, setImageError }) => (
   <div
     ref={swipeRef}
     className={`card hover:shadow-lg transition-all duration-200 group ${link.status === 'processing' ? 'opacity-75' : ''} cursor-pointer`}
@@ -277,7 +279,7 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
       </div>
     )}
 
-    {link.image ? (
+    {link.image && !imageError ? (
       <div className="aspect-video overflow-hidden rounded-t-lg">
         <OptimizedImage
           src={link.image}
@@ -287,15 +289,11 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
           quality={75}
           isStored={link.imageIsStored}
-          onError={(e) => {
-            if (e.currentTarget.parentElement) {
-              e.currentTarget.parentElement.style.display = 'none'
-            }
-          }}
+          onError={() => setImageError(true)}
         />
       </div>
     ) : (
-      <div className="aspect-video rounded-t-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+      <div className="aspect-video rounded-t-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
         <span className="text-xs text-gray-500 dark:text-gray-400">Sin imagen</span>
       </div>
     )}
@@ -377,6 +375,12 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
 const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDetail }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showDescriptionModal, setShowDescriptionModal] = useState(false)
+  const [imageError, setImageError] = useState(false)
+
+  // Resetear error de imagen si cambia el link (ej. tras polling exitoso)
+  useEffect(() => {
+    setImageError(false)
+  }, [link?.image])
 
   const { toggleFavorite, incrementClickCount, toggleArchive } = useLinkStore()
   const { tags: allTags, fetchTags: fetchAllTags } = useTagStore()
@@ -444,6 +448,8 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
         setShowDescriptionModal={setShowDescriptionModal}
         resolveTag={resolveTag}
         onOpenDetail={onOpenDetail}
+        imageError={imageError}
+        setImageError={setImageError}
       />
     )
   } else {
@@ -461,6 +467,8 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
         setShowDescriptionModal={setShowDescriptionModal}
         resolveTag={resolveTag}
         onOpenDetail={onOpenDetail}
+        imageError={imageError}
+        setImageError={setImageError}
       />
     )
   }
@@ -486,6 +494,11 @@ const LinkCardMemo = React.memo(LinkCard, (prevProps, nextProps) => {
     prevProps.link?.isFavorite === nextProps.link?.isFavorite &&
     prevProps.link?.isArchived === nextProps.link?.isArchived &&
     prevProps.link?.clickCount === nextProps.link?.clickCount &&
+    prevProps.link?.status === nextProps.link?.status &&
+    prevProps.link?.image === nextProps.link?.image &&
+    prevProps.link?.title === nextProps.link?.title &&
+    prevProps.link?.description === nextProps.link?.description &&
+    prevProps.link?.scrapingError === nextProps.link?.scrapingError &&
     prevProps.viewMode === nextProps.viewMode &&
     prevProps.mode === nextProps.mode &&
     prevProps.onOpenDetail === nextProps.onOpenDetail
