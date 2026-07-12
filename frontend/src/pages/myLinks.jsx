@@ -585,6 +585,18 @@ const MyLinks = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Polling inteligente para refrescar enlaces en estado 'processing' (scraping)
+  useEffect(() => {
+    const hasProcessing = links.some((l) => l.status === 'processing')
+    if (!hasProcessing) return
+
+    const timer = setTimeout(async () => {
+      await fetchLinks(filters)
+    }, 4000)
+
+    return () => clearTimeout(timer)
+  }, [links, filters, fetchLinks])
+
   useEffect(() => {
     if (!tags || tags.length === 0) {
       fetchTags()
