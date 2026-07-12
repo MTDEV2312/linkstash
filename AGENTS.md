@@ -10,7 +10,7 @@ alwaysApply: true
 
 Backend-as-a-service (BaaS) platform providing:
 
-- **Database**: PostgreSQL with PostgREST API
+- **Database**: MongoDB
 - **Authentication**: Email/password + OAuth (Google, GitHub)
 - **Storage**: File upload/download
 - **AI**: Chat completions and image generation (OpenAI-compatible)
