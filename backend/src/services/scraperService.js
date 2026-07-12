@@ -14,10 +14,11 @@ const logger = getLogger('ScraperService');
 
 class ScraperService {
   constructor() {
-    this.userAgent = process.env.USER_AGENT || 'LinkStash-Bot/1.0';
+    const ua = process.env.USER_AGENT || '';
+    this.userAgent = (ua === 'LinkStash-Bot/1.0' || !ua)
+      ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      : ua;
     this.timeout = 10000; // 10 segundos
-    // Nota: la política de allowlist se administra vía SCRAPER_HOST_ALLOWLIST y SCRAPER_ALLOW_PUBLIC
-    // (ver método isSafeUrl). Se elimina la propiedad `allowedHostnames` para evitar confusiones.
   }
 
   async scrapeUrl(url) {
@@ -44,172 +45,24 @@ class ScraperService {
 
       logger.info(`Iniciando scraping de: ${url}`);
 
-      // Detectar sitios especiales y aplicar estrategias específicas
-      const specialResult = await this.trySpecialScraping(url);
-      if (specialResult) {
-        logger.info(`Scraping especial completado para: ${url}`);
-        return specialResult;
+      // 1. Intentar scraping local primero
+      try {
+        const localResult = await this.scrapeUrlLocal(url, initialSafe.addresses);
+        if (localResult && localResult.success) {
+          return localResult;
+        }
+      } catch (localError) {
+        logger.warn(`Scraping local falló para ${url}, intentando fallback con Microlink: ${localError.message}`);
       }
 
-      // Realizar la petición HTTP de forma segura: no seguir redirecciones automáticamente.
-      // Seguiremos manualmente hasta `maxHops` redirecciones, validando cada URL intermedia.
-      const maxHops = 5;
-      let currentUrl = url;
-      let response = null;
-
-      for (let hop = 0; hop < maxHops; hop++) {
-        // Validar de nuevo la URL antes de cada petición (previene redirecciones a destinos internos)
-        const safeCheck = await this.getSafeUrlInfo(currentUrl);
-        if (!safeCheck.ok) {
-          throw new Error('Redirección a URL no permitida');
-        }
-
-        // Resolver host y obtener IP validada (evita TOCTOU parcial: usamos la IP resuelta para la conexión)
-        // Pasamos las IPs resueltas previamente para mitigar TOCTOU
-        const resolved = await this.resolveHostAndSelectIp(currentUrl, safeCheck.addresses);
-        if (!resolved || !resolved.ip) throw new Error('No se pudo resolver la IP segura');
-
-        // Crear un agent que conecte directamente a la IP validada y preserve Host/SNI
-        const agent = this.createAgentFor(resolved);
-
-        // Construir la URL objetivo usando la IP resuelta para evitar cualquier resolución adicional
-        // y forzar el Host header al hostname original (preserva validación del certificado via SNI)
-        const parsedUrl = new URL(currentUrl);
-        const ipAddr = resolved.ip;
-        const hostForUrl = ipAddr.includes(':') ? `[${ipAddr}]` : ipAddr; // IPv6 must be bracketed in URLs
-        const defaultPort = parsedUrl.protocol === 'https:' ? 443 : 80;
-        // Decide si necesitamos incluir puerto en la URL construida
-        const includePort = (parsedUrl.port && parseInt(parsedUrl.port, 10) !== defaultPort) || (resolved.port && resolved.port !== defaultPort);
-        const portPart = includePort ? `:${resolved.port || parsedUrl.port}` : '';
-        const pathAndQuery = `${parsedUrl.pathname || '/'}${parsedUrl.search || ''}`;
-        const requestUrl = `${parsedUrl.protocol}//${hostForUrl}${portPart}${pathAndQuery}`;
-        // ---- SSRF Mitigation: Validate Resolved IP ----
-        let parsedIP;
-        try {
-          parsedIP = ipaddr.parse(ipAddr);
-        } catch (e) {
-          throw new Error('La IP resuelta no es válida');
-        }
-        if (utilIsIpPrivate(parsedIP)) {
-          throw new Error('La IP de destino no está permitida');
-        }
-
-        // Sanear host header para evitar inyección de cabeceras
-        const safeHostHeader = sanitizeHostHeader(resolved.hostname || parsedUrl.hostname);
-
-        try {
-          response = await axios.get(requestUrl, {
-            headers: {
-              'User-Agent': this.userAgent,
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Accept-Language': 'es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3',
-              'Accept-Encoding': 'gzip, deflate',
-              'DNT': '1',
-              'Connection': 'close',
-              'Upgrade-Insecure-Requests': '1',
-              'Host': safeHostHeader
-            },
-            timeout: this.timeout,
-            // No seguir redirecciones automáticamente
-            maxRedirects: 0,
-            validateStatus: (status) => status < 500, // Aceptar hasta 4xx para manejar rate limits
-            httpAgent: resolved.protocol === 'http:' ? agent : undefined,
-            httpsAgent: resolved.protocol === 'https:' ? agent : undefined,
-            // Limitar tamaño de respuesta para mitigar DoS accidental
-            maxContentLength: 1024 * 1024 * 2, // 2 MB
-            maxBodyLength: 1024 * 1024 * 2,
-            responseType: 'text'
-          });
-        } catch (axiosError) {
-          // Manejar errores específicos de rate limit o bloqueo
-          if (axiosError.response?.status === 429) {
-            throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
-          }
-          if (axiosError.response?.status === 403) {
-            throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso a nuestro bot. Verifica la URL.');
-          }
-          if (axiosError.code === 'ECONNREFUSED' || axiosError.code === 'ETIMEDOUT') {
-            throw new Error('CONNECTION_ERROR: No se pudo conectar con el servidor. El sitio podría estar inactivo.');
-          }
-          throw axiosError;
-        }
-
-        // Validar código de estado
-        if (response.status === 429) {
-          throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
-        }
-        if (response.status === 403) {
-          throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso. Verifica la URL.');
-        }
-        if (response.status >= 400) {
-          throw new Error(`HTTP ${response.status}: No se pudo acceder a la página.`);
-        }
-
-        // Validar tipo de contenido: esperamos HTML/text para scraping
-        const contentType = (response.headers && response.headers['content-type']) || '';
-        if (!contentType.toLowerCase().includes('html') && !contentType.toLowerCase().includes('text')) {
-          throw new Error('Tipo de contenido no soportado para scraping');
-        }
-
-        // Si hay una redirección (3xx) y el servidor devolvió Location, calcular la URL absoluta y repetir
-        if (response.status >= 300 && response.status < 400 && response.headers && response.headers.location) {
-          try {
-            const next = new URL(response.headers.location, currentUrl).href;
-            currentUrl = next;
-            // seguir al siguiente hop
-            continue;
-          } catch (e) {
-            throw new Error('Redirección inválida');
-          }
-        }
-
-        // Si no era una redirección, salir del bucle y usar `response`
-        break;
+      // 2. Si el local falló o no fue exitoso, intentar Microlink
+      const microlinkResult = await this.scrapeWithMicrolink(url);
+      if (microlinkResult && microlinkResult.success) {
+        return microlinkResult;
       }
 
-      // Parsear el HTML
-      const $ = cheerio.load(response.data);
-
-      // Extraer metadata y validar recursos (images / favicons)
-      const title = this.extractTitle($);
-      const description = this.extractDescription($);
-      const siteName = this.extractSiteName($);
-
-      let image = this.extractImage($, url);
-      if (image && this.isValidUrl(image)) {
-        const safeImg = await this.getSafeUrlInfo(image);
-        if (!safeImg.ok) image = '';
-      } else {
-        image = '';
-      }
-
-      // Si no hay imagen válida, usar imagen por defecto configurable
-      if (!image) {
-        // Permitir override mediante variable de entorno
-        const defaultImg = process.env.DEFAULT_IMAGE_URL || null;
-        if (defaultImg && this.isValidUrl(defaultImg)) {
-          image = defaultImg;
-        } else {
-          // Usar la(s) imagen(es) definidas en public/defaults (random o roundrobin)
-          image = getNextDefaultImage();
-        }
-      }
-
-      let favicon = this.extractFavicon($, url);
-      if (favicon && this.isValidUrl(favicon)) {
-        const safeFav = await this.getSafeUrlInfo(favicon);
-        if (!safeFav.ok) favicon = '';
-      } else {
-        favicon = '';
-      }
-
-      const metadata = { title, description, image, siteName, favicon };
-
-      logger.info(`Scraping completado para: ${url}`);
-      return {
-        success: true,
-        data: { ...metadata, url }
-      };
+      // Si ambos fallaron, lanzar el error
+      throw new Error('No se pudo extraer metadata del enlace (bloqueo o timeout)');
 
     } catch (error) {
       logger.error(`Error en scraping de ${url}`, error);
@@ -241,6 +94,214 @@ class ScraperService {
         }
       };
     }
+  }
+
+  async scrapeWithMicrolink(url) {
+    try {
+      logger.info(`[Fallback] Intentando scraping con Microlink.io para: ${url}`);
+      // Microlink.io no requiere API key en su plan gratuito (250 req/día)
+      const response = await axios.get(`https://api.microlink.io?url=${encodeURIComponent(url)}`, {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      
+      if (response.data && response.data.status === 'success') {
+        const item = response.data.data;
+        
+        let image = item.image?.url || item.logo?.url || '';
+        if (image && this.isValidUrl(image)) {
+          const safeImg = await this.getSafeUrlInfo(image);
+          if (!safeImg.ok) image = '';
+        } else {
+          image = '';
+        }
+
+        return {
+          success: true,
+          data: {
+            title: this.cleanText(item.title || ''),
+            description: this.cleanText(item.description || ''),
+            image,
+            siteName: item.publisher || this.extractDomainFromUrl(url),
+            favicon: item.logo?.url || '',
+            url
+          }
+        };
+      }
+      return null;
+    } catch (err) {
+      logger.error(`[Fallback] Microlink.io falló para ${url}:`, err.message);
+      return null;
+    }
+  }
+
+  async scrapeUrlLocal(url, initialAddresses) {
+    // Detectar sitios especiales y aplicar estrategias específicas
+    const specialResult = await this.trySpecialScraping(url);
+    if (specialResult) {
+      logger.info(`Scraping especial completado para: ${url}`);
+      return specialResult;
+    }
+
+    // Realizar la petición HTTP de forma segura
+    const maxHops = 5;
+    let currentUrl = url;
+    let response = null;
+    let addresses = initialAddresses;
+
+    for (let hop = 0; hop < maxHops; hop++) {
+      if (hop > 0) {
+        const safeCheck = await this.getSafeUrlInfo(currentUrl);
+        if (!safeCheck.ok) {
+          throw new Error('Redirección a URL no permitida');
+        }
+        addresses = safeCheck.addresses;
+      }
+
+      // Resolver host y obtener IP validada
+      const resolved = await this.resolveHostAndSelectIp(currentUrl, addresses);
+      if (!resolved || !resolved.ip) throw new Error('No se pudo resolver la IP segura');
+
+      // Crear un agent que conecte directamente a la IP validada y preserve Host/SNI
+      const agent = this.createAgentFor(resolved);
+
+      // Construir la URL objetivo usando la IP resuelta para evitar cualquier resolución adicional
+      const parsedUrl = new URL(currentUrl);
+      const ipAddr = resolved.ip;
+      const hostForUrl = ipAddr.includes(':') ? `[${ipAddr}]` : ipAddr; // IPv6 must be bracketed in URLs
+      const defaultPort = parsedUrl.protocol === 'https:' ? 443 : 80;
+      // Decide si necesitamos incluir puerto en la URL construida
+      const includePort = (parsedUrl.port && parseInt(parsedUrl.port, 10) !== defaultPort) || (resolved.port && resolved.port !== defaultPort);
+      const portPart = includePort ? `:${resolved.port || parsedUrl.port}` : '';
+      const pathAndQuery = `${parsedUrl.pathname || '/'}${parsedUrl.search || ''}`;
+      const requestUrl = `${parsedUrl.protocol}//${hostForUrl}${portPart}${pathAndQuery}`;
+      
+      // ---- SSRF Mitigation: Validate Resolved IP ----
+      let parsedIP;
+      try {
+        parsedIP = ipaddr.parse(ipAddr);
+      } catch (e) {
+        throw new Error('La IP resuelta no es válida');
+      }
+      if (utilIsIpPrivate(parsedIP)) {
+        throw new Error('La IP de destino no está permitida');
+      }
+
+      // Sanear host header para evitar inyección de cabeceras
+      const safeHostHeader = sanitizeHostHeader(resolved.hostname || parsedUrl.hostname);
+
+      try {
+        response = await axios.get(requestUrl, {
+          headers: {
+            'User-Agent': this.userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'close',
+            'Upgrade-Insecure-Requests': '1',
+            'Host': safeHostHeader
+          },
+          timeout: this.timeout,
+          // No seguir redirecciones automáticamente
+          maxRedirects: 0,
+          validateStatus: (status) => status < 500, // Aceptar hasta 4xx para manejar rate limits
+          httpAgent: resolved.protocol === 'http:' ? agent : undefined,
+          httpsAgent: resolved.protocol === 'https:' ? agent : undefined,
+          // Limitar tamaño de respuesta para mitigar DoS accidental
+          maxContentLength: 1024 * 1024 * 2, // 2 MB
+          maxBodyLength: 1024 * 1024 * 2,
+          responseType: 'text'
+        });
+      } catch (axiosError) {
+        // Manejar errores específicos de rate limit o bloqueo
+        if (axiosError.response?.status === 429) {
+          throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
+        }
+        if (axiosError.response?.status === 403) {
+          throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso a nuestro bot. Verifica la URL.');
+        }
+        if (axiosError.code === 'ECONNREFUSED' || axiosError.code === 'ETIMEDOUT') {
+          throw new Error('CONNECTION_ERROR: No se pudo conectar con el servidor. El sitio podría estar inactivo.');
+        }
+        throw axiosError;
+      }
+
+      // Validar código de estado
+      if (response.status === 429) {
+        throw new Error('RATE_LIMIT_ERROR: El sitio ha bloqueado temporalmente las solicitudes. Reintenta más tarde.');
+      }
+      if (response.status === 403) {
+        throw new Error('BLOCKED_ERROR: El sitio ha bloqueado el acceso. Verifica la URL.');
+      }
+      if (response.status >= 400) {
+        throw new Error(`HTTP ${response.status}: No se pudo acceder a la página.`);
+      }
+
+      // Si hay una redirección (3xx) y el servidor devolvió Location, calcular la URL absoluta y repetir
+      if (response.status >= 300 && response.status < 400 && response.headers && response.headers.location) {
+        try {
+          const next = new URL(response.headers.location, currentUrl).href;
+          currentUrl = next;
+          // seguir al siguiente hop
+          continue;
+        } catch (e) {
+          throw new Error('Redirección inválida');
+        }
+      }
+
+      // Validar tipo de contenido: esperamos HTML/text para scraping
+      const contentType = (response.headers && response.headers['content-type']) || '';
+      if (contentType && !contentType.toLowerCase().includes('html') && !contentType.toLowerCase().includes('text')) {
+        throw new Error('Tipo de contenido no soportado para scraping');
+      }
+
+      // Si no era una redirección, salir del bucle y usar `response`
+      break;
+    }
+
+    // Parsear el HTML
+    const $ = cheerio.load(response.data);
+
+    // Extraer metadata y validar recursos (images / favicons)
+    const title = this.extractTitle($);
+    const description = this.extractDescription($);
+    const siteName = this.extractSiteName($);
+
+    let image = this.extractImage($, url);
+    if (image && this.isValidUrl(image)) {
+      const safeImg = await this.getSafeUrlInfo(image);
+      if (!safeImg.ok) image = '';
+    } else {
+      image = '';
+    }
+
+    // Si no hay imagen válida, usar imagen por defecto configurable
+    if (!image) {
+      // Permitir override mediante variable de entorno
+      const defaultImg = process.env.DEFAULT_IMAGE_URL || null;
+      if (defaultImg && this.isValidUrl(defaultImg)) {
+        image = defaultImg;
+      } else {
+        // Usar la(s) imagen(es) definidas en public/defaults (random o roundrobin)
+        image = getNextDefaultImage();
+      }
+    }
+
+    let favicon = this.extractFavicon($, url);
+    if (favicon && this.isValidUrl(favicon)) {
+      const safeFav = await this.getSafeUrlInfo(favicon);
+      if (!safeFav.ok) favicon = '';
+    } else {
+      favicon = '';
+    }
+
+    return {
+      success: true,
+      data: { title, description, image, siteName, favicon, url }
+    };
   }
 
   // Comprobaciones adicionales para mitigar SSRF
