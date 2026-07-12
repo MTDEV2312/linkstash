@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: linkstash-redis
+    restart: unless-stopped
+    command: redis-server --requirepass "${REDIS_PASSWORD:-LinkStashSecurePass123!}"
+    ports:
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - linkstash-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/.dockerfile
+    container_name: linkstash-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=${MONGODB_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_AGENT=${USER_AGENT}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - BACKEND_BASE_URL=${BACKEND_BASE_URL}
+      - INSFORGE_URL=${INSFORGE_URL}
+      - INSFORGE_ANON_KEY=${INSFORGE_ANON_KEY}
+      - INSFORGE_STORAGE_BUCKET=${INSFORGE_STORAGE_BUCKET}
+      - INSFORGE_STORAGE_FOLDER=${INSFORGE_STORAGE_FOLDER}
+      - SCRAPER_STORE_EXTERNAL_IMAGES=${SCRAPER_STORE_EXTERNAL_IMAGES}
+      - SCRAPER_QUEUE_CONCURRENCY=${SCRAPER_QUEUE_CONCURRENCY}
+      - ENABLE_BULLMQ=true
+      - REDIS_URL=redis://default:${REDIS_PASSWORD:-LinkStashSecurePass123!}@redis:6379
+      - ENABLE_SCRAPER_WORKER=true
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+    depends_on:
+      - redis
+    networks:
+      - linkstash-network
+
+networks:
+  linkstash-network:
+    driver: bridge
+
+volumes:
+  redis_data:
