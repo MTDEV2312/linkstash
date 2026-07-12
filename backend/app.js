@@ -33,7 +33,6 @@ import authRoutes from './src/routes/authRoutes.js';
 import linkRoutes from './src/routes/linkRoutes.js';
 import tagRoutes from './src/routes/tagRoutes.js';
 import dashboardRoutes from './src/routes/dashboardRoutes.js';
-import metricsRoutes from './src/routes/metricsRoutes.js';
 
 const logger = getLogger('AppServer');
 const app = express();
@@ -125,7 +124,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/metrics', metricsRoutes);
 
 // Ruta de health check (para wake-up de Render)
 app.get('/health', (req, res) => {

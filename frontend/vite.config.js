@@ -31,7 +31,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'zustand'],
           router: ['react-router-dom'],
-          utils: ['date-fns', 'lucide-react'],
+          utils: ['lucide-react'],
           forms: ['react-hook-form']
         }
       }

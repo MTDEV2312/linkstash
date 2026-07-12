@@ -15,8 +15,6 @@ import {
   AlertTriangle,
   Loader
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 const DescriptionModal = lazy(() => import('./DescriptionModal'))
 
@@ -31,8 +29,27 @@ const ModalFallback = () => (
   </div>
 )
 
-const formatDate = (date) => format(new Date(date), 'dd MMM yyyy', { locale: es })
-const formatDateTime = (date) => (date ? format(new Date(date), 'dd MMM yyyy - HH:mm', { locale: es }) : null)
+const formatDate = (date) => {
+  if (!date) return ''
+  const d = new Date(date)
+  const day = String(d.getDate()).padStart(2, '0')
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+  const month = months[d.getMonth()]
+  const year = d.getFullYear()
+  return `${day} ${month} ${year}`
+}
+
+const formatDateTime = (date) => {
+  if (!date) return null
+  const d = new Date(date)
+  const day = String(d.getDate()).padStart(2, '0')
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+  const month = months[d.getMonth()]
+  const year = d.getFullYear()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${day} ${month} ${year} - ${hours}:${minutes}`
+}
 
 const getDomainFromUrl = (url) => {
   try {
