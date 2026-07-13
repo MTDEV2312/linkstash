@@ -4,6 +4,15 @@ const CACHE_VERSION = 'linkstash-v1'
 const CACHE_NAME = `${CACHE_VERSION}-static`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 
+// Solo mostrar logs en entorno de desarrollo (localhost o 127.0.0.1)
+const isDev = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+const log = (...args) => {
+  if (isDev) console.log(...args);
+};
+const logError = (...args) => {
+  if (isDev) console.error(...args);
+};
+
 // Archivos a cachear en la instalación
 const STATIC_ASSETS = [
   '/',
@@ -14,13 +23,13 @@ const STATIC_ASSETS = [
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Instalando...')
+  log('[ServiceWorker] Instalando...')
   
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Precacheando archivos estáticos')
+      log('[ServiceWorker] Precacheando archivos estáticos')
       return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.error('[ServiceWorker] Error al precachear:', err)
+        logError('[ServiceWorker] Error al precachear:', err)
       })
     })
   )
@@ -31,7 +40,7 @@ self.addEventListener('install', (event) => {
 
 // Activación del Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activando...')
+  log('[ServiceWorker] Activando...')
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -39,7 +48,7 @@ self.addEventListener('activate', (event) => {
         cacheNames.map((cacheName) => {
           // Eliminar caches antiguos
           if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
-            console.log('[ServiceWorker] Eliminando cache antiguo:', cacheName)
+            log('[ServiceWorker] Eliminando cache antiguo:', cacheName)
             return caches.delete(cacheName)
           }
         })
@@ -109,7 +118,7 @@ async function cacheFirst(request) {
     
     return response
   } catch (error) {
-    console.error('[ServiceWorker] Error en cacheFirst:', error)
+    logError('[ServiceWorker] Error en cacheFirst:', error)
     throw error
   }
 }
@@ -128,7 +137,7 @@ async function networkFirst(request) {
     
     return response
   } catch (error) {
-    console.log('[ServiceWorker] Network failed, usando cache:', request.url)
+    log('[ServiceWorker] Network failed, usando cache:', request.url)
     const cached = await cache.match(request)
     
     if (cached) {
@@ -152,7 +161,7 @@ async function networkFirstWithOffline(request) {
     
     return response
   } catch (error) {
-    console.log('[ServiceWorker] Network failed, buscando en cache')
+    log('[ServiceWorker] Network failed, buscando en cache')
     
     // Intentar encontrar en cache
     const cache = await caches.open(RUNTIME_CACHE)

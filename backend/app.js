@@ -164,9 +164,9 @@ app.use('*', (req, res) => {
 });
 
 // Iniciar servidor
-const server = app.listen(PORT, '127.0.0.1', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Servidor corriendo en puerto ${PORT}`);
-  logger.info(`📡 API disponible en: http://127.0.0.1:${PORT}`);
+  logger.info(`📡 API disponible en: http://localhost:${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

@@ -11,7 +11,7 @@ COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
 COPY backend/ .
-
+RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app
 USER nodejs
 
 EXPOSE 5000
