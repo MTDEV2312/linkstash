@@ -12,6 +12,24 @@ import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('ScraperService');
 
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/120.0',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0'
+];
+
+const REFERERS = [
+  'https://www.google.com/',
+  'https://www.bing.com/',
+  'https://duckduckgo.com/',
+  'https://search.yahoo.com/'
+];
+
 class ScraperService {
   constructor() {
     const ua = process.env.USER_AGENT || '';
@@ -19,6 +37,39 @@ class ScraperService {
       ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       : ua;
     this.timeout = 10000; // 10 segundos
+  }
+
+  getRandomHeaders(targetUrl) {
+    const ua = process.env.USER_AGENT || '';
+    const useDefaultUARotation = (ua === 'LinkStash-Bot/1.0' || !ua);
+    const selectedUA = useDefaultUARotation 
+      ? USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
+      : ua;
+
+    const referer = REFERERS[Math.floor(Math.random() * REFERERS.length)];
+
+    let platform = '"Windows"';
+    if (selectedUA.includes('Macintosh')) platform = '"macOS"';
+    else if (selectedUA.includes('Linux')) platform = '"Linux"';
+
+    return {
+      'User-Agent': selectedUA,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Referer': referer,
+      'DNT': '1',
+      'Connection': 'close',
+      'Upgrade-Insecure-Requests': '1',
+      'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': platform,
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'cross-site',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0'
+    };
   }
 
   async scrapeUrl(url) {
@@ -192,25 +243,23 @@ class ScraperService {
       // Sanear host header para evitar inyección de cabeceras
       const safeHostHeader = sanitizeHostHeader(resolved.hostname || parsedUrl.hostname);
 
+      const evasiveHeaders = this.getRandomHeaders(currentUrl);
+      evasiveHeaders['Host'] = safeHostHeader;
+      evasiveHeaders['Connection'] = 'close'; // Keep close to prevent socket leaks
+
+      const evasiveTimeout = parseInt(process.env.SCRAPER_TIMEOUT_MS || '10000', 10) + Math.floor(Math.random() * 1500);
+
+      // Random jitter delay before requesting (100ms - 400ms)
+      await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 300) + 100));
+
       try {
         response = await axios.get(requestUrl, {
-          headers: {
-            'User-Agent': this.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'close',
-            'Upgrade-Insecure-Requests': '1',
-            'Host': safeHostHeader
-          },
-          timeout: this.timeout,
-          // No seguir redirecciones automáticamente
+          headers: evasiveHeaders,
+          timeout: evasiveTimeout,
           maxRedirects: 0,
           validateStatus: (status) => status < 500, // Aceptar hasta 4xx para manejar rate limits
           httpAgent: resolved.protocol === 'http:' ? agent : undefined,
           httpsAgent: resolved.protocol === 'https:' ? agent : undefined,
-          // Limitar tamaño de respuesta para mitigar DoS accidental
           maxContentLength: 1024 * 1024 * 2, // 2 MB
           maxBodyLength: 1024 * 1024 * 2,
           responseType: 'text'
