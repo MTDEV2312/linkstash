@@ -46,7 +46,24 @@ export async function resolvePublicAddresses(hostname, servers) {
     v4 = await dns.promises.resolve4(hostname).catch(() => []);
     v6 = await dns.promises.resolve6(hostname).catch(() => []);
   }
-  const addresses = [...(v4 || []), ...(v6 || [])];
+  let addresses = [...(v4 || []), ...(v6 || [])];
+  
+  // Fallback to native OS dns.lookup if raw DNS query fails (e.g. Windows/VPN config issues)
+  if (!addresses.length) {
+    try {
+      const lookupResult = await dns.promises.lookup(hostname, { all: true });
+      if (Array.isArray(lookupResult)) {
+        for (const item of lookupResult) {
+          if (item && item.address) {
+            addresses.push(item.address);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore lookup errors
+    }
+  }
+
   // Filter out malformed entries
   const filtered = addresses.filter(a => {
     try { ipaddr.parse(a); return true; } catch (e) { return false; }
