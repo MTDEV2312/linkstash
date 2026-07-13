@@ -4,6 +4,24 @@ import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('Queue');
 
+const isTransientError = (errType, errMsg) => {
+  if (!errType && !errMsg) return false;
+  const msg = (errMsg || '').toLowerCase();
+  const type = (errType || '').toLowerCase();
+  
+  return (
+    type === 'connection_error' ||
+    type === 'rate_limit_error' ||
+    msg.includes('connection') ||
+    msg.includes('timeout') ||
+    msg.includes('resolv') ||
+    msg.includes('ip segura') ||
+    msg.includes('dns') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused')
+  );
+};
+
 const shouldStoreScrapedExternalImage = () => {
   const flag = String(process.env.SCRAPER_STORE_EXTERNAL_IMAGES || '').trim().toLowerCase();
   return flag === 'true' || flag === '1' || flag === 'yes';
@@ -142,6 +160,14 @@ const init = async () => {
             const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
             const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
 
+            const currentLink = await Link.findById(linkId);
+            const maxAttempts = parseInt(process.env.SCRAPER_JOB_MAX_ATTEMPTS || '3', 10);
+
+            if (currentLink && currentLink.scrapingAttempts < maxAttempts && isTransientError(errType, errMsg)) {
+              logger.warn(`Error temporal de scraping en intento ${currentLink.scrapingAttempts}/${maxAttempts} para link ${linkId}. Reintentando...`, { error: errMsg, errorType: errType });
+              throw new Error(`Transient scraping failure: ${errMsg}`);
+            }
+
             const updates = {
               status: 'completed',
               scrapingError: errMsg,
@@ -149,8 +175,7 @@ const init = async () => {
               needsDescription: true
             };
 
-            const currentLink = await Link.findById(linkId);
-            if (!currentLink.image || currentLink.image === '') {
+            if (currentLink && (!currentLink.image || currentLink.image === '')) {
               const fallback = await resolveDefaultImage();
               if (fallback.url) {
                 updates.image = fallback.url;

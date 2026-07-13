@@ -7,6 +7,24 @@ import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('ScraperWorker');
 
+const isTransientError = (errType, errMsg) => {
+  if (!errType && !errMsg) return false;
+  const msg = (errMsg || '').toLowerCase();
+  const type = (errType || '').toLowerCase();
+  
+  return (
+    type === 'connection_error' ||
+    type === 'rate_limit_error' ||
+    msg.includes('connection') ||
+    msg.includes('timeout') ||
+    msg.includes('resolv') ||
+    msg.includes('ip segura') ||
+    msg.includes('dns') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused')
+  );
+};
+
 const shouldStoreScrapedExternalImage = () => {
   const flag = String(process.env.SCRAPER_STORE_EXTERNAL_IMAGES || '').trim().toLowerCase();
   return flag === 'true' || flag === '1' || flag === 'yes';
@@ -97,27 +115,29 @@ const processJob = async (job) => {
       logger.info(`Scraping completado para ${linkId}`);
       return true;
     } else {
-      // Scraping falló, pero NO marcar como failed - usar valores predeterminados
       const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
       const errType = scrapingResult && scrapingResult.errorType ? scrapingResult.errorType : null;
       
-      logger.warn(`Scraping falló para ${linkId}, usando valores predeterminados`, { error: errMsg, errorType: errType });
+      const currentLink = await Link.findById(linkId);
+      const maxAttempts = parseInt(process.env.SCRAPER_JOB_MAX_ATTEMPTS || '3', 10);
+
+      if (currentLink && currentLink.scrapingAttempts < maxAttempts && isTransientError(errType, errMsg)) {
+        logger.warn(`Error temporal de scraping en intento ${currentLink.scrapingAttempts}/${maxAttempts} para link ${linkId}. Reintentando...`, { error: errMsg, errorType: errType });
+        throw new Error(`Transient scraping failure: ${errMsg}`);
+      }
+
+      logger.warn(`Scraping falló definitivamente para ${linkId}, usando valores predeterminados`, { error: errMsg, errorType: errType });
       
-      // Obtener imagen predeterminada
       const fallback = await resolveDefaultImage();
       
-      // Actualizar con valores predeterminados y marcar como completado
       const updates = {
         status: 'completed',
         scrapingError: errMsg,
         scrapingErrorType: errType,
-        needsDescription: true, // IMPORTANTE: Marcar que necesita descripción manual
-        // Asegurar que si el scraping falló, el campo image no se quede vacio si no tiene valor previo
+        needsDescription: true
       };
       
-      // Obtener imagen predeterminada si no tenemos imagen
-      const currentLink = await Link.findById(linkId);
-      if (!currentLink.image || currentLink.image === '') {
+      if (currentLink && (!currentLink.image || currentLink.image === '')) {
         if (fallback.url) {
           updates.image = fallback.url;
           updates.imagePublicId = fallback.publicId;
@@ -126,8 +146,6 @@ const processJob = async (job) => {
       }
       
       await Link.findByIdAndUpdate(linkId, updates, { new: true });
-      
-      // Retornar true para no reintentar
       return true;
     }
   } catch (err) {
