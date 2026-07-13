@@ -80,8 +80,8 @@ const limiter = rateLimit({
     errorCode: 'RATE_LIMIT_EXCEEDED'
   },
   skip: (req) => {
-    // No aplicar rate limit a health check
-    return req.path === '/health';
+    // No aplicar rate limit a health check o en entorno de pruebas E2E
+    return req.path === '/health' || process.env.NODE_ENV === 'test';
   },
   keyGenerator: (req) => {
     // Usar userId si está autenticado, sino IP
@@ -164,9 +164,9 @@ app.use('*', (req, res) => {
 });
 
 // Iniciar servidor
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '127.0.0.1', () => {
   logger.info(`🚀 Servidor corriendo en puerto ${PORT}`);
-  logger.info(`📡 API disponible en: http://localhost:${PORT}`);
+  logger.info(`📡 API disponible en: http://127.0.0.1:${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

@@ -131,3 +131,10 @@ Available languages:
 - Storage: Upload files to buckets, store URLs in database
 - AI operations are OpenAI-compatible
 - **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
+
+## Project Git Commit Workflow
+
+- **Workspace Hygiene**: Perform commits at the end of each important phase or feature implementation to keep the workspace and git worktree clean and understandable.
+- **Conventional Commits**: Use Conventional Commits standard (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
+- **AI Attribution**: Never add "Co-Authored-By" or other AI attribution signatures to git commits.
+- **Git Safety**: Do not perform dangerous operations like remote pushes (`git push`) or forced rewrites. Keep commits local.

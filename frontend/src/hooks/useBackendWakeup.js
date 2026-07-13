@@ -76,16 +76,17 @@ export const useBackendWakeup = () => {
     // Primer intento inmediato
     checkBackendHealth()
 
-    // Configurar polling cada 10 segundos solo si no está listo
+    // Configurar polling rápido (1.5s) en test/dev y estándar (10s) en prod
+    const pingInterval = (import.meta.env.MODE === 'test' || import.meta.env.DEV) ? 1500 : 10000;
+
     intervalRef.current = setInterval(() => {
       if (attemptsRef.current < maxAttempts && !isReady) {
         checkBackendHealth()
       } else if (intervalRef.current) {
-        // Limpiar intervalo si ya está listo o alcanzamos el máximo
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
-    }, 10000) // 10 segundos entre intentos
+    }, pingInterval)
 
     // Limpiar al desmontar
     return () => {

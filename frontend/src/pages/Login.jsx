@@ -95,6 +95,7 @@ const Login = () => {
                     onChange: () => serverError && setServerError(null)
                   })}
                   type="email"
+                  required
                   aria-label="Correo electrónico"
                   className="input pl-10"
                   placeholder="tu@ejemplo.com"
@@ -123,6 +124,7 @@ const Login = () => {
                      onChange: () => serverError && setServerError(null)
                    })}
                    type={showPassword ? 'text' : 'password'}
+                   required
                    aria-label="Contraseña"
                    data-testid="password-input"
                    className="input pl-10 pr-10"
