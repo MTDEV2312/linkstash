@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
 import LinkCard from '../components/LinkCard'
+import OptimizedImage from '../components/OptimizedImage'
 import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
 import UpdateIndicator from '../components/UpdateIndicator'
 import LinkForm from '../components/LinkForm'
@@ -93,7 +94,14 @@ const LinkDetailSheet = ({
 
         <div className="p-6 space-y-5">
           {link.image ? (
-            <img src={link.image} alt={link.title || 'Vista previa'} className="w-full h-56 object-cover rounded-xl border border-gray-200 dark:border-gray-700" />
+            <OptimizedImage
+              src={link.image}
+              alt={link.title || 'Vista previa'}
+              width={600}
+              height={224}
+              className="w-full h-56 object-cover rounded-xl border border-gray-200 dark:border-gray-700"
+              isStored={link.imageIsStored}
+            />
           ) : (
             <div className="w-full h-56 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
               Sin imagen disponible
@@ -142,9 +150,11 @@ const LinkDetailSheet = ({
                 <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Imagen del enlace</p>
 
                 {formState.imagePreview ? (
-                  <img
+                  <OptimizedImage
                     src={formState.imagePreview}
                     alt="Preview de imagen"
+                    width={600}
+                    height={192}
                     className="w-full h-48 object-cover rounded-xl border border-gray-200 dark:border-gray-700 mb-3"
                   />
                 ) : (

@@ -85,9 +85,6 @@ const ImageEditor = ({
             className="w-40 h-40 object-cover rounded-lg border"
             quality={70}
             isStored={link?.imageIsStored && imageState.preview === link.image}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
           />
           <button type="button" onClick={onClear} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
             <X className="w-3 h-3" />

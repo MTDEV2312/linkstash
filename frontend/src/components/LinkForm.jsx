@@ -140,11 +140,12 @@ const LinkForm = ({ onSave, onCancel }) => {
           {/* Preview de URL */}
           {urlPreview && (
             <div className="mt-2 flex items-center text-xs text-gray-600 dark:text-gray-400">
-              <img
+              <OptimizedImage
                 src={urlPreview.favicon}
                 alt=""
                 className="w-4 h-4 mr-2"
-                onError={(e) => e.target.style.display = 'none'}
+                width={16}
+                height={16}
               />
               <span className="flex items-center">
                 {urlPreview.isSecure ? (

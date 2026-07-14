@@ -110,7 +110,6 @@ const DescriptionModal = ({ link, isOpen, onClose, onUpdate }) => {
                 className="w-full h-32 object-cover rounded-lg mb-3"
                 quality={75}
                 isStored={link.imageIsStored}
-                onError={(e) => e.target.style.display = 'none'}
               />
             )}
           </div>

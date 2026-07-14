@@ -1,0 +1,60 @@
+context: |
+  LinkStash is a full-stack personal link and bookmark organizer.
+  - Backend: Node.js, Express, MongoDB/Mongoose, BullMQ, Redis, InsForge SDK.
+  - Frontend: React 18, Vite, React Router, Zustand, Tailwind CSS, Sentry.
+strict_tdd: true
+testing:
+  strict_tdd: true
+  detected_date: "2026-07-14"
+  runners:
+    frontend:
+      command: "npm run test"
+      framework: "vitest"
+    backend:
+      command: "npm run test:unit && npm run test:tags"
+      framework: "node (vanilla scripts)"
+  layers:
+    unit:
+      available: true
+      tool: "vitest (frontend), vanilla node (backend)"
+    integration:
+      available: true
+      tool: "vitest (frontend), vanilla node (backend)"
+    e2e:
+      available: true
+      tool: "@playwright/test (frontend)"
+  coverage:
+    available: true
+    command: "npm run test:coverage (frontend)"
+  quality:
+    linter:
+      available: true
+      command: "npm run lint (both frontend and backend)"
+    type_checker:
+      available: false
+      command: null
+    formatter:
+      available: false
+      command: null
+phases:
+  proposal:
+    rules:
+      - "Create spec-propose.md in openspec/changes/ detailing requested changes."
+  spec:
+    rules:
+      - "Create or update specifications in openspec/specs/."
+  design:
+    rules:
+      - "Create technical design documents for architecture changes."
+  tasks:
+    rules:
+      - "Break down changes into implementation task lists with test coverage verification."
+  apply:
+    rules:
+      - "Execute code changes matching the agreed specifications."
+  verify:
+    rules:
+      - "Verify implementation using the project's unit, integration, and E2E test suites."
+  archive:
+    rules:
+      - "Archive processed proposals to openspec/changes/archive/."
