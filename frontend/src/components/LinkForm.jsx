@@ -5,6 +5,7 @@ import useTagStore from '../stores/tagStore'
 import ExistingTagsMenu from './ExistingTagsMenu'
 import { linkFormRules, normalizeUrl, linkValidators } from '../utils/linkValidators'
 import { X, Link as LinkIcon, FileText, Loader2 } from 'lucide-react'
+import OptimizedImage from './OptimizedImage'
 import toast from 'react-hot-toast'
 
 const LinkForm = ({ onSave, onCancel }) => {
