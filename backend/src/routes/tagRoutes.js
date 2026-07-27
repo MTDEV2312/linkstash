@@ -85,8 +85,8 @@ const createTag = async (req, res) => {
 
     // Verificar si la etiqueta ya existe
     const existingTag = await Tag.findOne({ 
-      userId, 
-      name: name.toLowerCase().trim() 
+      userId: { $eq: userId }, 
+      name: { $eq: name.toLowerCase().trim() } 
     });
 
     if (existingTag) {
@@ -186,8 +186,8 @@ const updateTag = async (req, res) => {
     // Verificar si el nuevo nombre ya existe (si se está cambiando)
     if (name && name.toLowerCase().trim() !== tag.name) {
       const existingTag = await Tag.findOne({ 
-        userId, 
-        name: name.toLowerCase().trim(),
+        userId: { $eq: userId }, 
+        name: { $eq: name.toLowerCase().trim() },
         _id: { $ne: id }
       });
 
@@ -249,7 +249,7 @@ const deleteTag = async (req, res) => {
       });
     }
 
-    const tag = await Tag.findOne({ _id: id, userId });
+    const tag = await Tag.findOne({ _id: { $eq: id }, userId: { $eq: userId } });
 
     if (!tag) {
       return res.status(404).json({
@@ -266,7 +266,7 @@ const deleteTag = async (req, res) => {
       });
     }
 
-    await Tag.deleteOne({ _id: id });
+    await Tag.deleteOne({ _id: { $eq: id } });
 
     logger.info(`Etiqueta eliminada: ${tag.name}`, { tagId: id });
 
