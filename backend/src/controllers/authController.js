@@ -21,7 +21,7 @@ export const register = asyncHandler(async (req, res) => {
 
   // Verificar si el usuario ya existe
   const existingUser = await User.findOne({
-    $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }]
+    $or: [{ email: { $eq: email.toLowerCase() } }, { username: { $eq: username.toLowerCase() } }]
   });
 
   if (existingUser) {
@@ -57,7 +57,7 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   // Buscar usuario por email (case-insensitive)
-  const user = await User.findOne({ email: email.toLowerCase() });
+  const user = await User.findOne({ email: { $eq: email.toLowerCase() } });
   
   if (!user) {
     // No revelar si el usuario existe o no (por seguridad)
@@ -116,7 +116,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Verificar si el nuevo username ya está en uso
   if (username && username !== user.username) {
     const existingUsername = await User.findOne({ 
-      username: username.toLowerCase(),
+      username: { $eq: username.toLowerCase() },
       _id: { $ne: userId }
     });
     if (existingUsername) {
@@ -128,7 +128,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Verificar si el nuevo email ya está en uso
   if (email && email.toLowerCase() !== user.email) {
     const existingEmail = await User.findOne({ 
-      email: email.toLowerCase(),
+      email: { $eq: email.toLowerCase() },
       _id: { $ne: userId }
     });
     if (existingEmail) {
