@@ -415,7 +415,7 @@ const deleteLink = async (req, res) => {
       }
     }
 
-    await Link.deleteOne({ _id: id });
+    await Link.deleteOne({ _id: { $eq: id } });
 
     logger.info(`Enlace eliminado: ${link.title}`, { linkId: id });
 
@@ -544,7 +544,7 @@ const toggleArchive = async (req, res) => {
     const { id } = req.params;
     const userId = req.user._id;
 
-    const link = await Link.findOne({ _id: id, userId });
+    const link = await Link.findOne({ _id: { $eq: id }, userId });
     if (!link) {
       return res.status(404).json({
         success: false,
