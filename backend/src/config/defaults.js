@@ -84,6 +84,7 @@ const isReachableUrl = async (url) => {
 
 const hasStorageConfig = () => {
   return !!(
+    process.env.SUPABASE_URL ||
     process.env.INSFORGE_URL ||
     process.env.INSFORGE_BASE_URL
   );
@@ -91,6 +92,10 @@ const hasStorageConfig = () => {
 
 const isLegacyCloudinaryUrl = (url) => {
   return typeof url === 'string' && url.includes('res.cloudinary.com');
+};
+
+const isSupabaseStorageUrl = (url) => {
+  return typeof url === 'string' && /\/storage\/v1\/object\/public\//i.test(url);
 };
 
 const isInsforgeStorageUrl = (url) => {
@@ -152,7 +157,7 @@ export async function getNextDefaultImageWithStorage() {
     return cached;
   }
 
-  if (isInsforgeStorageUrl(rawImage)) {
+  if (isInsforgeStorageUrl(rawImage) || isSupabaseStorageUrl(rawImage)) {
     const reachable = await isReachableUrl(rawImage);
     if (reachable) {
       const cached = { url: rawImage, publicId: '', isStored: false };
@@ -175,19 +180,19 @@ export async function getNextDefaultImageWithStorage() {
       const parts = parsed.pathname.split('/').filter(Boolean);
       const filename = parts[parts.length - 1];
       uploadSource = `/defaults/${filename}`;
-    } else if (isInsforgeStorageUrl(rawImage)) {
+    } else if (isInsforgeStorageUrl(rawImage) || isSupabaseStorageUrl(rawImage)) {
       uploadSource = getBundledDefaultImage() || rawImage;
     }
 
     const up = await storageService.uploadImageFromUrl(uploadSource, { folder: `${folderBase}/defaults` });
     if (up && up.success) {
-      const result = { url: up.url, publicId: up.public_id || '', isStored: true };
+      const result = { url: up.url, publicId: up.public_id || up.key || '', isStored: true };
       storageCache.set(rawImage, result);
       return result;
     }
   } catch (e) {
     // Fall through to fallback
-    logger.warn('Error subiendo imagen por defecto a InsForge Storage', { error: e.message, rawImage });
+    logger.warn('Error subiendo imagen por defecto a Storage', { error: e.message, rawImage });
   }
 
   const fallback = { url: rawImage, publicId: '', isStored: false };

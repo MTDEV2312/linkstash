@@ -9,7 +9,7 @@ const logger = getLogger('DashboardController');
 // @access  Private
 const getOverview = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     // Ejecutar consultas en paralelo para reducir latencia
     const [summaryAgg, topTags, recentLinks, domainAgg] = await Promise.all([

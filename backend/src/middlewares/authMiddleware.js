@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { AuthenticationError, asyncHandler } from '../utils/customErrors.js';
 import { getLogger } from '../utils/logger.js';
@@ -10,15 +11,19 @@ const parseList = (value) => {
   return value.split(',').map(v => v.trim()).filter(Boolean);
 };
 
+const getJwtSecret = () => {
+  return process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET;
+};
+
 export const authMiddleware = asyncHandler(async (req, res, next) => {
-  // Obtener el token del header
+  // Extract token from header
   const authHeader = req.header('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new AuthenticationError('Acceso denegado. Token no proporcionado.');
   }
 
-  // Extraer el token (quitar "Bearer ")
+  // Extract token string
   const token = authHeader.slice(7);
 
   if (!token) {
@@ -26,22 +31,44 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // Verificar el token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify token locally
+    const secret = getJwtSecret();
+    const decoded = jwt.verify(token, secret);
     
-    // Buscar el usuario en la base de datos
-    const user = await User.findById(decoded.userId).select('-password');
+    const supabaseId = decoded.sub || decoded.userId || decoded.id;
+    const email = decoded.email;
+
+    let user = null;
+    if (supabaseId) {
+      user = await User.findOne({ supabaseId }).select('-password');
+    }
+
+    if (!user && supabaseId && mongoose.Types.ObjectId.isValid(supabaseId)) {
+      user = await User.findById(supabaseId).select('-password');
+    }
+
+    if (!user && email) {
+      user = await User.findOne({ email: email.toLowerCase() }).select('-password');
+      if (user && supabaseId && !user.supabaseId) {
+        user.supabaseId = supabaseId;
+        await user.save();
+      }
+    }
     
     if (!user) {
-      logger.warn('Usuario no encontrado para token', { userId: decoded.userId });
+      logger.warn('Usuario no encontrado para token', { supabaseId, email });
       throw new AuthenticationError('Token no válido. Usuario no encontrado.');
     }
 
-    // Agregar el usuario al objeto request
+    // Attach user to request object
     req.user = user;
     next();
 
   } catch (jwtError) {
+    if (jwtError instanceof AuthenticationError) {
+      throw jwtError;
+    }
+
     logger.warn('Error de JWT', { code: jwtError.name, message: jwtError.message });
     
     if (jwtError.name === 'TokenExpiredError') {
@@ -56,7 +83,7 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
   }
 });
 
-// Middleware opcional - no falla si no hay token
+// Optional auth middleware - does not fail if no token provided
 export const optionalAuth = asyncHandler(async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -66,8 +93,21 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
       
       if (token) {
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          const user = await User.findById(decoded.userId).select('-password');
+          const secret = getJwtSecret();
+          const decoded = jwt.verify(token, secret);
+          const supabaseId = decoded.sub || decoded.userId || decoded.id;
+          const email = decoded.email;
+
+          let user = null;
+          if (supabaseId) {
+            user = await User.findOne({ supabaseId }).select('-password');
+          }
+          if (!user && supabaseId && mongoose.Types.ObjectId.isValid(supabaseId)) {
+            user = await User.findById(supabaseId).select('-password');
+          }
+          if (!user && email) {
+            user = await User.findOne({ email: email.toLowerCase() }).select('-password');
+          }
           
           if (user) {
             req.user = user;
@@ -80,7 +120,7 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
     
     next();
   } catch (error) {
-    // En modo opcional, ignorar errores
+    // In optional mode, ignore errors
     next();
   }
 });
@@ -89,7 +129,7 @@ export const adminMiddleware = (req, res, next) => {
   const adminEmails = parseList(process.env.ADMIN_EMAILS).map(v => v.toLowerCase());
   const adminUserIds = parseList(process.env.ADMIN_USER_IDS);
   const userEmail = req.user?.email?.toLowerCase();
-  const userId = req.user?._id?.toString();
+  const userId = req.user?.supabaseId || req.user?._id?.toString();
 
   const isAdminByEmail = userEmail && adminEmails.includes(userEmail);
   const isAdminById = userId && adminUserIds.includes(userId);
@@ -112,3 +152,4 @@ export const adminMiddleware = (req, res, next) => {
 };
 
 export default authMiddleware;
+

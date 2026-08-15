@@ -1,43 +1,16 @@
-import { createClient } from '@insforge/sdk';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { supabaseAdmin } from '../config/supabase.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('ImageStorageService');
 
 const env = process.env;
-const defaultBucket = env.INSFORGE_STORAGE_BUCKET || 'images';
-const defaultFolder = env.INSFORGE_STORAGE_FOLDER || 'linkstash';
+const defaultBucket = env.SUPABASE_STORAGE_BUCKET || 'images';
 
-let insforgeClient = null;
-
-const getInsforgeClient = () => {
-  if (insforgeClient) return insforgeClient;
-
-  const baseUrl = env.INSFORGE_URL || env.INSFORGE_BASE_URL;
-  if (!baseUrl) {
-    throw new Error('INSFORGE_URL (o INSFORGE_BASE_URL) no está configurado');
-  }
-
-  const anonKey = env.INSFORGE_ANON_KEY;
-  insforgeClient = createClient(
-    anonKey
-      ? { baseUrl, anonKey }
-      : { baseUrl }
-  );
-
-  return insforgeClient;
-};
-
-const buildObjectKey = (options = {}) => {
-  const folder = options.folder || defaultFolder;
-  const ext = options.extension || 'jpg';
-  const safeExt = ext.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 10);
-  const file = `${timestamp}-${random}.${safeExt}`;
-  return `${folder.replace(/^\/+|\/+$/g, '')}/${file}`;
+const sanitizePathSegment = (str = '') => {
+  return String(str).replace(/[^a-zA-Z0-9_\-]/g, '_');
 };
 
 const inferExtension = (mimeType = '') => {
@@ -56,39 +29,125 @@ const inferExtension = (mimeType = '') => {
   return map[mimeType.toLowerCase()] || 'jpg';
 };
 
-const extractObjectKeyFromUrl = (url, bucketName) => {
-  if (!url || typeof url !== 'string') return '';
-  const marker = `/storage/buckets/${bucketName}/objects/`;
-  const idx = url.indexOf(marker);
-  if (idx < 0) return '';
-  return decodeURIComponent(url.slice(idx + marker.length));
-};
-
-const uploadBlobToInsforge = async (blob, options = {}) => {
-  const bucket = options.bucket || defaultBucket;
-  const objectKey = options.key || buildObjectKey(options);
-  const client = getInsforgeClient();
-
-  const { data, error } = await client.storage.from(bucket).upload(objectKey, blob);
-  if (error) {
-    const fallback = await client.storage.from(bucket).uploadAuto(blob);
-    if (fallback.error) {
-      throw fallback.error;
-    }
-    const url = fallback.data?.url || '';
-    const key = fallback.data?.key || fallback.data?.objectKey || extractObjectKeyFromUrl(url, bucket);
-    return { url, key, raw: fallback.data };
+const buildObjectKey = (options = {}) => {
+  if (options.key) {
+    return options.key.replace(/^\/+|\/+$/g, '');
   }
 
-  const url = data?.url || client.storage.from(bucket).getPublicUrl(objectKey);
-  return { url, key: objectKey, raw: data };
+  const ext = options.extension || inferExtension(options.mimeType);
+  const safeExt = ext.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+  const timestamp = Date.now();
+
+  const userId = options.userId ? sanitizePathSegment(options.userId) : null;
+  const linkId = options.linkId ? sanitizePathSegment(options.linkId) : null;
+
+  if (userId && linkId) {
+    return `previews/${userId}/${linkId}-${timestamp}.${safeExt}`;
+  }
+
+  if (userId && (options.isAvatar || options.type === 'avatar' || options.folder === 'avatars')) {
+    return `avatars/${userId}-${timestamp}.${safeExt}`;
+  }
+
+  if (userId) {
+    return `previews/${userId}/${timestamp}.${safeExt}`;
+  }
+
+  const folder = options.folder ? options.folder.replace(/^\/+|\/+$/g, '') : 'previews/anonymous';
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${folder}/${timestamp}-${random}.${safeExt}`;
+};
+
+const extractObjectKeyFromUrl = (url, bucketName = defaultBucket) => {
+  if (!url || typeof url !== 'string') return '';
+
+  const supabaseMarker = `/storage/v1/object/public/${bucketName}/`;
+  const subIdx = url.indexOf(supabaseMarker);
+  if (subIdx >= 0) {
+    return decodeURIComponent(url.slice(subIdx + supabaseMarker.length));
+  }
+
+  const genericSupabaseMarker = `/storage/v1/object/public/`;
+  const genIdx = url.indexOf(genericSupabaseMarker);
+  if (genIdx >= 0) {
+    const afterMarker = url.slice(genIdx + genericSupabaseMarker.length);
+    const parts = afterMarker.split('/');
+    parts.shift();
+    return decodeURIComponent(parts.join('/'));
+  }
+
+  const insforgeMarker = `/storage/buckets/${bucketName}/objects/`;
+  const insIdx = url.indexOf(insforgeMarker);
+  if (insIdx >= 0) {
+    return decodeURIComponent(url.slice(insIdx + insforgeMarker.length));
+  }
+
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const pubIdx = parts.indexOf('public');
+      if (pubIdx >= 0 && pubIdx + 2 < parts.length) {
+        return decodeURIComponent(parts.slice(pubIdx + 2).join('/'));
+      }
+      return decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+    } catch (e) {
+      // Fall through
+    }
+  }
+
+  return url.replace(/^\/+|\/+$/g, '');
+};
+
+const getPublicUrl = (objectKey, options = {}) => {
+  const bucket = options.bucket || env.SUPABASE_STORAGE_BUCKET || defaultBucket;
+  if (!objectKey) return '';
+  if (/^https?:\/\//i.test(objectKey)) return objectKey;
+
+  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectKey);
+  if (data?.publicUrl) {
+    return data.publicUrl;
+  }
+
+  const baseUrl = env.SUPABASE_URL || 'http://localhost:8000';
+  return `${baseUrl.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${objectKey}`;
+};
+
+const uploadImageFromBuffer = async (buffer, options = {}) => {
+  try {
+    const bucket = options.bucket || env.SUPABASE_STORAGE_BUCKET || defaultBucket;
+    const objectKey = buildObjectKey(options);
+    const mimeType = options.mimeType || 'image/jpeg';
+
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucket)
+      .upload(objectKey, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (error) {
+      logger.error('Supabase Storage upload error', error, { objectKey, bucket });
+      throw error;
+    }
+
+    const publicUrl = getPublicUrl(objectKey, { bucket });
+    return {
+      success: true,
+      url: publicUrl,
+      public_id: objectKey,
+      key: objectKey,
+      raw: data
+    };
+  } catch (err) {
+    logger.error('Storage uploadFromBuffer error', err);
+    return { success: false, error: err };
+  }
 };
 
 const uploadImageFromUrl = async (imageUrl, options = {}) => {
   let originalRelativePath = '';
   try {
-    // Si se pasa una ruta relativa del servidor (p.ej. /defaults/...),
-    // intentar convertirla a URL absoluta usando BACKEND_BASE_URL si está configurada.
     if (typeof imageUrl === 'string' && imageUrl.startsWith('/')) {
       originalRelativePath = imageUrl;
       const base = process.env.BACKEND_BASE_URL || '';
@@ -102,44 +161,47 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
         } catch (e) {
           imageUrl = `${base.replace(/\/$/, '')}${imageUrl}`;
         }
-      } else {
-        // Intentar localizar el fichero en disco dentro de public/defaults y subirlo desde buffer
+      }
+
+      if (imageUrl.startsWith('/')) {
         try {
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = path.dirname(__filename);
-          // Suponemos que los assets están en ../../public/defaults/<filename>
           const parts = imageUrl.split('/').filter(Boolean);
           const filename = parts[parts.length - 1];
           const localPath = path.join(__dirname, '..', '..', 'public', 'defaults', filename);
           const stat = await fs.stat(localPath).catch(() => null);
           if (stat) {
             const buffer = await fs.readFile(localPath);
-            // Usar uploadImageFromBuffer para subir
-            const up = await uploadImageFromBuffer(buffer, options);
-            return up;
+            const ext = filename?.split('.').pop()?.toLowerCase() || 'jpg';
+            return await uploadImageFromBuffer(buffer, {
+              ...options,
+              extension: ext
+            });
           }
         } catch (e) {
-          // seguir al error de abajo si no encontramos o falló
+          // Ignore local file error and proceed to HTTP fetch or fallback
         }
         const err = new Error('Local path provided and could not be uploaded (no BACKEND_BASE_URL and local file not found)');
-        logger.error('Storage uploadFromUrl error: ruta local no resuelta', err, { imageUrl });
+        logger.error('Storage uploadFromUrl error: local path unresolved', err, { imageUrl });
         return { success: false, error: err };
       }
     }
+
     const response = await fetch(imageUrl);
     if (!response.ok) {
-      throw new Error(`No se pudo descargar la imagen (${response.status})`);
+      throw new Error(`Failed to download image from URL (${response.status})`);
     }
 
-    const mimeType = response.headers.get('content-type') || '';
-    const extension = inferExtension(mimeType);
+    const mimeType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await response.arrayBuffer());
-    const blob = new Blob([buffer], { type: mimeType || 'application/octet-stream' });
 
-    const uploaded = await uploadBlobToInsforge(blob, { ...options, extension });
-    return { success: true, url: uploaded.url, public_id: uploaded.key, raw: uploaded.raw };
+    return await uploadImageFromBuffer(buffer, {
+      ...options,
+      mimeType,
+      extension: options.extension || inferExtension(mimeType)
+    });
   } catch (err) {
-    // Si era una ruta relativa local y falló el fetch HTTP, intentar lectura local como fallback.
     if (originalRelativePath && /^\/defaults\//i.test(originalRelativePath)) {
       try {
         const __filename = fileURLToPath(import.meta.url);
@@ -148,21 +210,8 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
         const localPath = path.join(__dirname, '..', '..', 'public', 'defaults', filename);
         const localBuffer = await fs.readFile(localPath);
         const ext = filename?.split('.').pop()?.toLowerCase() || 'jpg';
-        const mimeByExt = {
-          png: 'image/png',
-          jpg: 'image/jpeg',
-          jpeg: 'image/jpeg',
-          webp: 'image/webp',
-          avif: 'image/avif',
-          bmp: 'image/bmp',
-          tiff: 'image/tiff',
-          ico: 'image/x-icon',
-          gif: 'image/gif',
-          svg: 'image/svg+xml'
-        };
         return await uploadImageFromBuffer(localBuffer, {
           ...options,
-          mimeType: mimeByExt[ext] || 'application/octet-stream',
           extension: ext
         });
       } catch (fallbackErr) {
@@ -175,34 +224,24 @@ const uploadImageFromUrl = async (imageUrl, options = {}) => {
   }
 };
 
-const uploadImageFromBuffer = async (buffer, options = {}) => {
-  try {
-    const extension = options.extension || inferExtension(options.mimeType || '');
-    const blob = new Blob([buffer], { type: options.mimeType || 'application/octet-stream' });
-    const uploaded = await uploadBlobToInsforge(blob, { ...options, extension });
-    return { success: true, url: uploaded.url, public_id: uploaded.key, raw: uploaded.raw };
-  } catch (err) {
-    logger.error('Storage uploadFromBuffer error', err);
-    return { success: false, error: err };
-  }
-};
-
-const deleteImage = async (publicId) => {
+const deleteImage = async (publicId, options = {}) => {
   try {
     if (!publicId) return { success: false, message: 'public_id required' };
-    const bucket = env.INSFORGE_STORAGE_BUCKET || defaultBucket;
-    const client = getInsforgeClient();
+    const bucket = options.bucket || env.SUPABASE_STORAGE_BUCKET || defaultBucket;
 
-    let result = await client.storage.from(bucket).remove(publicId);
-    if (result?.error) {
-      result = await client.storage.from(bucket).remove([publicId]);
+    const objectKey = extractObjectKeyFromUrl(publicId, bucket);
+    if (!objectKey) return { success: false, message: 'Could not extract object key' };
+
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucket)
+      .remove([objectKey]);
+
+    if (error) {
+      logger.error('Supabase Storage deleteImage error', error, { objectKey, bucket });
+      throw error;
     }
 
-    if (result?.error) {
-      throw result.error;
-    }
-
-    return { success: true, raw: result?.data };
+    return { success: true, raw: data };
   } catch (err) {
     logger.error('Storage deleteImage error', err, { publicId });
     return { success: false, error: err };
@@ -210,6 +249,9 @@ const deleteImage = async (publicId) => {
 };
 
 export default {
+  buildObjectKey,
+  extractObjectKeyFromUrl,
+  getPublicUrl,
   uploadImageFromUrl,
   uploadImageFromBuffer,
   deleteImage

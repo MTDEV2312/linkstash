@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import User from '../models/User.js';
 import { AuthenticationError, ConflictError, NotFoundError, asyncHandler, ValidationError } from '../utils/customErrors.js';
 import { getLogger } from '../utils/logger.js';
@@ -6,20 +6,13 @@ import { UserDTO, AuthResponseDTO, ApiResponseDTO } from '../dtos/index.js';
 
 const logger = getLogger('AuthController');
 
-// Generar JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: '7d'
-  });
-};
-
-// @desc    Registrar nuevo usuario
+// @desc    Register new user via Supabase Auth and sync to MongoDB
 // @route   POST /api/auth/register
 // @access  Public
 export const register = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
-  // Verificar si el usuario ya existe
+  // Check if user already exists in MongoDB
   const existingUser = await User.findOne({
     $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }]
   });
@@ -29,8 +22,27 @@ export const register = asyncHandler(async (req, res) => {
     throw new ConflictError(`Ya existe un usuario con este ${field}`);
   }
 
-  // Crear nuevo usuario
+  // Register user in Supabase Auth (GoTrue)
+  const { data, error } = await supabase.auth.signUp({
+    email: email.toLowerCase(),
+    password,
+    options: {
+      data: {
+        username: username.trim()
+      }
+    }
+  });
+
+  if (error || !data.user) {
+    logger.error('Error al registrar usuario en Supabase Auth', { error: error?.message, email });
+    throw new ValidationError(error?.message || 'Error al registrar usuario en Supabase Auth');
+  }
+
+  const supabaseId = data.user.id;
+
+  // Create corresponding user profile in MongoDB
   const user = new User({
+    supabaseId,
     username: username.trim(),
     email: email.toLowerCase(),
     password
@@ -38,10 +50,17 @@ export const register = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  // Generar token
-  const token = generateToken(user._id);
+  // Retrieve session access token from sign up or sign in
+  let token = data.session?.access_token;
+  if (!token) {
+    const signInRes = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password
+    });
+    token = signInRes.data?.session?.access_token || '';
+  }
 
-  logger.info(`Usuario registrado exitosamente: ${username}`);
+  logger.info(`Usuario registrado exitosamente: ${username}`, { supabaseId });
 
   const authResponse = new AuthResponseDTO(token, user);
 
@@ -50,32 +69,47 @@ export const register = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Iniciar sesión
+// @desc    User login via Supabase Auth
 // @route   POST /api/auth/login
 // @access  Public
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Buscar usuario por email (case-insensitive)
-  const user = await User.findOne({ email: email.toLowerCase() });
-  
+  // Authenticate credentials via Supabase GoTrue
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.toLowerCase(),
+    password
+  });
+
+  if (error || !data.session || !data.user) {
+    logger.warn('Intento de login fallido en Supabase Auth', { email, ip: req.ip, error: error?.message });
+    throw new AuthenticationError('Credenciales inválidas');
+  }
+
+  const token = data.session.access_token;
+  const supabaseId = data.user.id;
+
+  // Search user in MongoDB by supabaseId or email
+  let user = await User.findOne({ supabaseId });
+
   if (!user) {
-    // No revelar si el usuario existe o no (por seguridad)
-    throw new AuthenticationError('Credenciales inválidas');
+    user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      user.supabaseId = supabaseId;
+      await user.save();
+    } else {
+      // Provision MongoDB user document if absent
+      const username = data.user.user_metadata?.username || email.split('@')[0];
+      user = new User({
+        supabaseId,
+        username,
+        email: email.toLowerCase()
+      });
+      await user.save();
+    }
   }
 
-  // Verificar contraseña
-  const isPasswordValid = await user.comparePassword(password);
-  
-  if (!isPasswordValid) {
-    logger.warn('Intento de login fallido', { email, ip: req.ip });
-    throw new AuthenticationError('Credenciales inválidas');
-  }
-
-  // Generar token
-  const token = generateToken(user._id);
-
-  logger.info(`Usuario autenticado: ${user.username}`);
+  logger.info(`Usuario autenticado: ${user.username}`, { supabaseId });
 
   const authResponse = new AuthResponseDTO(token, user);
 
@@ -84,7 +118,7 @@ export const login = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Obtener perfil del usuario actual
+// @desc    Get current user profile
 // @route   GET /api/auth/me
 // @access  Private
 export const getMe = asyncHandler(async (req, res) => {
@@ -97,15 +131,15 @@ export const getMe = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Actualizar perfil del usuario
+// @desc    Update user profile
 // @route   PUT /api/auth/profile
 // @access  Private
 export const updateProfile = asyncHandler(async (req, res) => {
   const { username, email } = req.body;
-  const userId = req.user._id;
+  const mongoUserId = req.user._id;
+  const supabaseId = req.user.supabaseId;
 
-  // Buscar el usuario
-  const user = await User.findById(userId);
+  const user = await User.findById(mongoUserId);
   
   if (!user) {
     throw new NotFoundError('Usuario no encontrado');
@@ -113,11 +147,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   const updates = {};
 
-  // Verificar si el nuevo username ya está en uso
+  // Check if new username is taken
   if (username && username !== user.username) {
     const existingUsername = await User.findOne({ 
       username: username.toLowerCase(),
-      _id: { $ne: userId }
+      _id: { $ne: mongoUserId }
     });
     if (existingUsername) {
       throw new ConflictError('Este nombre de usuario ya está en uso');
@@ -125,20 +159,31 @@ export const updateProfile = asyncHandler(async (req, res) => {
     updates.username = username.trim();
   }
 
-  // Verificar si el nuevo email ya está en uso
+  // Check if new email is taken
   if (email && email.toLowerCase() !== user.email) {
     const existingEmail = await User.findOne({ 
       email: email.toLowerCase(),
-      _id: { $ne: userId }
+      _id: { $ne: mongoUserId }
     });
     if (existingEmail) {
       throw new ConflictError('Este email ya está en uso');
     }
     updates.email = email.toLowerCase();
+
+    // Update email in Supabase Auth if supabaseId is set
+    if (supabaseId) {
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(supabaseId, {
+          email: email.toLowerCase()
+        });
+      } catch (err) {
+        logger.warn('No se pudo actualizar el email en Supabase Auth', { error: err.message, supabaseId });
+      }
+    }
   }
 
-  // Actualizar usuario
-  const updatedUser = await User.findByIdAndUpdate(userId, updates, { 
+  // Update user in MongoDB
+  const updatedUser = await User.findByIdAndUpdate(mongoUserId, updates, { 
     new: true,
     runValidators: true 
   });
@@ -152,31 +197,53 @@ export const updateProfile = asyncHandler(async (req, res) => {
   );
 });
 
-// @desc    Cambiar contraseña
+// @desc    Change password
 // @route   PUT /api/auth/change-password
 // @access  Private
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  const userId = req.user._id;
+  const mongoUserId = req.user._id;
+  const supabaseId = req.user.supabaseId;
 
-  // Buscar el usuario con la contraseña
-  const user = await User.findById(userId).select('+password');
+  const user = await User.findById(mongoUserId).select('+password');
   
   if (!user) {
     throw new NotFoundError('Usuario no encontrado');
   }
 
-  // Verificar contraseña actual
-  const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-  
-  if (!isCurrentPasswordValid) {
-    logger.warn('Intento de cambio de password fallido - contraseña incorrecta', { userId });
-    throw new AuthenticationError('La contraseña actual es incorrecta');
+  // If password exists on MongoDB user, verify current password
+  if (user.password) {
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      logger.warn('Intento de cambio de password fallido - contraseña incorrecta', { mongoUserId });
+      throw new AuthenticationError('La contraseña actual es incorrecta');
+    }
+  } else {
+    // Verify via Supabase Auth
+    const { error: verifyErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword
+    });
+    if (verifyErr) {
+      throw new AuthenticationError('La contraseña actual es incorrecta');
+    }
   }
 
-  // Actualizar contraseña
-  user.password = newPassword;
-  await user.save();
+  // Update password in Supabase Auth if supabaseId is set
+  if (supabaseId) {
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(supabaseId, {
+      password: newPassword
+    });
+    if (updateErr) {
+      logger.error('Error al actualizar contraseña en Supabase Auth', { error: updateErr.message, supabaseId });
+      throw new ValidationError('Error al actualizar la contraseña en Supabase Auth');
+    }
+  }
+
+  if (user.password) {
+    user.password = newPassword;
+    await user.save();
+  }
 
   logger.info(`Contraseña cambiada: ${user.username}`);
 
@@ -184,3 +251,4 @@ export const changePassword = asyncHandler(async (req, res) => {
     new ApiResponseDTO(true, 'Contraseña actualizada exitosamente')
   );
 });
+

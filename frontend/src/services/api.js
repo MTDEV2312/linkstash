@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { apiCache } from '../utils/apiCache'
+import { supabase } from '../config/supabase'
 
 // Configuración base de axios
 const API_BASE_URL = import.meta.env.VITE_API_URL
@@ -12,10 +13,19 @@ const api = axios.create({
   }
 })
 
-// Interceptor para agregar el token de autorización + caché
+// Interceptor para agregar el token de autorización dinámico desde la sesión de Supabase + caché
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth-token')
+  async (config) => {
+    let token = null
+    try {
+      const { data } = await supabase.auth.getSession()
+      token = data?.session?.access_token
+    } catch (_) {}
+
+    if (!token) {
+      token = localStorage.getItem('auth-token')
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -87,27 +97,30 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-      // Si el token ha expirado, limpiar el almacenamiento y redirigir
-      // Evitar redirect automático para endpoints públicos de auth (login/register/refresh)
-      const status = error.response?.status
-      const reqUrl = error.config?.url || ''
+    // Si el token ha expirado, limpiar el almacenamiento y redirigir
+    // Evitar redirect automático para endpoints públicos de auth (login/register/refresh)
+    const status = error.response?.status
+    const reqUrl = error.config?.url || ''
 
-      if (status === 401) {
-        const isAuthEndpoint = reqUrl.includes('/auth/login') || reqUrl.includes('/auth/register') || reqUrl.includes('/auth/refresh') || reqUrl.includes('/auth/me')
+    if (status === 401) {
+      const isAuthEndpoint = reqUrl.includes('/auth/login') || reqUrl.includes('/auth/register') || reqUrl.includes('/auth/refresh') || reqUrl.includes('/auth/me')
 
-        if (!isAuthEndpoint) {
-          // Logout automático y redirección sólo para rutas protegidas
-          localStorage.removeItem('auth-token')
-          localStorage.removeItem('auth-storage')
-          apiCache.clear() // Limpiar caché en logout
+      if (!isAuthEndpoint) {
+        // Logout automático y redirección sólo para rutas protegidas
+        localStorage.removeItem('auth-token')
+        localStorage.removeItem('auth-storage')
+        apiCache.clear() // Limpiar caché en logout
+        try {
+          supabase.auth.signOut()
+        } catch (_) {}
 
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login'
-          }
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
         }
       }
+    }
 
-      return Promise.reject(error)
+    return Promise.reject(error)
   }
 )
 

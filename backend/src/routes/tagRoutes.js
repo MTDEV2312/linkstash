@@ -14,7 +14,7 @@ router.use(authMiddleware);
 // @access  Private
 const getTags = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
     const {
       search = '',
       popular = 'false',
@@ -73,7 +73,7 @@ const getTags = async (req, res) => {
 const createTag = async (req, res) => {
   try {
     const { name, color, description } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     // Validar nombre requerido
     if (!name || !name.trim()) {
@@ -140,7 +140,7 @@ const createTag = async (req, res) => {
 const getTagById = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const tag = await Tag.findOne({ _id: id, userId });
 
@@ -171,7 +171,7 @@ const getTagById = async (req, res) => {
 const updateTag = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
     const { name, color, description } = req.body;
 
     const tag = await Tag.findOne({ _id: id, userId });
@@ -239,7 +239,7 @@ const updateTag = async (req, res) => {
 const deleteTag = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     // Validar que el ID no sea undefined o inválido
     if (!id || id === 'undefined' || id === 'null') {
@@ -289,7 +289,7 @@ const deleteTag = async (req, res) => {
 // @access  Private
 const getTagStats = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const stats = await Tag.aggregate([
       { $match: { userId } },

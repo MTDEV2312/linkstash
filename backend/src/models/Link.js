@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 
 const linkSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'El ID del usuario es obligatorio']
+    type: String,
+    required: [true, 'El ID del usuario es obligatorio'],
+    index: true
   },
   url: {
     type: String,

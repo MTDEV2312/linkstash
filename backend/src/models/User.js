@@ -2,6 +2,12 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
+  supabaseId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
   username: {
     type: String,
     required: [true, 'El nombre de usuario es obligatorio'],
@@ -20,7 +26,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'La contraseña es obligatoria'],
+    required: false,
     minlength: [6, 'La contraseña debe tener al menos 6 caracteres']
   },
   createdAt: {
@@ -43,8 +49,8 @@ userSchema.index({ username: 1 });
 
 // Middleware para hashear la contraseña antes de guardar
 userSchema.pre('save', async function(next) {
-  // Solo hashear la contraseña si ha sido modificada
-  if (!this.isModified('password')) return next();
+  // Solo hashear la contraseña si existe y ha sido modificada
+  if (!this.password || !this.isModified('password')) return next();
   
   try {
     // Hashear la contraseña con un salt de 12 rounds
@@ -57,13 +63,15 @@ userSchema.pre('save', async function(next) {
 
 // Método para comparar contraseñas
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Método para obtener información pública del usuario
 userSchema.methods.getPublicProfile = function() {
   return {
-    id: this._id,
+    id: this.supabaseId || this._id,
+    supabaseId: this.supabaseId,
     username: this.username,
     email: this.email,
     createdAt: this.createdAt
@@ -71,3 +79,4 @@ userSchema.methods.getPublicProfile = function() {
 };
 
 export default mongoose.model('User', userSchema);
+

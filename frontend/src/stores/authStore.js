@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import authService from '../services/authService'
+import { supabase } from '../config/supabase'
 import { showSuccess, showError } from '../utils/toastUtils'
 import { setUser as setSentryUser } from '../utils/sentry'
 
@@ -9,6 +10,7 @@ export const useAuthStore = create(
     (set, get) => ({
       user: null,
       token: null,
+      session: null,
       isLoading: false,
       isAuthenticated: false,
 
@@ -17,12 +19,13 @@ export const useAuthStore = create(
         set({ isLoading: true })
         try {
           const response = await authService.login(credentials)
-          // El backend devuelve { success, message, data: { token, user } }
           const { token, user } = response.data.data
+          const session = await authService.getSession()
           
           set({
             user,
             token,
+            session,
             isAuthenticated: true,
             isLoading: false
           })
@@ -38,7 +41,6 @@ export const useAuthStore = create(
         } catch (error) {
           set({ isLoading: false })
           const message = error?.response?.data?.message || error?.message || 'Error al iniciar sesión'
-          // Only show toast for server (5xx) or network errors; client errors (4xx) are handled inline by components
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
@@ -57,10 +59,12 @@ export const useAuthStore = create(
         try {
           const response = await authService.register(userData)
           const { token, user } = response.data.data
+          const session = await authService.getSession()
           
           set({
             user,
             token,
+            session,
             isAuthenticated: true,
             isLoading: false
           })
@@ -75,7 +79,7 @@ export const useAuthStore = create(
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
-          const message = error.response?.data?.message || 'Error al crear la cuenta'
+          const message = error.response?.data?.message || error?.message || 'Error al crear la cuenta'
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
@@ -87,16 +91,15 @@ export const useAuthStore = create(
       },
 
       // Acción para hacer logout
-      logout: () => {
+      logout: async () => {
+        await authService.logout()
         set({
           user: null,
           token: null,
+          session: null,
           isAuthenticated: false,
           isLoading: false
         })
-        
-        // Limpiar el token del servicio
-        authService.removeAuthToken()
         
         // Limpiar usuario de Sentry
         setSentryUser(null)
@@ -104,39 +107,60 @@ export const useAuthStore = create(
         showSuccess('Sesión cerrada correctamente')
       },
 
-      // Verificar autenticación al cargar la app
+      // Verificar autenticación al cargar la app y sincronizar sesión Supabase
       checkAuth: async () => {
-        const { token } = get()
-        
-        if (!token) {
-          set({ isLoading: false })
-          return
-        }
-
         set({ isLoading: true })
         try {
+          const session = await authService.getSession()
+          const token = session?.access_token || get().token || localStorage.getItem('auth-token')
+          
+          if (!token) {
+            set({ user: null, token: null, session: null, isAuthenticated: false, isLoading: false })
+            return
+          }
+
           // Configurar el token en el servicio
           authService.setAuthToken(token)
           
-          // Verificar si el token es válido
+          // Verificar si el token es válido obteniendo el perfil de MongoDB
           const response = await authService.getProfile()
           const user = response.data.data.user
           
           set({
             user,
+            token,
+            session: session || get().session,
             isAuthenticated: true,
             isLoading: false
           })
         } catch (error) {
-          // Token inválido o expirado
+          // Token/sesión inválida o expirada
+          await authService.logout()
           set({
             user: null,
             token: null,
+            session: null,
             isAuthenticated: false,
             isLoading: false
           })
-          authService.removeAuthToken()
         }
+      },
+
+      // Suscribirse a los eventos de estado de auth de Supabase
+      initAuthListener: () => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_OUT') {
+            set({ user: null, token: null, session: null, isAuthenticated: false })
+            authService.removeAuthToken()
+          } else if (event === 'TOKEN_REFRESHED' && session) {
+            set({ token: session.access_token, session })
+            authService.setAuthToken(session.access_token)
+          } else if (event === 'SIGNED_IN' && session) {
+            set({ token: session.access_token, session })
+            authService.setAuthToken(session.access_token)
+          }
+        })
+        return subscription
       },
 
       // Actualizar perfil

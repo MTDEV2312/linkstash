@@ -41,7 +41,7 @@ const parseTagsQuery = (tags) => {
 const saveLink = async (req, res) => {
   try {
     const { url, title, description, tags = [] } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     // Validar URL
     if (!url) {
@@ -125,10 +125,10 @@ const saveLink = async (req, res) => {
       try {
         // Añadimos job a la cola (BullMQ si está configurado, sino in-process)
         if (queue && typeof queue.addJob === 'function') {
-          await queue.addJob({ linkId: link._id.toString(), url, userId: req.user._id }, { maxAttempts: 3, backoff: 2000 });
+          await queue.addJob({ linkId: link._id.toString(), url, userId }, { maxAttempts: 3, backoff: 2000 });
         } else if (queue && typeof queue.add === 'function') {
           // compatibilidad por si la implementación exporta add
-          await queue.add('scrape', { linkId: link._id.toString(), url, userId: req.user._id }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+          await queue.add('scrape', { linkId: link._id.toString(), url, userId }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
         } else {
           logger.warn('No hay cola disponible para encolar job de scraping');
         }
@@ -159,7 +159,7 @@ const saveLink = async (req, res) => {
 // @access  Private
 const getLinks = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
     const {
       page = 1,
       limit = 6,
@@ -221,7 +221,7 @@ const getLinks = async (req, res) => {
 const getLinkById = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
   const link = await Link.findOne({ _id: id, userId });
 
@@ -252,7 +252,7 @@ const getLinkById = async (req, res) => {
 const updateLink = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
   const { title, description, image, isFavorite, isArchived } = req.body;
     // Normalizar tags: en multipart con un solo tag viene como string, no array
     let tags = req.body.tags;
@@ -390,7 +390,7 @@ const updateLink = async (req, res) => {
 const deleteLink = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -439,7 +439,7 @@ const deleteLink = async (req, res) => {
 const incrementClickCount = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -473,7 +473,7 @@ const incrementClickCount = async (req, res) => {
 const toggleFavorite = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const link = await Link.findOne({ _id: id, userId });
 
@@ -542,7 +542,7 @@ const updateTagsCount = async (userId, tags, operation) => {
 const toggleArchive = async (req, res) => {
   try{
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     const link = await Link.findOne({ _id: id, userId });
     if (!link) {
@@ -586,7 +586,7 @@ export {
 const batchUpdate = async (req, res) => {
   try {
     const { action, linkIds, tag } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.supabaseId || req.user._id.toString();
 
     if (!action || !Array.isArray(linkIds) || linkIds.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid batch request' });
