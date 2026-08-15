@@ -126,15 +126,15 @@ const runMigration = async () => {
         await User.updateOne({ _id: mongoUserId }, { $set: { supabaseId } });
         console.log(`Updated User document _id ${mongoUserId} with supabaseId ${supabaseId}`);
 
-        // Update Link documents
-        const linkResult = await Link.updateMany(
+        // Update Link documents (matching both raw BSON ObjectId and string)
+        const linkResult = await mongoose.connection.db.collection('links').updateMany(
           { userId: { $in: [mongoUserId, mongoUserId.toString()] } },
           { $set: { userId: supabaseId } }
         );
         console.log(`Updated ${linkResult.modifiedCount} Link document(s).`);
 
-        // Update Tag documents
-        const tagResult = await Tag.updateMany(
+        // Update Tag documents (matching both raw BSON ObjectId and string)
+        const tagResult = await mongoose.connection.db.collection('tags').updateMany(
           { userId: { $in: [mongoUserId, mongoUserId.toString()] } },
           { $set: { userId: supabaseId } }
         );
