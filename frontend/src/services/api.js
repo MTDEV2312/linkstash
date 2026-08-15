@@ -47,7 +47,7 @@ api.interceptors.response.use(
         localStorage.removeItem('auth-token')
         localStorage.removeItem('auth-storage')
         try {
-          supabase.auth.signOut()
+          supabase.auth.signOut({ scope: 'local' })
         } catch (_) {}
 
         if (!window.location.pathname.includes('/login')) {

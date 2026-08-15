@@ -30,12 +30,8 @@ export const useAuthStore = create(
             isLoading: false
           })
           
-          // Configurar el token en el servicio
           authService.setAuthToken(token)
-          
-          // Establecer usuario en Sentry
           setSentryUser(user)
-          
           showSuccess(`¡Bienvenido, ${user.username}!`)
           return { success: true }
         } catch (error) {
@@ -46,9 +42,7 @@ export const useAuthStore = create(
             if (!status || status >= 500) {
               showError(message)
             }
-          } catch (t) {
-            // ignore toast errors
-          }
+          } catch (t) {}
           return { success: false, message }
         }
       },
@@ -69,17 +63,13 @@ export const useAuthStore = create(
             isLoading: false
           })
           
-          // Configurar el token en el servicio
           authService.setAuthToken(token)
-          
-          // Establecer usuario en Sentry
           setSentryUser(user)
-          
           showSuccess('¡Cuenta creada exitosamente!')
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
-          const message = error.response?.data?.message || error?.message || 'Error al crear la cuenta'
+          const message = error?.response?.data?.message || error?.message || 'Error al crear la cuenta'
           try {
             const status = error?.response?.status
             if (!status || status >= 500) {
@@ -100,10 +90,7 @@ export const useAuthStore = create(
           isAuthenticated: false,
           isLoading: false
         })
-        
-        // Limpiar usuario de Sentry
         setSentryUser(null)
-        
         showSuccess('Sesión cerrada correctamente')
       },
 
@@ -111,31 +98,32 @@ export const useAuthStore = create(
       checkAuth: async () => {
         set({ isLoading: true })
         try {
+          // 1. Obtener la sesión activa de Supabase
           const session = await authService.getSession()
-          const token = session?.access_token || get().token || localStorage.getItem('auth-token')
+          const token = session?.access_token || localStorage.getItem('auth-token')
           
           if (!token) {
+            authService.removeAuthToken()
             set({ user: null, token: null, session: null, isAuthenticated: false, isLoading: false })
             return
           }
 
-          // Configurar el token en el servicio
           authService.setAuthToken(token)
           
-          // Verificar si el token es válido obteniendo el perfil de MongoDB
+          // 2. Verificar si el token es válido obteniendo el perfil de MongoDB
           const response = await authService.getProfile()
           const user = response.data.data.user
           
           set({
             user,
             token,
-            session: session || get().session,
+            session,
             isAuthenticated: true,
             isLoading: false
           })
         } catch (error) {
-          // Token/sesión inválida o expirada
-          await authService.logout()
+          // Token/sesión inválida o expirada: limpiar almacenamiento silenciosamente
+          authService.removeAuthToken()
           set({
             user: null,
             token: null,
@@ -156,7 +144,7 @@ export const useAuthStore = create(
             set({ token: session.access_token, session })
             authService.setAuthToken(session.access_token)
           } else if (event === 'SIGNED_IN' && session) {
-            set({ token: session.access_token, session })
+            set({ token: session.access_token, session, isAuthenticated: true })
             authService.setAuthToken(session.access_token)
           }
         })
@@ -195,7 +183,6 @@ export const useAuthStore = create(
         set({ isLoading: true })
         try {
           await authService.changePassword(passwordData)
-          
           set({ isLoading: false })
           showSuccess('Contraseña actualizada correctamente')
           return { success: true }

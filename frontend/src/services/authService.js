@@ -13,6 +13,7 @@ class AuthService {
   // Remover token de autenticación
   removeAuthToken() {
     localStorage.removeItem('auth-token')
+    localStorage.removeItem('auth-storage')
     delete api.defaults.headers.common['Authorization']
   }
 
@@ -37,9 +38,7 @@ class AuthService {
           email: userData.email,
           password: userData.password
         })
-      } catch (_) {
-        // Ignorar si falla la sincronización con cliente Supabase si el registro en backend fue exitoso
-      }
+      } catch (_) {}
     }
     return response
   }
@@ -47,18 +46,24 @@ class AuthService {
   // Iniciar sesión
   async login(credentials) {
     let authError = null
+    let supabaseSession = null
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password
       })
-      if (error) authError = error
+      if (error) {
+        authError = error
+      } else {
+        supabaseSession = data?.session
+      }
     } catch (err) {
       authError = err
     }
 
     const response = await api.post('/auth/login', credentials)
-    const token = response.data?.data?.token
+    const token = response.data?.data?.token || supabaseSession?.access_token
     if (token) {
       this.setAuthToken(token)
     } else if (authError) {
@@ -70,7 +75,10 @@ class AuthService {
   // Cerrar sesión
   async logout() {
     try {
-      await supabase.auth.signOut()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        await supabase.auth.signOut({ scope: 'local' })
+      }
     } catch (_) {}
     this.removeAuthToken()
   }
@@ -95,19 +103,13 @@ class AuthService {
 
   // Verificar si hay un token o sesión válida
   async hasValidToken() {
-    const token = localStorage.getItem('auth-token')
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        const now = Date.now() / 1000
-        if (payload.exp > now) return true
-      } catch (error) {
-        // Proseguir a verificar sesión de Supabase
-      }
-    }
-    const session = await this.getSession()
-    return !!session
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) return true
+    } catch (_) {}
+    return Boolean(localStorage.getItem('auth-token'))
   }
 }
 
-export default new AuthService()
+export const authService = new AuthService()
+export default authService
