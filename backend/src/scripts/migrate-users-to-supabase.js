@@ -1,6 +1,10 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import 'dotenv/config';
+import dns from 'dns';
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore DNS config error
+}
 import mongoose from 'mongoose';
 import { supabaseAdmin } from '../config/supabase.js';
 import User from '../models/User.js';
@@ -8,24 +12,19 @@ import Link from '../models/Link.js';
 import Tag from '../models/Tag.js';
 import { getLogger } from '../utils/logger.js';
 
-// Setup __dirname for ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
-
 const logger = getLogger('MigrateUsersToSupabase');
 
 const runMigration = async () => {
   const isDryRun = process.argv.includes('--dry-run');
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/linkstash';
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
   console.log(`Starting user migration to Supabase Auth... [Mode: ${isDryRun ? 'DRY-RUN' : 'LIVE'}]`);
 
   try {
-    await mongoose.connect(mongoUri);
-    console.log(`Connected to MongoDB at ${mongoUri}`);
+    await mongoose.connect(mongoUri, {
+      family: 4
+    });
+    console.log(`Connected to MongoDB successfully.`);
 
     // Query users lacking supabaseId
     const users = await User.find({
@@ -97,7 +96,6 @@ const runMigration = async () => {
       // Live mode execution
       try {
         if (!supabaseId) {
-          // Attempt user creation with password_hash or standard password fallback
           const createPayload = {
             email,
             email_confirm: true,

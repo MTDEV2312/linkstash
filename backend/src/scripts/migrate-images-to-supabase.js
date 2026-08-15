@@ -1,18 +1,15 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import 'dotenv/config';
+import dns from 'dns';
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore DNS error
+}
 import mongoose from 'mongoose';
 import storageService from '../services/StorageService.js';
 import Link from '../models/Link.js';
 import User from '../models/User.js';
 import { getLogger } from '../utils/logger.js';
-
-// Setup __dirname for ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const logger = getLogger('MigrateImagesToSupabase');
 
@@ -22,13 +19,13 @@ const isSupabaseStorageUrl = (url) => {
 
 const runImageMigration = async () => {
   const isDryRun = process.argv.includes('--dry-run');
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/linkstash';
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
   console.log(`Starting image asset migration to Supabase Storage... [Mode: ${isDryRun ? 'DRY-RUN' : 'LIVE'}]`);
 
   try {
-    await mongoose.connect(mongoUri);
-    console.log(`Connected to MongoDB at ${mongoUri}`);
+    await mongoose.connect(mongoUri, { family: 4 });
+    console.log(`Connected to MongoDB successfully.`);
 
     // Query links that have stored images or InsForge URLs
     const links = await Link.find({
@@ -98,19 +95,21 @@ const runImageMigration = async () => {
           }
         );
 
-        console.log(`[SUCCESS] Link ${link._id} updated with new Supabase Storage URL: ${newPublicUrl}`);
+        console.log(`[SUCCESS] Migrated Link ${link._id} to Supabase Storage:`);
+        console.log(`  New URL: ${newPublicUrl}`);
+        console.log(`  New Object Key: ${newKey}`);
         successCount++;
       } catch (err) {
-        console.error(`[ERROR] Exception processing Link ${link._id}:`, err.message);
+        console.error(`[ERROR] Exception migrating image for Link ${link._id}:`, err.message);
         errorCount++;
       }
     }
 
     console.log(`\n========================================`);
     console.log(`Image Migration Summary [Mode: ${isDryRun ? 'DRY-RUN' : 'LIVE'}]`);
-    console.log(`Total inspected: ${links.length}`);
+    console.log(`Total inspectable links: ${links.length}`);
     console.log(`Successfully migrated: ${successCount}`);
-    console.log(`Skipped (already on Supabase / empty): ${skippedCount}`);
+    console.log(`Skipped (already Supabase or empty): ${skippedCount}`);
     console.log(`Failed: ${errorCount}`);
     console.log(`========================================\n`);
 
