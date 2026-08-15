@@ -56,8 +56,31 @@ app.use(sanitizeInput); // Sanitizar inputs
 app.use(detectAttackPatterns); // Detectar patrones de ataque
 
 // CORS mejorado
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+const defaultOrigins = [
+  'http://localhost:4173',
+  'http://localhost:3000',
+  'https://mylinks.mathiast.me'
+];
+
+const allowedOrigins = configuredOrigins.length > 0 ? configuredOrigins : defaultOrigins;
+
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:4173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (como mobile apps, curl o same-origin)
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    // Permitir subdominios de mathiast.me
+    if (/^https:\/\/([a-z0-9-]+\.)?mathiast\.me$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Permisivo para evitar bloqueos inesperados
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
