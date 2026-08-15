@@ -57,7 +57,7 @@ const processJob = async (job) => {
 
   try {
     // Marcar intento (incrementar scrapingAttempts y asegurar status processing)
-    await Link.findByIdAndUpdate(linkId, {
+    await Link.findOneAndUpdate({ _id: { $eq: linkId } }, {
       $inc: { scrapingAttempts: 1 },
       status: 'processing'
     });
@@ -171,7 +171,7 @@ const processJob = async (job) => {
         }
       }
       
-      await Link.findByIdAndUpdate(linkId, updates, { new: true });
+      await Link.findOneAndUpdate({ _id: { $eq: linkId } }, updates, { new: true });
       logger.info(`Link ${linkId} marcado como completado con valores predeterminados tras error`);
       
       // Retornar true para evitar reintentos
@@ -216,7 +216,7 @@ try {
           }
         }
         
-        await Link.findByIdAndUpdate(linkId, updates);
+        await Link.findOneAndUpdate({ _id: { $eq: linkId } }, updates);
         logger.info(`Link ${linkId} marcado como completado tras agotamiento`);
       }
     } catch (e) {

@@ -121,7 +121,7 @@ const init = async () => {
           const { linkId, url, userId } = job.data || {};
           if (!linkId || !url) throw new Error('Invalid job payload');
 
-          await Link.findByIdAndUpdate(linkId, { $inc: { scrapingAttempts: 1 }, status: 'processing' });
+          await Link.findByIdAndUpdate(String(linkId), { $inc: { scrapingAttempts: 1 }, status: 'processing' });
 
           const scrapingResult = await scraperService.scrapeUrl(url);
 
@@ -154,7 +154,7 @@ const init = async () => {
               }
             }
 
-            await Link.findByIdAndUpdate(linkId, updates, { new: true });
+            await Link.findByIdAndUpdate(String(linkId), updates, { new: true });
             return { success: true };
           } else {
             const errMsg = scrapingResult && scrapingResult.error ? scrapingResult.error : 'Scraping failed';
@@ -184,7 +184,7 @@ const init = async () => {
               }
             }
 
-            await Link.findByIdAndUpdate(linkId, updates, { new: true });
+            await Link.findByIdAndUpdate(String(linkId), updates, { new: true });
             return { success: true };
           }
         },

@@ -20,9 +20,12 @@ const formatUser = (user) => ({
 export const register = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
-  // Check if user already exists in MongoDB
+  // Check if user already exists in MongoDB with $eq sanitization
   const existingUser = await User.findOne({
-    $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }]
+    $or: [
+      { email: { $eq: email.toLowerCase() } },
+      { username: { $eq: username.toLowerCase() } }
+    ]
   });
 
   if (existingUser) {
@@ -102,10 +105,10 @@ export const login = asyncHandler(async (req, res) => {
   const supabaseId = data.user.id;
 
   // Search user in MongoDB by supabaseId or email
-  let user = await User.findOne({ supabaseId });
+  let user = await User.findOne({ supabaseId: { $eq: supabaseId } });
 
   if (!user) {
-    user = await User.findOne({ email: email.toLowerCase() });
+    user = await User.findOne({ email: { $eq: email.toLowerCase() } });
     if (user) {
       user.supabaseId = supabaseId;
       await user.save();
@@ -166,7 +169,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Check if new username is taken
   if (username && username !== user.username) {
     const existingUsername = await User.findOne({ 
-      username: username.toLowerCase(),
+      username: { $eq: username.toLowerCase() },
       _id: { $ne: mongoUserId }
     });
     if (existingUsername) {
@@ -178,7 +181,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Check if new email is taken
   if (email && email.toLowerCase() !== user.email) {
     const existingEmail = await User.findOne({ 
-      email: email.toLowerCase(),
+      email: { $eq: email.toLowerCase() },
       _id: { $ne: mongoUserId }
     });
     if (existingEmail) {
