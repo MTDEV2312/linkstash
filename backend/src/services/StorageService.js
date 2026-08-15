@@ -248,7 +248,7 @@ const deleteImage = async (publicId, options = {}) => {
   }
 };
 
-export default {
+export {
   buildObjectKey,
   extractObjectKeyFromUrl,
   getPublicUrl,
@@ -256,3 +256,15 @@ export default {
   uploadImageFromBuffer,
   deleteImage
 };
+
+export const StorageService = {
+  buildObjectKey,
+  extractObjectKeyFromUrl,
+  getPublicUrl,
+  uploadImageFromUrl,
+  uploadImageFromBuffer,
+  deleteImage
+};
+
+export default StorageService;
+
