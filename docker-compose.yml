@@ -13,75 +13,6 @@ services:
     networks:
       - linkstash-network
 
-  postgres:
-    image: supabase/postgres:15.1.1.78
-    container_name: linkstash-supabase-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    volumes:
-      - supabase_db_data:/var/lib/postgresql/data
-    networks:
-      - linkstash-network
-
-  gotrue:
-    image: supabase/gotrue:v2.132.3
-    container_name: linkstash-gotrue
-    restart: unless-stopped
-    environment:
-      GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: 9999
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/postgres?sslmode=disable
-      GOTRUE_SITE_URL: ${FRONTEND_URL:-http://localhost:5173}
-      GOTRUE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
-      GOTRUE_JWT_EXP: 3600
-      GOTRUE_DISABLE_SIGNUP: "false"
-    depends_on:
-      - postgres
-    networks:
-      - linkstash-network
-
-  storage:
-    image: supabase/storage-api:v1.10.2
-    container_name: linkstash-supabase-storage
-    restart: unless-stopped
-    environment:
-      ANON_KEY: ${SUPABASE_ANON_KEY}
-      SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      PGRST_JWT_SECRET: ${SUPABASE_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/postgres?sslmode=disable
-      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
-      TENANT_ID: stub
-      REGION: stub
-      GLOBAL_S3_BUCKET: ${SUPABASE_STORAGE_BUCKET:-images}
-    volumes:
-      - supabase_storage_data:/var/lib/storage
-    depends_on:
-      - postgres
-    networks:
-      - linkstash-network
-
-  kong:
-    image: kong:2.8.1
-    container_name: linkstash-kong
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /usr/local/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors
-    volumes:
-      - ./docker/kong.yml:/usr/local/kong/kong.yml:ro
-    depends_on:
-      - gotrue
-      - storage
-    networks:
-      - linkstash-network
-
   backend:
     build:
       context: .
@@ -95,7 +26,7 @@ services:
       - PORT=5000
       - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
-      - SUPABASE_URL=${SUPABASE_URL:-http://kong:8000}
+      - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
@@ -103,10 +34,6 @@ services:
       - USER_AGENT=${USER_AGENT}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - BACKEND_BASE_URL=${BACKEND_BASE_URL}
-      - INSFORGE_URL=${INSFORGE_URL}
-      - INSFORGE_ANON_KEY=${INSFORGE_ANON_KEY}
-      - INSFORGE_STORAGE_BUCKET=${INSFORGE_STORAGE_BUCKET}
-      - INSFORGE_STORAGE_FOLDER=${INSFORGE_STORAGE_FOLDER}
       - SCRAPER_STORE_EXTERNAL_IMAGES=${SCRAPER_STORE_EXTERNAL_IMAGES}
       - SCRAPER_QUEUE_CONCURRENCY=${SCRAPER_QUEUE_CONCURRENCY}
       - ENABLE_BULLMQ=true
@@ -116,8 +43,6 @@ services:
       - ADMIN_USER_IDS=${ADMIN_USER_IDS}
     depends_on:
       - redis
-      - kong
-      - postgres
     networks:
       - linkstash-network
 
@@ -127,5 +52,3 @@ networks:
 
 volumes:
   redis_data:
-  supabase_db_data:
-  supabase_storage_data:
