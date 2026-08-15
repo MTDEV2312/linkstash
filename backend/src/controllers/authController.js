@@ -2,9 +2,17 @@ import { supabase, supabaseAdmin } from '../config/supabase.js';
 import User from '../models/User.js';
 import { AuthenticationError, ConflictError, NotFoundError, asyncHandler, ValidationError } from '../utils/customErrors.js';
 import { getLogger } from '../utils/logger.js';
-import { UserDTO, AuthResponseDTO, ApiResponseDTO } from '../dtos/index.js';
 
 const logger = getLogger('AuthController');
+
+const formatUser = (user) => ({
+  id: user._id,
+  supabaseId: user.supabaseId,
+  username: user.username,
+  email: user.email,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt
+});
 
 // @desc    Register new user via Supabase Auth and sync to MongoDB
 // @route   POST /api/auth/register
@@ -62,11 +70,15 @@ export const register = asyncHandler(async (req, res) => {
 
   logger.info(`Usuario registrado exitosamente: ${username}`, { supabaseId });
 
-  const authResponse = new AuthResponseDTO(token, user);
-
-  res.status(201).json(
-    new ApiResponseDTO(true, 'Usuario registrado exitosamente', authResponse.toJSON())
-  );
+  res.status(201).json({
+    success: true,
+    message: 'Usuario registrado exitosamente',
+    data: {
+      token,
+      user: formatUser(user),
+      expiresIn: '7d'
+    }
+  });
 });
 
 // @desc    User login via Supabase Auth
@@ -111,24 +123,28 @@ export const login = asyncHandler(async (req, res) => {
 
   logger.info(`Usuario autenticado: ${user.username}`, { supabaseId });
 
-  const authResponse = new AuthResponseDTO(token, user);
-
-  res.json(
-    new ApiResponseDTO(true, 'Inicio de sesión exitoso', authResponse.toJSON())
-  );
+  res.json({
+    success: true,
+    message: 'Inicio de sesión exitoso',
+    data: {
+      token,
+      user: formatUser(user),
+      expiresIn: '7d'
+    }
+  });
 });
 
 // @desc    Get current user profile
 // @route   GET /api/auth/me
 // @access  Private
 export const getMe = asyncHandler(async (req, res) => {
-  const user = req.user;
-
-  res.json(
-    new ApiResponseDTO(true, 'Perfil obtenido', {
-      user: new UserDTO(user)
-    })
-  );
+  res.json({
+    success: true,
+    message: 'Perfil obtenido',
+    data: {
+      user: formatUser(req.user)
+    }
+  });
 });
 
 // @desc    Update user profile
@@ -190,11 +206,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   logger.info(`Perfil actualizado: ${updatedUser.username}`);
 
-  res.json(
-    new ApiResponseDTO(true, 'Perfil actualizado exitosamente', {
-      user: new UserDTO(updatedUser)
-    })
-  );
+  res.json({
+    success: true,
+    message: 'Perfil actualizado exitosamente',
+    data: {
+      user: formatUser(updatedUser)
+    }
+  });
 });
 
 // @desc    Change password
@@ -205,28 +223,19 @@ export const changePassword = asyncHandler(async (req, res) => {
   const mongoUserId = req.user._id;
   const supabaseId = req.user.supabaseId;
 
-  const user = await User.findById(mongoUserId).select('+password');
+  const user = await User.findById(mongoUserId);
   
   if (!user) {
     throw new NotFoundError('Usuario no encontrado');
   }
 
-  // If password exists on MongoDB user, verify current password
-  if (user.password) {
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
-      logger.warn('Intento de cambio de password fallido - contraseña incorrecta', { mongoUserId });
-      throw new AuthenticationError('La contraseña actual es incorrecta');
-    }
-  } else {
-    // Verify via Supabase Auth
-    const { error: verifyErr } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword
-    });
-    if (verifyErr) {
-      throw new AuthenticationError('La contraseña actual es incorrecta');
-    }
+  // Verify via Supabase Auth
+  const { error: verifyErr } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword
+  });
+  if (verifyErr) {
+    throw new AuthenticationError('La contraseña actual es incorrecta');
   }
 
   // Update password in Supabase Auth if supabaseId is set
@@ -240,15 +249,10 @@ export const changePassword = asyncHandler(async (req, res) => {
     }
   }
 
-  if (user.password) {
-    user.password = newPassword;
-    await user.save();
-  }
-
   logger.info(`Contraseña cambiada: ${user.username}`);
 
-  res.json(
-    new ApiResponseDTO(true, 'Contraseña actualizada exitosamente')
-  );
+  res.json({
+    success: true,
+    message: 'Contraseña actualizada exitosamente'
+  });
 });
-

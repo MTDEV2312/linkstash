@@ -20,7 +20,6 @@
     "@sentry/react": "10.32.0",
     "@supabase/supabase-js": "2.112.3",
     "axios": "1.15.0",
-    "jwt-decode": "3.1.2",
     "lucide-react": "0.263.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
