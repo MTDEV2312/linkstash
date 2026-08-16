@@ -10,10 +10,10 @@ async function updateUrls() {
   await mongoose.connect(process.env.MONGODB_URI, { family: 4 });
   console.log('Connected to MongoDB.');
 
-  const oldPrefix = 'http://192.168.100.116:8000';
-  const newPrefix = 'https://supabase.mathiast.me';
+  const oldPrefix = 'http://[IP_ADDRESS]';
+  const newPrefix = process.env.SUPABASE_URL;
 
-  const linksToUpdate = await Link.find({ image: { $regex: '^http://192.168.100.116:8000' } });
+  const linksToUpdate = await Link.find({ image: { $regex: '^http://[IP_ADDRESS]' } });
   console.log(`Found ${linksToUpdate.length} links with local IP storage URLs.`);
 
   for (const link of linksToUpdate) {
