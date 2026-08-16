@@ -567,7 +567,57 @@ const toggleArchive = async (req, res) => {
       message: 'Error interno del servidor'
     });
   }
-}
+};
+
+// @desc    Obtener vista previa de scraping para un enlace existente (en memoria, sin persistir)
+// @route   POST /api/links/:id/scrape-preview
+// @access  Private
+const scrapeLinkPreview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.supabaseId || req.user._id.toString();
+
+    const link = await Link.findOne({ _id: id, userId });
+
+    if (!link) {
+      return res.status(404).json({
+        success: false,
+        message: 'Enlace no encontrado'
+      });
+    }
+
+    // Ejecutar scraper en memoria con la URL del enlace
+    const scrapeResult = await scraperService.scrapeUrl(link.url);
+
+    if (!scrapeResult || !scrapeResult.success) {
+      return res.status(502).json({
+        success: false,
+        message: scrapeResult?.error || 'No se pudo obtener la vista previa del enlace',
+        errorType: scrapeResult?.errorType || 'SCRAPING_ERROR',
+        data: scrapeResult?.data || null
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        title: scrapeResult.data.title || '',
+        description: scrapeResult.data.description || '',
+        image: scrapeResult.data.image || '',
+        siteName: scrapeResult.data.siteName || '',
+        favicon: scrapeResult.data.favicon || '',
+        url: scrapeResult.data.url || link.url
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error en scrapeLinkPreview', error, { linkId: req.params?.id, userId: req.user?._id });
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
 
 export {
   saveLink,
@@ -577,7 +627,8 @@ export {
   deleteLink,
   incrementClickCount,
   toggleFavorite,
-  toggleArchive
+  toggleArchive,
+  scrapeLinkPreview
 };
 
 // @desc    Operaciones en lote sobre enlaces (delete, archive, unarchive, addTag)

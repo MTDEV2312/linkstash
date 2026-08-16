@@ -13,10 +13,12 @@ import {
   AlertCircle,
   Cloud,
   AlertTriangle,
-  Loader
+  Loader,
+  RefreshCw
 } from 'lucide-react'
 
 const DescriptionModal = lazy(() => import('./DescriptionModal'))
+const ReScrapeModal = lazy(() => import('./ReScrapeModal'))
 
 const ModalFallback = () => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -79,7 +81,7 @@ const getContrastTextColor = (hex) => {
   return lum > 0.179 ? '#000' : '#fff'
 }
 
-const CardMenu = ({ link, isOpen, onToggle, onArchive, compact = false }) => (
+const CardMenu = ({ link, isOpen, onToggle, onArchive, onReScrape, compact = false }) => (
   <div className="relative">
     <button
       onClick={(event) => {
@@ -97,8 +99,18 @@ const CardMenu = ({ link, isOpen, onToggle, onArchive, compact = false }) => (
     </button>
 
     {isOpen && (
-      <div className={`absolute right-0 mt-2 ${compact ? 'w-36' : 'w-48'} bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-600`}>
+      <div className={`absolute right-0 mt-2 ${compact ? 'w-48' : 'w-48'} bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-600`}>
         <div className="py-1">
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              onReScrape?.()
+            }}
+            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-2" />
+            Re-escanear enlace
+          </button>
           <button
             onClick={(event) => {
               event.stopPropagation()
@@ -106,7 +118,7 @@ const CardMenu = ({ link, isOpen, onToggle, onArchive, compact = false }) => (
             }}
             className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
           >
-            <Archive className="w-3 h-3 mr-2" />
+            <Archive className="w-3.5 h-3.5 mr-2" />
             {link.isArchived ? 'Desarchivar' : 'Archivar'}
           </button>
         </div>
@@ -172,7 +184,7 @@ const MinimalView = ({ link, handleVisit, handleToggleFavorite }) => (
   </article>
 )
 
-const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, handleReScrape, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
   <article
     className="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
     role="button"
@@ -260,14 +272,14 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
           >
             <ExternalLink className="w-5 h-5" />
           </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} />
+          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} onReScrape={handleReScrape} />
         </div>
       </div>
     </div>
   </article>
 )
 
-const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, handleReScrape, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
   <div
     ref={swipeRef}
     className={`card hover:shadow-lg transition-all duration-200 group ${link.status === 'processing' ? 'opacity-75' : ''} cursor-pointer`}
@@ -368,7 +380,7 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
             <ExternalLink className="w-3 h-3 mr-1" />
             Visitar
           </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} compact />
+          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} onReScrape={handleReScrape} compact />
         </div>
       </div>
     </div>
@@ -378,6 +390,7 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
 const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDetail }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showDescriptionModal, setShowDescriptionModal] = useState(false)
+  const [showReScrapeModal, setShowReScrapeModal] = useState(false)
 
   const { toggleFavorite, incrementClickCount, toggleArchive } = useLinkStore()
   const { tags: allTags, fetchTags: fetchAllTags } = useTagStore()
@@ -415,6 +428,11 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
     onUpdate?.()
   }
 
+  const handleReScrape = () => {
+    setIsMenuOpen(false)
+    setShowReScrapeModal(true)
+  }
+
   const hasScrapingError = link.status === 'error' || link.scrapingError
   const needsDescription = !link.description || link.description.trim() === ''
 
@@ -440,6 +458,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
         handleVisit={handleVisit}
         handleToggleFavorite={handleToggleFavorite}
         handleToggleArchive={handleToggleArchive}
+        handleReScrape={handleReScrape}
         hasScrapingError={hasScrapingError}
         needsDescription={needsDescription}
         setShowDescriptionModal={setShowDescriptionModal}
@@ -457,6 +476,7 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
         handleVisit={handleVisit}
         handleToggleFavorite={handleToggleFavorite}
         handleToggleArchive={handleToggleArchive}
+        handleReScrape={handleReScrape}
         hasScrapingError={hasScrapingError}
         needsDescription={needsDescription}
         setShowDescriptionModal={setShowDescriptionModal}
@@ -474,6 +494,9 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
         <>
           <Suspense fallback={<ModalFallback />}>
             <DescriptionModal link={link} isOpen={showDescriptionModal} onClose={() => setShowDescriptionModal(false)} onUpdate={onUpdate} />
+          </Suspense>
+          <Suspense fallback={<ModalFallback />}>
+            <ReScrapeModal link={link} isOpen={showReScrapeModal} onClose={() => setShowReScrapeModal(false)} onUpdate={onUpdate} />
           </Suspense>
         </>
       )}

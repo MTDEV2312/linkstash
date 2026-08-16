@@ -9,9 +9,11 @@ import {
   incrementClickCount,
   toggleFavorite,
   toggleArchive,
-  batchUpdate
+  batchUpdate,
+  scrapeLinkPreview
 } from '../controllers/linkController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import scraperRateLimiter from '../middlewares/scraperRateLimiter.js';
 
 const router = express.Router();
 
@@ -34,6 +36,9 @@ router.route('/:id')
   // Acepta multipart/form-data con campo 'image' o JSON con 'image' URL
   .put(upload.single('image'), updateLink)
   .delete(deleteLink);
+
+// Vista previa de scraping (in-memory)
+router.post('/:id/scrape-preview', scraperRateLimiter, scrapeLinkPreview);
 
 // Rutas adicionales
 router.post('/:id/click', incrementClickCount);

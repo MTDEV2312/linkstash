@@ -65,6 +65,12 @@ class LinkService {
     return response.data
   }
 
+  // Obtener vista previa de re-scraping (in-memory)
+  async scrapePreview(id) {
+    const response = await api.post(`/links/${id}/scrape-preview`)
+    return response.data
+  }
+
   // Actualizar enlace (soporta FormData para imágenes multipart)
   async updateLink(id, linkData, uploadFile = null, uploadToStorage = false) {
     let payload = linkData

@@ -9,8 +9,9 @@ import LinkForm from '../components/LinkForm'
 import ExistingTagsMenu from '../components/ExistingTagsMenu'
 import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
+import ReScrapeModal from '../components/ReScrapeModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
-import { Plus, Grid, List, Filter, X, Pencil, Trash2, ExternalLink, Save, Upload, Image as ImageIcon } from 'lucide-react'
+import { Plus, Grid, List, Filter, X, Pencil, Trash2, ExternalLink, Save, Upload, Image as ImageIcon, RefreshCw } from 'lucide-react'
 
 const isValidUrl = (value) => {
   try {
@@ -64,7 +65,8 @@ const LinkDetailSheet = ({
   onImageUrlChange,
   onFileChange,
   onRestoreImage,
-  onClearImage
+  onClearImage,
+  onReScrape
 }) => {
   if (!isOpen || !link) return null
 
@@ -258,10 +260,14 @@ const LinkDetailSheet = ({
                 </div>
               ) : null}
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button type="button" onClick={onStartEdit} className="btn-primary btn-md flex items-center">
                   <Pencil className="w-4 h-4 mr-2" />
                   Editar
+                </button>
+                <button type="button" onClick={onReScrape} className="btn-outline btn-md flex items-center">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Re-escanear
                 </button>
                 <button type="button" onClick={onDelete} className="btn-outline btn-md text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20 flex items-center">
                   <Trash2 className="w-4 h-4 mr-2" />
@@ -555,6 +561,7 @@ const MyLinks = () => {
   }, [linkIds, linksById])
 
   const [status, setStatus] = useState({ loadError: '', isUpdating: false })
+  const [reScrapeLink, setReScrapeLink] = useState(null)
   const { loadError, isUpdating } = status
   const selectedLink = selectedLinkId ? linksById[selectedLinkId] : null
 
@@ -974,12 +981,22 @@ const MyLinks = () => {
         onFileChange={handleDetailImageFileChange}
         onRestoreImage={handleRestoreDetailImage}
         onClearImage={handleClearDetailImage}
+        onReScrape={() => setReScrapeLink(selectedLink)}
       />
 
       <LinkFormModal
         isOpen={showLinkForm}
         onClose={() => setUi((prev) => ({ ...prev, showLinkForm: false }))}
         onSave={handleLinkSaved}
+      />
+
+      <ReScrapeModal
+        link={reScrapeLink}
+        isOpen={Boolean(reScrapeLink)}
+        onClose={() => setReScrapeLink(null)}
+        onUpdate={async () => {
+          await fetchLinks(filters)
+        }}
       />
 
       {/* Keyboard Help Modal */}
