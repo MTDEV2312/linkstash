@@ -36,14 +36,15 @@ export const useAuthStore = create(
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
+          const status = error?.response?.status
+          const isCold = !status || [502, 503, 504].includes(status) || error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK'
           const message = error?.response?.data?.message || error?.message || 'Error al iniciar sesión'
           try {
-            const status = error?.response?.status
             if (!status || status >= 500) {
               showError(message)
             }
           } catch (t) {}
-          return { success: false, message }
+          return { success: false, message, status, isColdStart: isCold }
         }
       },
 
@@ -69,14 +70,15 @@ export const useAuthStore = create(
           return { success: true }
         } catch (error) {
           set({ isLoading: false })
+          const status = error?.response?.status
+          const isCold = !status || [502, 503, 504].includes(status) || error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK'
           const message = error?.response?.data?.message || error?.message || 'Error al crear la cuenta'
           try {
-            const status = error?.response?.status
             if (!status || status >= 500) {
               showError(message)
             }
           } catch (t) {}
-          return { success: false, message }
+          return { success: false, message, status, isColdStart: isCold }
         }
       },
 
@@ -122,15 +124,21 @@ export const useAuthStore = create(
             isLoading: false
           })
         } catch (error) {
-          // Token/sesión inválida o expirada: limpiar almacenamiento silenciosamente
-          authService.removeAuthToken()
-          set({
-            user: null,
-            token: null,
-            session: null,
-            isAuthenticated: false,
-            isLoading: false
-          })
+          const status = error?.response?.status
+          // Explicit auth failure (401/403): clear token and state
+          if (status === 401 || status === 403) {
+            authService.removeAuthToken()
+            set({
+              user: null,
+              token: null,
+              session: null,
+              isAuthenticated: false,
+              isLoading: false
+            })
+          } else {
+            // Transient cold-start (502/503/504), network error, or timeout: retain session/token
+            set({ isLoading: false })
+          }
         }
       },
 

@@ -4,12 +4,14 @@ import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
 import { Mail, Lock, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { isColdStartError, RENDER_COLD_START_MESSAGE } from '../utils/errorUtils'
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading } = useAuthStore()
   const navigate = useNavigate()
   const [serverError, setServerError] = useState(null)
+  const [isColdStart, setIsColdStart] = useState(false)
   
   const {
     register,
@@ -17,22 +19,31 @@ const Login = () => {
     formState: { errors }
   } = useForm({ mode: 'onChange' })
 
+  const clearErrors = () => {
+    if (serverError) setServerError(null)
+    if (isColdStart) setIsColdStart(false)
+  }
+
   const onSubmit = async (data) => {
     setServerError(null)
+    setIsColdStart(false)
     try {
       const result = await login(data)
       if (result && result.success) {
         setServerError(null)
+        setIsColdStart(false)
         navigate('/dashboard')
       } else {
-        // Mostrar error devuelto por el store debajo del formulario
-        const msg = result?.message || 'Error al iniciar sesión'
+        const cold = isColdStartError(result)
+        setIsColdStart(cold)
+        const msg = cold ? RENDER_COLD_START_MESSAGE : (result?.message || 'Error al iniciar sesión')
         setServerError(msg)
         try { toast.error(msg) } catch (_) { /* ignore toast errors */ }
       }
     } catch (err) {
-      // Manejo defensivo: si login lanzara por alguna razón, mostrar mensaje
-      const msg = err?.response?.data?.message || err?.message || 'Error al iniciar sesión'
+      const cold = isColdStartError(err)
+      setIsColdStart(cold)
+      const msg = cold ? RENDER_COLD_START_MESSAGE : (err?.response?.data?.message || err?.message || 'Error al iniciar sesión')
       setServerError(msg)
       try { toast.error(msg) } catch (_) { /* ignore toast errors */ }
     }
@@ -55,7 +66,7 @@ const Login = () => {
            <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
              <LogIn className="h-6 w-6 text-primary-600 dark:text-primary-300" />
            </div>
-             <h2 data-testid="login-title" className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
+           <h2 data-testid="login-title" className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
              Inicio de Sesión
            </h2>
            {!navigator.onLine && (
@@ -63,7 +74,7 @@ const Login = () => {
                Sin conexión. Algunas funciones pueden no estar disponibles.
              </p>
            )}
-             <p className="mt-2 text-center text-sm text-gray-700 dark:text-gray-200">
+           <p className="mt-2 text-center text-sm text-gray-700 dark:text-gray-200">
              O{' '}
              <Link
                to="/register"
@@ -88,12 +99,12 @@ const Login = () => {
                 <input
                    {...register('email', {
                      required: 'Este campo es requerido',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Email inválido'
-                    },
-                    onChange: () => serverError && setServerError(null)
-                  })}
+                     pattern: {
+                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                       message: 'Email inválido'
+                     },
+                     onChange: clearErrors
+                   })}
                   type="email"
                   required
                   aria-label="Correo electrónico"
@@ -121,7 +132,7 @@ const Login = () => {
                        value: 6,
                        message: 'La contraseña debe tener al menos 6 caracteres'
                      },
-                     onChange: () => serverError && setServerError(null)
+                     onChange: clearErrors
                    })}
                    type={showPassword ? 'text' : 'password'}
                    required
@@ -143,20 +154,29 @@ const Login = () => {
                     <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   )}
                 </button>
-                  </div>
-                  {/* Hidden compatibility input appears only when visible */}
-                  {showPassword && (
-                    <input type="password" aria-hidden="true" tabIndex={-1} className="sr-only" />
-                  )}
-                  {errors.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                  )}
-                </div>
+              </div>
+              {/* Hidden compatibility input appears only when visible */}
+              {showPassword && (
+                <input type="password" aria-hidden="true" tabIndex={-1} className="sr-only" />
+              )}
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              )}
+            </div>
           </div>
 
           <div>
-            {serverError && (
-              <p className="mt-2 text-sm text-red-600">{serverError}</p>
+            {isColdStart && (
+              <div
+                role="alert"
+                className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2.5"
+              >
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse mt-1.5 flex-shrink-0" />
+                <span>{RENDER_COLD_START_MESSAGE}</span>
+              </div>
+            )}
+            {serverError && !isColdStart && (
+              <p className="mt-2 mb-4 text-sm text-red-600 dark:text-red-400">{serverError}</p>
             )}
              <button
               type="submit"
@@ -165,7 +185,7 @@ const Login = () => {
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isLoading ? (
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Iniciando sesión...
                 </div>

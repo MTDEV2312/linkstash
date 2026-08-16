@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Bookmark, Tag, Search, Zap, Shield, Cloud, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react'
+import { Bookmark, Tag, Search, Zap, Shield, Cloud, ArrowRight, CheckCircle2 } from 'lucide-react'
 import DarkModeToggle from '../components/DarkModeToggle'
+import BackendStatusIndicator from '../components/BackendStatusIndicator'
 import { useBackendWakeup } from '../hooks/useBackendWakeup'
 
 const FEATURES = [
@@ -52,33 +53,6 @@ const DEMO_LINKS = [
   { title: 'Tailwind CSS', domain: 'tailwindcss.com', tags: ['CSS', 'Tools'] }
 ]
 
-const ServerWakeupModal = ({ isChecking, attempts }) => {
-  if (!isChecking) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-20">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3 mb-3">
-          <Loader2 className="w-6 h-6 text-primary-600 dark:text-primary-400 animate-spin" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Iniciando servidor...</h3>
-        </div>
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">
-          El backend está despertando. Esto puede tomar unos segundos en el primer acceso.
-        </p>
-        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-            <div
-              className="bg-primary-600 dark:bg-primary-400 h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min((attempts / 30) * 100, 95)}%` }}
-            />
-          </div>
-          <span className="whitespace-nowrap">Intento {attempts}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 const ConnectionErrorBanner = ({ error }) => {
   if (!error) return null
 
@@ -91,9 +65,7 @@ const ConnectionErrorBanner = ({ error }) => {
   )
 }
 
-const LandingNavbar = ({ isReady }) => {
-  const disabledClass = !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
-
+const LandingNavbar = ({ isReady, isChecking, error }) => {
   return (
     <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -105,16 +77,16 @@ const LandingNavbar = ({ isReady }) => {
             <span className="text-xl font-bold text-gray-900 dark:text-white">LinkStash</span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <BackendStatusIndicator isReady={isReady} isChecking={isChecking} error={error} />
             <DarkModeToggle />
             <Link
               to="/login"
-              className={`text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-opacity ${disabledClass}`}
-              aria-disabled={!isReady}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
             >
               Iniciar sesión
             </Link>
-            <Link to="/register" className={`btn-primary btn-md ${disabledClass}`} aria-disabled={!isReady}>
+            <Link to="/register" className="btn-primary btn-md">
               Registrarse
             </Link>
           </div>
@@ -195,9 +167,7 @@ const DemoCard = () => (
   </div>
 )
 
-const HeroSection = ({ isReady }) => {
-  const disabledClass = !isReady ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''
-
+const HeroSection = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
       <div className="text-center">
@@ -217,13 +187,12 @@ const HeroSection = ({ isReady }) => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             to="/register"
-            className={`btn-primary btn-lg w-full sm:w-auto flex items-center justify-center ${disabledClass}`}
-            aria-disabled={!isReady}
+            className="btn-primary btn-lg w-full sm:w-auto flex items-center justify-center"
           >
             Comenzar gratis
             <ArrowRight className="w-5 h-5 ml-2" />
           </Link>
-          <Link to="/login" className={`btn-outline btn-lg w-full sm:w-auto ${disabledClass}`} aria-disabled={!isReady}>
+          <Link to="/login" className="btn-outline btn-lg w-full sm:w-auto">
             Iniciar sesión
           </Link>
         </div>
@@ -344,14 +313,13 @@ const LandingFooter = () => (
 )
 
 const Landing = () => {
-  const { isReady, isChecking, error, attempts } = useBackendWakeup()
+  const { isReady, isChecking, error } = useBackendWakeup()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-primary-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800">
-      <ServerWakeupModal isChecking={isChecking} attempts={attempts} />
       <ConnectionErrorBanner error={error} />
-      <LandingNavbar isReady={isReady} />
-      <HeroSection isReady={isReady} />
+      <LandingNavbar isReady={isReady} isChecking={isChecking} error={error} />
+      <HeroSection />
       <FeaturesSection />
       <BenefitsSection />
       <LandingFooter />

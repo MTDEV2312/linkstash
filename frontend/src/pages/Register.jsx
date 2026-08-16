@@ -4,13 +4,15 @@ import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../stores/authStore'
 import { Mail, Lock, User, Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react'
 import FormError from '../components/FormError'
-import extractServerMessage from '../utils/errorUtils'
+import extractServerMessage, { isColdStartError, RENDER_COLD_START_MESSAGE } from '../utils/errorUtils'
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const { register: registerUser, isLoading } = useAuthStore()
   const navigate = useNavigate()
+  const [serverError, setServerError] = useState(null)
+  const [isColdStart, setIsColdStart] = useState(false)
   
   const {
     register,
@@ -21,22 +23,32 @@ const Register = () => {
 
   const password = watch('password')
 
+  const clearErrors = () => {
+    if (serverError) setServerError(null)
+    if (isColdStart) setIsColdStart(false)
+  }
+
   const onSubmit = async (data) => {
     const { confirmPassword, ...userData } = data
     setServerError(null)
+    setIsColdStart(false)
     try {
       const result = await registerUser(userData)
       if (result.success) {
+        setServerError(null)
+        setIsColdStart(false)
         navigate('/dashboard')
       } else {
-        setServerError(result.message || 'Error al crear la cuenta')
+        const cold = isColdStartError(result)
+        setIsColdStart(cold)
+        setServerError(cold ? RENDER_COLD_START_MESSAGE : (result.message || 'Error al crear la cuenta'))
       }
     } catch (err) {
-      setServerError(extractServerMessage(err))
+      const cold = isColdStartError(err)
+      setIsColdStart(cold)
+      setServerError(cold ? RENDER_COLD_START_MESSAGE : extractServerMessage(err))
     }
   }
-
-  const [serverError, setServerError] = useState(null)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 relative">
@@ -71,7 +83,16 @@ const Register = () => {
         </div>
         
          <form className="mt-6 sm:mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {serverError && <FormError message={serverError} />}
+          {isColdStart && (
+            <div
+              role="alert"
+              className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2.5"
+            >
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse mt-1.5 flex-shrink-0" />
+              <span>{RENDER_COLD_START_MESSAGE}</span>
+            </div>
+          )}
+          {serverError && !isColdStart && <FormError message={serverError} />}
           <div className="space-y-4">
             <div>
                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -95,10 +116,9 @@ const Register = () => {
                     pattern: {
                       value: /^[a-zA-Z0-9_-]+$/,
                       message: 'Solo se permiten letras, números, guiones y guiones bajos'
-                    }
-          ,
-            onChange: () => serverError && setServerError(null)
-          })}
+                    },
+                    onChange: clearErrors
+                  })}
                   type="text"
                   className="input pl-10"
                   placeholder="mi_usuario"
@@ -124,7 +144,7 @@ const Register = () => {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                       message: 'Email inválido'
                     },
-                    onChange: () => serverError && setServerError(null)
+                    onChange: clearErrors
                   })}
                   type="email"
                   required
@@ -157,7 +177,7 @@ const Register = () => {
                         value: /^(?=.*[A-Za-z])(?=.*\d).+$/,
                         message: 'La contraseña debe incluir letras y números'
                       },
-                      onChange: () => serverError && setServerError(null)
+                      onChange: clearErrors
                     })}
                     type={showPassword ? 'text' : 'password'}
                     required
@@ -198,12 +218,13 @@ const Register = () => {
                       required: 'Debes confirmar la contraseña',
                       validate: value =>
                         value === password || 'Las contraseñas no coinciden',
-                      onChange: () => serverError && setServerError(null)
+                      onChange: clearErrors
                     })}
                     type={showConfirmPassword ? 'text' : 'password'}
+                    aria-label="Confirmar contraseña"
                     data-testid="register-confirm"
                     className="input pl-10 pr-10"
-                    placeholder="••••••••"
+                    placeholder="Confirmar contraseña"
                   />
                  <button
                   type="button"
@@ -232,7 +253,7 @@ const Register = () => {
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
                {isLoading ? (
-                <div className="flex items-center">
+                <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Creando cuenta...
                 </div>

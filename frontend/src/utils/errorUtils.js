@@ -32,6 +32,30 @@ export function extractServerMessage(error) {
 
 export default extractServerMessage
 
+export const RENDER_COLD_START_MESSAGE =
+  'El servidor se está iniciando (Render free-tier). Por favor espera unos momentos e intenta nuevamente.'
+
+// Helper to determine if an error is due to a server cold start, timeout, or network availability issue
+export function isColdStartError(error) {
+  if (!error) return false
+  if (error.isColdStart) return true
+  const status = error?.response?.status || error?.status
+  if (status && [502, 503, 504].includes(status)) return true
+  const code = error?.code || error?.response?.data?.code
+  if (['ECONNABORTED', 'ERR_NETWORK', 'ETIMEDOUT'].includes(code)) return true
+  const msg = (error?.message || error?.response?.data?.message || '').toLowerCase()
+  if (
+    msg.includes('network error') ||
+    msg.includes('timeout') ||
+    msg.includes('cold start') ||
+    msg.includes('iniciando servidor') ||
+    msg.includes('service unavailable')
+  ) {
+    return true
+  }
+  return false
+}
+
 // Decide if the error should trigger a toast (server/internal errors)
 export function shouldToastError(error) {
   const status = error?.response?.status
