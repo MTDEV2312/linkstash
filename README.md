@@ -15,9 +15,9 @@ LinkStash/
 
 Cada sub-proyecto (backend y frontend) incluye:
 
-- **`.npmrc`**: Configuración de seguridad npm
+- **`.npmrc`**: Configuración de seguridad y resolución pnpm
 - **`package.json`**: Versiones fijas y overrides
-- **`package-lock.json`**: Lockfiles para reproducibilidad
+- **`pnpm-lock.yaml`**: Lockfiles para reproducibilidad
 
 ## 📋 Características
 
@@ -38,6 +38,7 @@ Cada sub-proyecto (backend y frontend) incluye:
 
 ### Backend
 - Node.js + Express
+- pnpm (gestor de paquetes)
 - MongoDB + Mongoose
 - Redis + BullMQ (colas de trabajo, opcional)
 - JWT para autenticación
@@ -47,6 +48,7 @@ Cada sub-proyecto (backend y frontend) incluye:
 
 ### Frontend
 - React 18.2.0 + Vite 7.1.7
+- pnpm (gestor de paquetes)
 - React Router DOM 6.15.0
 - Tailwind CSS 3.3.3
 - Axios 1.12.2 para HTTP requests
@@ -58,7 +60,8 @@ Cada sub-proyecto (backend y frontend) incluye:
 ## 🚀 Instalación y Configuración
 
 ### Prerrequisitos
-- Node.js (v16 o superior)
+- Node.js (v18 o superior)
+- pnpm (v9 o superior)
 - MongoDB (local o Atlas)
 - Git
 
@@ -74,14 +77,17 @@ cd LinkStash
 cd backend
 
 # Instalar dependencias del backend
-npm install
+pnpm install
 
 # Configurar variables de entorno
 cp .env.example .env
 # Editar .env con tus configuraciones
 
+# Ejecutar tests unitarios
+pnpm run test:unit
+
 # Iniciar servidor de desarrollo
-npm run dev
+pnpm run dev
 ```
 
 ### 3. Configurar Frontend
@@ -90,22 +96,22 @@ npm run dev
 cd frontend
 
 # Instalar dependencias
-npm install
+pnpm install
 
 # Configurar variables de entorno
 cp .env.example .env.local
 # Editar .env.local con tus configuraciones
 
 # Iniciar servidor de desarrollo (puerto 5173)
-npm run dev
+pnpm run dev
 
 # Ejecutar tests
-npm test              # Tests unitarios
-npm run test:e2e      # Tests E2E con Playwright
+pnpm test              # Tests unitarios con Vitest
+pnpm run test:e2e      # Tests E2E con Playwright
 
 # Build de producción
-npm run build
-npm run preview
+pnpm run build
+pnpm run preview
 ```
 
 ### 4. Configurar MongoDB y Redis (opcional)
@@ -119,7 +125,10 @@ npm run preview
 LinkStash/
 ├── backend/
 │   ├── app.js                    # Servidor principal
-│   ├── package.json
+│   ├── package.json              # Configuración y dependencias
+│   ├── pnpm-lock.yaml            # Lockfile determinista de pnpm
+│   ├── pnpm-workspace.yaml       # Configuración de builds pnpm
+│   ├── .npmrc                    # Políticas de resolución y seguridad
 │   ├── .env
 │   └── src/
 │       ├── config/
@@ -147,6 +156,9 @@ LinkStash/
     │   ├── sw.js               # Service Worker
     │   └── offline.html        # Página offline
     ├── package.json
+    ├── pnpm-lock.yaml            # Lockfile determinista de pnpm
+    ├── pnpm-workspace.yaml       # Configuración de builds pnpm
+    ├── .npmrc                    # Políticas de resolución y seguridad
     ├── vite.config.js
     ├── vitest.config.js
     └── playwright.config.js

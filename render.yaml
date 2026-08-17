@@ -3,8 +3,8 @@ services:
   - type: web
     name: linkstash-backend
     env: node
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    buildCommand: cd backend && corepack enable && pnpm install --frozen-lockfile
+    startCommand: cd backend && pnpm start
     region: oregon
     plan: free
     healthCheckPath: /

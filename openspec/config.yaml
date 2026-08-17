@@ -8,10 +8,10 @@ testing:
   detected_date: "2026-07-14"
   runners:
     frontend:
-      command: "npm run test"
+      command: "pnpm run test"
       framework: "vitest"
     backend:
-      command: "npm run test:unit && npm run test:tags"
+      command: "pnpm run test:unit && pnpm run test:tags"
       framework: "node (vanilla scripts)"
   layers:
     unit:
@@ -25,11 +25,11 @@ testing:
       tool: "@playwright/test (frontend)"
   coverage:
     available: true
-    command: "npm run test:coverage (frontend)"
+    command: "pnpm run test:coverage (frontend)"
   quality:
     linter:
       available: true
-      command: "npm run lint (both frontend and backend)"
+      command: "pnpm run lint (both frontend and backend)"
     type_checker:
       available: false
       command: null
