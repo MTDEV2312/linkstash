@@ -8,6 +8,7 @@ const useTagStore = create((set, get) => ({
   tagsNeedRefresh: false, // Flag para indicar que necesita refrescar
 
   fetchTags: async () => {
+    if (get().isLoading) return { success: false }
     set({ isLoading: true })
     try {
       const data = await TagService.getAllTags()
