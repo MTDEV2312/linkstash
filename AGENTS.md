@@ -130,7 +130,7 @@ Available languages:
 - Serverless functions have single endpoint (no subpaths)
 - Storage: Upload files to buckets, store URLs in database
 - AI operations are OpenAI-compatible
-- **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
+- **EXTRA IMPORTANT**: Uses Tailwind CSS v4 with `@tailwindcss/vite`.
 
 ## Project Git Commit Workflow
 
