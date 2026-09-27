@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { RefreshCw, Check, X, AlertCircle, AlertTriangle, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { RefreshCw, Check, X, AlertCircle, Loader2 } from 'lucide-react'
 import { useLinkStore } from '../stores/linkStore'
 import linkService from '../services/linkService'
 import OptimizedImage from './OptimizedImage'
@@ -170,7 +170,7 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="rescrape-modal-title"
@@ -180,18 +180,21 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
         }
       }}
     >
-      <div className="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+      <div className="relative w-full max-w-3xl bg-[var(--surface)] rounded-lg shadow-2xl border border-[var(--border-strong)] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/90">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 rounded-lg border border-primary-200/50 dark:border-primary-800/40">
-              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface-2)]">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded border border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent)]">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </div>
             <div>
-              <h2 id="rescrape-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+              <span className="mono text-[9px] text-[var(--accent)] uppercase font-semibold block">
+                METADATA DIFF // MERGE
+              </span>
+              <h2 id="rescrape-modal-title" className="text-lg font-bold font-sans tracking-tight text-[var(--text)]">
                 Re-escanear enlace
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-md">
+              <p className="mono text-[10px] text-[var(--muted)] truncate max-w-md">
                 {link.url}
               </p>
             </div>
@@ -201,9 +204,9 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Cerrar modal"
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+            className="p-1.5 text-[var(--muted)] hover:text-[var(--text)] rounded border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -214,29 +217,29 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
               data-testid="rescrape-loading-skeleton"
               className="space-y-4 py-8 flex flex-col items-center justify-center text-center"
             >
-              <Loader2 className="w-10 h-10 animate-spin text-primary-500 mb-3" />
-              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)] mb-2" />
+              <h3 className="text-base font-bold font-sans text-[var(--text)]">
                 Obteniendo vista previa del enlace...
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm">
+              <p className="mono text-[11px] text-[var(--muted)] max-w-sm">
                 Extrayendo en memoria el título, descripción e imagen actualizados desde el sitio web remoto.
               </p>
 
-              <div className="w-full max-w-md space-y-3 mt-4 animate-pulse">
-                <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-                <div className="h-28 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+              <div className="w-full max-w-md space-y-2.5 mt-4">
+                <div className="h-10 loading-skeleton rounded" />
+                <div className="h-16 loading-skeleton rounded" />
+                <div className="h-24 loading-skeleton rounded" />
               </div>
             </div>
           )}
 
           {error && !isLoading && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/60 rounded-xl space-y-3">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 text-sm text-red-700 dark:text-red-300">
-                  <p className="font-medium">No se pudo re-escanear el enlace</p>
-                  <p className="text-xs mt-1 text-red-600 dark:text-red-400">{error}</p>
+            <div className="p-4 rounded border border-[var(--danger)]/50 bg-[var(--danger)]/10 space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-[var(--danger)] flex-shrink-0 mt-0.5" />
+                <div className="flex-1 text-xs text-[var(--danger)]">
+                  <p className="font-semibold font-mono uppercase">No se pudo re-escanear el enlace</p>
+                  <p className="mt-1 font-mono">{error}</p>
                 </div>
               </div>
               <div className="flex justify-end">
@@ -244,9 +247,9 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
                   type="button"
                   data-testid="btn-retry-rescrape"
                   onClick={fetchScrapePreview}
-                  className="btn-outline btn-sm text-red-700 dark:text-red-300 border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center"
+                  className="btn-outline btn-sm text-[var(--danger)] flex items-center gap-1.5"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  <RefreshCw className="w-3.5 h-3.5" />
                   Reintentar
                 </button>
               </div>
@@ -254,109 +257,93 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
           )}
 
           {!isLoading && !error && scrapedData && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Quick toolbar */}
-              <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700 text-xs">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Selecciona los campos que deseas actualizar en tu enlace guardado:
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border)] text-xs font-mono">
+                <span className="text-[var(--muted)] text-[11px]">
+                  Selecciona los campos para aplicar al enlace guardado:
                 </span>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     data-testid="btn-select-all"
                     onClick={handleSelectAll}
-                    className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
+                    className="text-[var(--accent)] hover:underline font-semibold cursor-pointer"
                   >
                     Seleccionar cambios
                   </button>
-                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span className="text-[var(--border)]">|</span>
                   <button
                     type="button"
                     data-testid="btn-deselect-all"
                     onClick={handleDeselectAll}
-                    className="text-gray-500 dark:text-gray-400 hover:underline"
+                    className="text-[var(--muted)] hover:text-[var(--text)] hover:underline cursor-pointer"
                   >
                     Deseleccionar todo
                   </button>
                 </div>
               </div>
 
-              {/* Comparison Table / Grid */}
+              {/* Comparison Grid */}
               <div className="space-y-4">
                 {/* Title Diff */}
                 <div
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`p-4 rounded border transition-all ${
                     selectedFields.title
-                      ? 'border-primary-500 dark:border-primary-500 bg-primary-50/30 dark:bg-primary-900/20 shadow-sm'
-                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 hover:border-gray-300 dark:hover:border-gray-600'
+                      ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-sm'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <span className="mono text-[10px] font-semibold uppercase text-[var(--muted)]">
                         Título
                       </span>
-                      {diffInfo.title.isDifferent && (
-                        <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 font-semibold px-2 py-0.5 rounded-full">
-                          Modificado
+                      {diffInfo.title.isDifferent ? (
+                        <span className="mono text-[9px] bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 px-1.5 py-0.5 rounded font-semibold">
+                          MODIFICADO
+                        </span>
+                      ) : (
+                        <span className="mono text-[9px] text-[var(--subtle)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                          SIN CAMBIOS
                         </span>
                       )}
                     </div>
-                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         data-testid="checkbox-title"
                         checked={selectedFields.title}
                         disabled={diffInfo.title.isEmpty}
                         onChange={() => handleFieldToggle('title')}
-                        className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-800 h-4 w-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded border-[var(--border)] text-[var(--accent)] h-4 w-4 disabled:opacity-40"
                       />
-                      <span
-                        className={`text-xs font-medium ${
-                          diffInfo.title.isEmpty
-                            ? 'text-gray-400 dark:text-gray-500'
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
+                      <span className="mono text-[10px] text-[var(--muted)]">
                         {diffInfo.title.isEmpty ? 'No disponible' : 'Aplicar cambio'}
                       </span>
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div className="p-3.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-[var(--surface-2)] rounded border border-[var(--border)]">
+                      <p className="mono text-[9px] text-[var(--muted)] uppercase mb-1">
                         Valor actual
                       </p>
-                      <p className="text-gray-900 dark:text-gray-100 font-medium break-words">
-                        {link.title || <span className="italic text-gray-400 dark:text-gray-500">Sin título</span>}
+                      <p className="text-[var(--text)] font-sans font-medium break-words">
+                        {link.title || <span className="italic text-[var(--muted)]">Sin título</span>}
                       </p>
                     </div>
                     <div
-                      className={`p-3.5 rounded-lg border transition-colors ${
+                      className={`p-3 rounded border transition-colors ${
                         diffInfo.title.isDifferent
-                          ? 'bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700/60'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
+                          ? 'border-[var(--accent)]/50 bg-[var(--surface-3)]'
+                          : 'bg-[var(--surface-2)] border-[var(--border)]'
                       }`}
                     >
-                      <p
-                        className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${
-                          diffInfo.title.isDifferent
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                        }`}
-                      >
+                      <p className={`mono text-[9px] uppercase mb-1 ${diffInfo.title.isDifferent ? 'text-[var(--accent)] font-semibold' : 'text-[var(--muted)]'}`}>
                         Nuevo valor (Scraped)
                       </p>
-                      <p
-                        className={`break-words ${
-                          diffInfo.title.isEmpty
-                            ? 'italic text-gray-400 dark:text-gray-500'
-                            : diffInfo.title.isDifferent
-                            ? 'text-emerald-950 dark:text-emerald-200 font-medium'
-                            : 'text-gray-900 dark:text-gray-100 font-medium'
-                        }`}
-                      >
+                      <p className={`break-words font-sans ${diffInfo.title.isDifferent ? 'text-[var(--text)] font-semibold' : 'text-[var(--text)]'}`}>
                         {scrapedData.title || '(vacío)'}
                       </p>
                     </div>
@@ -365,78 +352,62 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
 
                 {/* Description Diff */}
                 <div
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`p-4 rounded border transition-all ${
                     selectedFields.description
-                      ? 'border-primary-500 dark:border-primary-500 bg-primary-50/30 dark:bg-primary-900/20 shadow-sm'
-                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 hover:border-gray-300 dark:hover:border-gray-600'
+                      ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-sm'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <span className="mono text-[10px] font-semibold uppercase text-[var(--muted)]">
                         Descripción
                       </span>
-                      {diffInfo.description.isDifferent && (
-                        <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 font-semibold px-2 py-0.5 rounded-full">
-                          Modificado
+                      {diffInfo.description.isDifferent ? (
+                        <span className="mono text-[9px] bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 px-1.5 py-0.5 rounded font-semibold">
+                          MODIFICADO
+                        </span>
+                      ) : (
+                        <span className="mono text-[9px] text-[var(--subtle)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                          SIN CAMBIOS
                         </span>
                       )}
                     </div>
-                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         data-testid="checkbox-description"
                         checked={selectedFields.description}
                         disabled={diffInfo.description.isEmpty}
                         onChange={() => handleFieldToggle('description')}
-                        className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-800 h-4 w-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded border-[var(--border)] text-[var(--accent)] h-4 w-4 disabled:opacity-40"
                       />
-                      <span
-                        className={`text-xs font-medium ${
-                          diffInfo.description.isEmpty
-                            ? 'text-gray-400 dark:text-gray-500'
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
+                      <span className="mono text-[10px] text-[var(--muted)]">
                         {diffInfo.description.isEmpty ? 'No disponible' : 'Aplicar cambio'}
                       </span>
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div className="p-3.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-[var(--surface-2)] rounded border border-[var(--border)]">
+                      <p className="mono text-[9px] text-[var(--muted)] uppercase mb-1">
                         Valor actual
                       </p>
-                      <p className="text-gray-700 dark:text-gray-300 text-xs line-clamp-4 break-words leading-relaxed">
-                        {link.description || <span className="italic text-gray-400 dark:text-gray-500">Sin descripción</span>}
+                      <p className="text-[var(--text)] line-clamp-4 break-words leading-relaxed">
+                        {link.description || <span className="italic text-[var(--muted)]">Sin descripción</span>}
                       </p>
                     </div>
                     <div
-                      className={`p-3.5 rounded-lg border transition-colors ${
+                      className={`p-3 rounded border transition-colors ${
                         diffInfo.description.isDifferent
-                          ? 'bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700/60'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
+                          ? 'border-[var(--accent)]/50 bg-[var(--surface-3)]'
+                          : 'bg-[var(--surface-2)] border-[var(--border)]'
                       }`}
                     >
-                      <p
-                        className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${
-                          diffInfo.description.isDifferent
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                        }`}
-                      >
+                      <p className={`mono text-[9px] uppercase mb-1 ${diffInfo.description.isDifferent ? 'text-[var(--accent)] font-semibold' : 'text-[var(--muted)]'}`}>
                         Nuevo valor (Scraped)
                       </p>
-                      <p
-                        className={`text-xs line-clamp-4 break-words leading-relaxed ${
-                          diffInfo.description.isEmpty
-                            ? 'italic text-gray-400 dark:text-gray-500'
-                            : diffInfo.description.isDifferent
-                            ? 'text-emerald-950 dark:text-emerald-200 font-medium'
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
+                      <p className={`line-clamp-4 break-words leading-relaxed ${diffInfo.description.isDifferent ? 'text-[var(--text)] font-medium' : 'text-[var(--text)]'}`}>
                         {scrapedData.description || '(vacío)'}
                       </p>
                     </div>
@@ -445,47 +416,45 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
 
                 {/* Image Diff */}
                 <div
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`p-4 rounded border transition-all ${
                     selectedFields.image
-                      ? 'border-primary-500 dark:border-primary-500 bg-primary-50/30 dark:bg-primary-900/20 shadow-sm'
-                      : 'border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 hover:border-gray-300 dark:hover:border-gray-600'
+                      ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-sm'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <span className="mono text-[10px] font-semibold uppercase text-[var(--muted)]">
                         Imagen de portada
                       </span>
-                      {diffInfo.image.isDifferent && (
-                        <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50 font-semibold px-2 py-0.5 rounded-full">
-                          Modificado
+                      {diffInfo.image.isDifferent ? (
+                        <span className="mono text-[9px] bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 px-1.5 py-0.5 rounded font-semibold">
+                          MODIFICADO
+                        </span>
+                      ) : (
+                        <span className="mono text-[9px] text-[var(--subtle)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                          SIN CAMBIOS
                         </span>
                       )}
                     </div>
-                    <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         data-testid="checkbox-image"
                         checked={selectedFields.image}
                         disabled={diffInfo.image.isEmpty}
                         onChange={() => handleFieldToggle('image')}
-                        className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-primary-600 focus:ring-primary-500 dark:focus:ring-offset-gray-800 h-4 w-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded border-[var(--border)] text-[var(--accent)] h-4 w-4 disabled:opacity-40"
                       />
-                      <span
-                        className={`text-xs font-medium ${
-                          diffInfo.image.isEmpty
-                            ? 'text-gray-400 dark:text-gray-500'
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
+                      <span className="mono text-[10px] text-[var(--muted)]">
                         {diffInfo.image.isEmpty ? 'No disponible' : 'Aplicar cambio'}
                       </span>
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div className="p-3.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-[var(--surface-2)] rounded border border-[var(--border)]">
+                      <p className="mono text-[9px] text-[var(--muted)] uppercase mb-2">
                         Valor actual
                       </p>
                       {link.image ? (
@@ -494,31 +463,24 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
                           alt="Imagen actual"
                           width={300}
                           height={140}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                          className="w-full h-28 object-cover rounded border border-[var(--border)]"
                           isStored={link.imageIsStored}
                         />
                       ) : (
-                        <div className="w-full h-32 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex flex-col items-center justify-center text-xs text-gray-400 dark:text-gray-500">
-                          <ImageIcon className="w-6 h-6 mb-1 text-gray-400 dark:text-gray-500" />
+                        <div className="w-full h-28 rounded border border-dashed border-[var(--border)] flex items-center justify-center mono text-[10px] text-[var(--muted)]">
                           Sin imagen
                         </div>
                       )}
                     </div>
 
                     <div
-                      className={`p-3.5 rounded-lg border transition-colors ${
+                      className={`p-3 rounded border transition-colors ${
                         diffInfo.image.isDifferent
-                          ? 'bg-emerald-50/60 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700/60'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'
+                          ? 'border-[var(--accent)]/50 bg-[var(--surface-3)]'
+                          : 'bg-[var(--surface-2)] border-[var(--border)]'
                       }`}
                     >
-                      <p
-                        className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${
-                          diffInfo.image.isDifferent
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                        }`}
-                      >
+                      <p className={`mono text-[9px] uppercase mb-2 ${diffInfo.image.isDifferent ? 'text-[var(--accent)] font-semibold' : 'text-[var(--muted)]'}`}>
                         Nuevo valor (Scraped)
                       </p>
                       {scrapedData.image ? (
@@ -527,11 +489,10 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
                           alt="Nueva imagen"
                           width={300}
                           height={140}
-                          className="w-full h-32 object-cover rounded-lg border border-emerald-300 dark:border-emerald-700/60"
+                          className="w-full h-28 object-cover rounded border border-[var(--border)]"
                         />
                       ) : (
-                        <div className="w-full h-32 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex flex-col items-center justify-center text-xs text-gray-400 dark:text-gray-500">
-                          <ImageIcon className="w-6 h-6 mb-1 text-gray-400 dark:text-gray-500" />
+                        <div className="w-full h-28 rounded border border-dashed border-[var(--border)] flex items-center justify-center mono text-[10px] text-[var(--muted)]">
                           Sin imagen extraída
                         </div>
                       )}
@@ -544,7 +505,7 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/90">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border)] bg-[var(--surface-2)]">
           <button
             type="button"
             data-testid="btn-cancel-rescrape"
@@ -560,16 +521,16 @@ const ReScrapeModal = ({ link, isOpen, onClose, onUpdate }) => {
             data-testid="btn-apply-changes"
             onClick={handleApplyChanges}
             disabled={isLoading || isSubmitting || !scrapedData || !hasAnySelected}
-            className="btn-primary btn-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary btn-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Guardando...
               </>
             ) : (
               <>
-                <Check className="w-4 h-4 mr-2" />
+                <Check className="w-4 h-4" />
                 Aplicar cambios
               </>
             )}

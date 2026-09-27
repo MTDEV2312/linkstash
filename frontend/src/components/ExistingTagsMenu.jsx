@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Tag, X } from 'lucide-react'
+import { Check, ChevronDown, Tag as TagIcon, X } from 'lucide-react'
 
 const EMPTY_TAGS = []
 
@@ -27,7 +27,7 @@ const ExistingTagsMenu = ({
   onChange,
   label = 'Etiquetas',
   emptyText = 'No hay etiquetas creadas todavía',
-  helperText = 'Creá etiquetas desde la pestaña Etiquetas.'
+  helperText = 'Asigna etiquetas de tu catálogo para organizar este enlace.'
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
@@ -75,28 +75,33 @@ const ExistingTagsMenu = ({
 
   return (
     <div ref={containerRef} className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      {label && (
+        <label className="block text-xs font-mono font-medium text-[var(--muted)] tracking-wider">
+          {label.toUpperCase()}
+        </label>
+      )}
 
       <button
         type="button"
+        data-testid="tag-select"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="input w-full flex items-center justify-between text-left"
+        className="w-full flex items-center justify-between text-left min-h-[46px] px-3.5 bg-[var(--surface)] border border-[var(--border)] rounded text-xs text-[var(--text)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
       >
-        <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-          <Tag className="w-4 h-4 text-gray-400" />
+        <span className="flex items-center gap-2 text-xs font-mono text-[var(--text)]">
+          <TagIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
           {normalizedSelectedTags.length > 0
             ? `${normalizedSelectedTags.length} seleccionada${normalizedSelectedTags.length > 1 ? 's' : ''}`
             : 'Seleccionar etiquetas existentes'}
         </span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-[var(--muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 shadow-sm">
+        <div className="border border-[var(--border-strong)] rounded-lg bg-[var(--surface)] shadow-xl overflow-hidden animate-fade-in z-30 relative">
           {normalizedOptions.length === 0 ? (
-            <p className="p-3 text-sm text-gray-500 dark:text-gray-400">{emptyText}</p>
+            <p className="p-3 text-xs font-mono text-[var(--muted)]">{emptyText}</p>
           ) : (
-            <div className="max-h-52 overflow-y-auto py-1">
+            <div className="max-h-52 overflow-y-auto py-1 divide-y divide-[var(--border)]">
               {normalizedOptions.map((tagName) => {
                 const isSelected = selectedSet.has(tagName)
                 return (
@@ -104,10 +109,10 @@ const ExistingTagsMenu = ({
                     key={tagName}
                     type="button"
                     onClick={() => toggleTag(tagName)}
-                    className="w-full px-3 py-2 flex items-center justify-between text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-mono hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
                   >
-                    <span className="truncate text-gray-700 dark:text-gray-200">{tagName}</span>
-                    {isSelected && <Check className="w-4 h-4 text-primary-600" />}
+                    <span className="truncate text-[var(--text)]">#{tagName}</span>
+                    {isSelected && <Check className="w-4 h-4 text-[var(--accent)]" />}
                   </button>
                 )
               })}
@@ -117,17 +122,18 @@ const ExistingTagsMenu = ({
       )}
 
       {normalizedSelectedTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
           {normalizedSelectedTags.map((tagName) => (
             <span
               key={tagName}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-mono text-[11px] bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)]"
             >
-              {tagName}
+              <span className="text-[var(--accent)]">#</span>
+              <span>{tagName}</span>
               <button
                 type="button"
                 onClick={() => toggleTag(tagName)}
-                className="hover:text-primary-900 dark:hover:text-white"
+                className="text-[var(--muted)] hover:text-[var(--danger)] transition-colors cursor-pointer"
                 aria-label={`Quitar etiqueta ${tagName}`}
               >
                 <X className="w-3 h-3" />
@@ -135,13 +141,19 @@ const ExistingTagsMenu = ({
             </span>
           ))}
 
-          <button type="button" onClick={clearAll} className="text-xs text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-[10px] font-mono text-[var(--muted)] hover:text-[var(--danger)] transition-colors ml-1 cursor-pointer"
+          >
             Limpiar
           </button>
         </div>
       )}
 
-      <p className="text-xs text-gray-500 dark:text-gray-400">{helperText}</p>
+      {helperText && (
+        <p className="text-[11px] font-mono text-[var(--muted)]">{helperText}</p>
+      )}
     </div>
   )
 }

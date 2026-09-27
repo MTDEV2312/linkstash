@@ -1,7 +1,6 @@
 import React from 'react'
-import { Tag as TagIcon, Edit, Trash } from 'lucide-react'
+import { Tag as TagIcon, Pencil, Trash2 } from 'lucide-react'
 
-// Helpers para contraste de texto según color de fondo
 const hexToRgb = (hex) => {
   if (!hex) return null
   const cleaned = hex.replace('#', '')
@@ -22,50 +21,56 @@ const getContrastTextColor = (hex) => {
 }
 
 const TagCard = ({ tag, onEdit, onDelete }) => {
+  const tagColor = tag.color || '#84CC16'
+  const iconColor = getContrastTextColor(tagColor)
+
   return (
-    <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3 overflow-hidden">
+    <div className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--border-strong)] rounded p-3.5 transition-colors group">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: tag.color || '#F3F4F6' }}
+          className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 border border-black/10 shadow-xs"
+          style={{ backgroundColor: tagColor }}
         >
-          {/* aplicar color contrastante al icono para accesibilidad */}
-          <TagIcon className="w-4 h-4" style={{ color: getContrastTextColor(tag.color) }} />
+          <TagIcon className="w-4 h-4" style={{ color: iconColor }} />
         </div>
 
-        <div className="min-w-0">
-          <div className="font-medium text-gray-900 dark:text-white truncate">{tag.name}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-sans font-bold text-sm text-[var(--text)] tracking-tight truncate">
+              #{tag.name}
+            </span>
+            {tag.count !== undefined && (
+              <span className="mono text-[9px] px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)]">
+                {tag.count}
+              </span>
+            )}
+          </div>
 
           {tag.description && (
-            <div
-              className="text-xs text-gray-500"
-              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-            >
+            <p className="text-xs text-[var(--muted)] line-clamp-1 mt-0.5">
               {tag.description}
-            </div>
-          )}
-
-          {tag.count !== undefined && (
-            <div className="text-xs text-gray-500">{tag.count} enlaces</div>
+            </p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 flex-shrink-0 pl-2">
         <button
           onClick={() => onEdit && onEdit(tag)}
-          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-          title="Editar"
+          className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
+          title="Editar etiqueta"
+          aria-label={`Editar etiqueta ${tag.name}`}
         >
-          <Edit className="w-4 h-4" />
+          <Pencil className="w-3.5 h-3.5" />
         </button>
 
         <button
           onClick={() => onDelete && onDelete(tag._id)}
-          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-          title="Eliminar"
+          className="p-1.5 rounded hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+          title="Eliminar etiqueta"
+          aria-label={`Eliminar etiqueta ${tag.name}`}
         >
-          <Trash className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

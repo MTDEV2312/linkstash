@@ -2,332 +2,101 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLinkStore } from '../stores/linkStore'
 import useTagStore from '../stores/tagStore'
 import LinkCard from '../components/LinkCard'
-import OptimizedImage from '../components/OptimizedImage'
+import LinkDetailSheet from '../components/LinkDetailSheet'
 import LinkCardSkeleton from '../components/Skeletons/LinkCardSkeleton'
 import UpdateIndicator from '../components/UpdateIndicator'
 import LinkForm from '../components/LinkForm'
 import ExistingTagsMenu from '../components/ExistingTagsMenu'
 import SearchBar from '../components/SearchBar'
 import KeyboardHelpModal from '../components/KeyboardHelpModal'
-import ReScrapeModal from '../components/ReScrapeModal'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
-import { Plus, Grid, List, Filter, X, Pencil, Trash2, ExternalLink, Save, Upload, Image as ImageIcon, RefreshCw } from 'lucide-react'
+import { Plus, LayoutGrid, List, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react'
 
-const isValidUrl = (value) => {
-  try {
-    new URL(value.startsWith('http') ? value : `https://${value}`)
-    return true
-  } catch {
-    return false
-  }
-}
+const MyLinksHeader = ({ pagination, viewMode, onToggleFilters, onSetViewMode, onOpenForm, hasActiveFilters }) => (
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-[var(--border)]">
+    <div>
+      <span className="mono text-[10px] text-[var(--accent)] font-semibold uppercase tracking-wider block mb-1">
+        CATÁLOGO PRINCIPAL
+      </span>
+      <h1 className="text-2xl sm:text-3xl font-bold font-sans tracking-tight text-[var(--text)]">
+        Mis Enlaces
+      </h1>
+      <p className="mono text-xs text-[var(--muted)] mt-1">
+        {pagination?.totalLinks || 0} enlaces registrados · {pagination?.limit || 6} por página
+      </p>
+    </div>
 
-const normalizeUrl = (url) => {
-  if (!url) return ''
-  return url.startsWith('http') ? url : `https://${url}`
-}
-
-const normalizeTagSelections = (tags = []) => {
-  return [...new Set((Array.isArray(tags) ? tags : [])
-    .flatMap((tagItem) => {
-      const normalized = typeof tagItem === 'object' && tagItem !== null
-        ? (tagItem.name || tagItem._id || '').trim()
-        : String(tagItem || '').trim()
-
-      return normalized ? [normalized] : []
-    }))]
-}
-
-const formatDateLong = (value) => {
-  if (!value) return 'N/A'
-  return new Date(value).toLocaleString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const LinkDetailSheet = ({
-  link,
-  allTags,
-  isOpen,
-  isEditing,
-  formState,
-  onClose,
-  onStartEdit,
-  onCancelEdit,
-  onDelete,
-  onSave,
-  onFormChange,
-  onTagsChange,
-  onImageUrlChange,
-  onFileChange,
-  onRestoreImage,
-  onClearImage,
-  onReScrape
-}) => {
-  if (!isOpen || !link) return null
-
-  const resolveTagName = (tagItem) => {
-    if (typeof tagItem === 'object' && tagItem !== null) {
-      return tagItem.name || tagItem._id || 'Tag'
-    }
-
-    const fromCatalog = (allTags || []).find((tag) => tag._id === tagItem || tag.name === tagItem)
-    return fromCatalog?.name || tagItem
-  }
-
-  return (
-    <div className="fixed inset-0 z-50">
+    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+      {/* Filter Toggle */}
       <button
         type="button"
-        aria-label="Cerrar detalle del enlace"
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
-
-      <aside className="absolute right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-gray-900 shadow-xl overflow-y-auto">
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Detalle del enlace</h2>
-          <button type="button" onClick={onClose} className="btn-outline btn-sm">Cerrar</button>
-        </div>
-
-        <div className="p-6 space-y-5">
-          {link.image ? (
-            <OptimizedImage
-              src={link.image}
-              alt={link.title || 'Vista previa'}
-              width={600}
-              height={224}
-              className="w-full h-56 object-cover rounded-xl border border-gray-200 dark:border-gray-700"
-              isStored={link.imageIsStored}
-            />
-          ) : (
-            <div className="w-full h-56 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-              Sin imagen disponible
-            </div>
-          )}
-
-          {isEditing ? (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="detail-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
-                <input
-                  id="detail-title"
-                  value={formState.title}
-                  onChange={(event) => onFormChange('title', event.target.value)}
-                  className="input"
-                  maxLength={200}
-                  placeholder="Título del enlace"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="detail-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL</label>
-                <input
-                  id="detail-url"
-                  value={formState.url}
-                  onChange={(event) => onFormChange('url', event.target.value)}
-                  className="input"
-                  placeholder="https://ejemplo.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="detail-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
-                <textarea
-                  id="detail-description"
-                  value={formState.description}
-                  onChange={(event) => onFormChange('description', event.target.value)}
-                  className="input min-h-[140px] resize-none"
-                  maxLength={500}
-                  placeholder="Descripción del enlace"
-                />
-                <p className="text-xs text-gray-500 mt-1">{formState.description.length}/500</p>
-              </div>
-
-              <div>
-                <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Imagen del enlace</p>
-
-                {formState.imagePreview ? (
-                  <OptimizedImage
-                    src={formState.imagePreview}
-                    alt="Preview de imagen"
-                    width={600}
-                    height={192}
-                    className="w-full h-48 object-cover rounded-xl border border-gray-200 dark:border-gray-700 mb-3"
-                  />
-                ) : (
-                  <div className="w-full h-48 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    Sin imagen seleccionada
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <label htmlFor="detail-image-file" className="flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition-colors">
-                    <Upload className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {formState.imageFileName || 'Subir imagen desde tu computadora'}
-                    </span>
-                  </label>
-                  <input
-                    id="detail-image-file"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onFileChange}
-                  />
-
-                  <div>
-                    <label htmlFor="detail-image-url" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">O pegar URL de imagen</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <ImageIcon className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input
-                        id="detail-image-url"
-                        value={formState.imageUrl}
-                        onChange={(event) => onImageUrlChange(event.target.value)}
-                        className="input pl-10"
-                        placeholder="https://ejemplo.com/imagen.jpg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={onRestoreImage} className="btn-outline btn-sm">Restaurar original</button>
-                    <button type="button" onClick={onClearImage} className="btn-outline btn-sm text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20">Quitar imagen</button>
-                  </div>
-                  <p className="text-xs text-gray-500">Si subís desde tu dispositivo, se almacenará en cloud para servirla desde el frontend.</p>
-                </div>
-              </div>
-
-              <div>
-                <ExistingTagsMenu
-                  label="Etiquetas"
-                  availableTags={allTags}
-                  selectedTags={formState.tags || []}
-                  onChange={onTagsChange}
-                  emptyText="No hay etiquetas creadas todavía"
-                  helperText="Solo podés seleccionar etiquetas existentes."
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={onCancelEdit} className="btn-outline btn-md">Cancelar</button>
-                <button type="button" onClick={onSave} className="btn-primary btn-md flex items-center">
-                  <Save className="w-4 h-4 mr-2" />
-                  Guardar cambios
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white break-words">{link.title || 'Sin título'}</h3>
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline break-all"
-                >
-                  <ExternalLink className="w-4 h-4 mr-1" />
-                  {link.url}
-                </a>
-              </div>
-
-              <div className="card">
-                <div className="card-content space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                  <p><span className="font-medium">Descripción:</span> {link.description || 'Sin descripción'}</p>
-                  <p><span className="font-medium">Creado:</span> {formatDateLong(link.createdAt)}</p>
-                  <p><span className="font-medium">Última visita:</span> {formatDateLong(link.lastVisited)}</p>
-                  <p><span className="font-medium">Visitas:</span> {link.clickCount || 0}</p>
-                </div>
-              </div>
-
-              {Array.isArray(link.tags) && link.tags.length > 0 ? (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Etiquetas</p>
-                  <div className="flex flex-wrap gap-2">
-                    {link.tags.map((tagItem, index) => (
-                      <span key={typeof tagItem === 'object' && tagItem !== null ? (tagItem._id || tagItem.name || index) : (tagItem || index)} className="badge-secondary">
-                        {resolveTagName(tagItem)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button type="button" onClick={onStartEdit} className="btn-primary btn-md flex items-center">
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Editar
-                </button>
-                <button type="button" onClick={onReScrape} className="btn-outline btn-md flex items-center">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Re-escanear
-                </button>
-                <button type="button" onClick={onDelete} className="btn-outline btn-md text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20 flex items-center">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </aside>
-    </div>
-  )
-}
-
-const MyLinksHeader = ({ pagination, viewMode, onToggleFilters, onSetViewMode, onOpenForm }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mis Enlaces</h1>
-      <p className="text-gray-600 dark:text-gray-300">{pagination?.totalLinks || 0} enlaces guardados · 6 por página</p>
-    </div>
-
-    <div className="flex items-center gap-2">
-      <button onClick={onToggleFilters} className="btn-outline btn-md flex items-center">
-        <Filter className="w-4 h-4 mr-2" />
-        Filtros
+        onClick={onToggleFilters}
+        className={`btn-outline btn-md flex items-center gap-2 ${hasActiveFilters ? 'border-[var(--accent)] text-[var(--accent)]' : ''}`}
+      >
+        <Filter className="w-3.5 h-3.5" />
+        <span>Filtros</span>
+        {hasActiveFilters && (
+          <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+        )}
       </button>
 
-      <div className="flex rounded-md border border-gray-300">
+      {/* View Toggle */}
+      <div className="flex rounded border border-[var(--border)] bg-[var(--surface-2)] p-0.5" role="group" aria-label="Modo de visualización">
         <button
+          type="button"
           onClick={() => onSetViewMode('grid')}
-          className={`p-2 ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
+          className={`p-2 rounded text-xs transition-colors cursor-pointer ${
+            viewMode === 'grid'
+              ? 'bg-[var(--surface)] text-[var(--accent)] shadow-xs font-semibold'
+              : 'text-[var(--muted)] hover:text-[var(--text)]'
+          }`}
+          title="Vista cuadrícula / Masonry"
+          aria-pressed={viewMode === 'grid'}
         >
-          <Grid className="w-4 h-4" />
+          <LayoutGrid className="w-4 h-4" />
         </button>
         <button
+          type="button"
           onClick={() => onSetViewMode('list')}
-          className={`p-2 border-l border-gray-300 ${viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'text-gray-600 hover:text-gray-900'}`}
+          className={`p-2 rounded text-xs transition-colors cursor-pointer ${
+            viewMode === 'list'
+              ? 'bg-[var(--surface)] text-[var(--accent)] shadow-xs font-semibold'
+              : 'text-[var(--muted)] hover:text-[var(--text)]'
+          }`}
+          title="Vista lista densa"
+          aria-pressed={viewMode === 'list'}
         >
           <List className="w-4 h-4" />
         </button>
       </div>
 
-      <button onClick={onOpenForm} className="btn-primary btn-md flex items-center">
-        <Plus className="w-4 h-4 mr-2" />
-        Agregar enlace
+      {/* New Link CTA */}
+      <button
+        type="button"
+        onClick={onOpenForm}
+        className="btn-primary btn-md flex items-center gap-1.5"
+      >
+        <Plus className="w-4 h-4" />
+        <span>Agregar enlace</span>
       </button>
     </div>
   </div>
 )
 
 const ActiveFiltersBar = ({ filters, onSearchClear, onRemoveTag, onResetArchived, onResetFavorite, onClearAll }) => (
-  <div className="flex flex-wrap items-center gap-2">
+  <div className="flex flex-wrap items-center gap-2 py-1">
+    <span className="mono text-[10px] text-[var(--muted)] uppercase font-semibold mr-1">
+      Filtros activos:
+    </span>
+
     {filters.search ? (
       <button
         type="button"
         onClick={onSearchClear}
-        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-mono text-[10px] bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--danger)] transition-colors"
       >
-        Búsqueda: {filters.search}
-        <X className="w-3 h-3" />
+        <span>Búsqueda: {filters.search}</span>
+        <X className="w-3 h-3 text-[var(--muted)]" />
       </button>
     ) : null}
 
@@ -336,9 +105,9 @@ const ActiveFiltersBar = ({ filters, onSearchClear, onRemoveTag, onResetArchived
         key={tag}
         type="button"
         onClick={() => onRemoveTag(tag)}
-        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-200"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-mono text-[10px] bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 hover:border-[var(--danger)] transition-colors"
       >
-        Tag: {tag}
+        <span>#{tag}</span>
         <X className="w-3 h-3" />
       </button>
     ))}
@@ -347,9 +116,9 @@ const ActiveFiltersBar = ({ filters, onSearchClear, onRemoveTag, onResetArchived
       <button
         type="button"
         onClick={onResetArchived}
-        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-mono text-[10px] bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)] hover:border-[var(--danger)] transition-colors"
       >
-        Archivados
+        <span>Archivados</span>
         <X className="w-3 h-3" />
       </button>
     ) : null}
@@ -358,141 +127,210 @@ const ActiveFiltersBar = ({ filters, onSearchClear, onRemoveTag, onResetArchived
       <button
         type="button"
         onClick={onResetFavorite}
-        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-mono text-[10px] bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--danger)] transition-colors"
       >
-        {filters.favorite ? 'Solo favoritos' : 'Sin favoritos'}
-        <X className="w-3 h-3" />
+        <span>{filters.favorite ? 'Solo favoritos' : 'Sin favoritos'}</span>
+        <X className="w-3 h-3 text-[var(--muted)]" />
       </button>
     ) : null}
 
-    <button type="button" onClick={onClearAll} className="text-xs text-primary-700 hover:text-primary-800 dark:text-primary-300">
+    <button
+      type="button"
+      onClick={onClearAll}
+      className="mono text-[10px] text-[var(--accent)] hover:underline ml-1 cursor-pointer"
+    >
       Limpiar filtros
     </button>
   </div>
 )
 
 const FiltersPanel = ({ filters, tags, onFilterChange }) => (
-  <div className="card">
-    <div className="card-content">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div>
-          <label htmlFor="filter-status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Estado</label>
-          <select
-            id="filter-status"
-            value={filters.archived ? 'archived' : 'active'}
-            onChange={(e) => onFilterChange({ archived: e.target.value === 'archived' })}
-            className="input"
-          >
-            <option value="active">Activos</option>
-            <option value="archived">Archivados</option>
-          </select>
-        </div>
+  <div className="card p-4 sm:p-5 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div>
+        <label htmlFor="filter-status" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+          Estado
+        </label>
+        <select
+          id="filter-status"
+          value={filters.archived ? 'archived' : 'active'}
+          onChange={(e) => onFilterChange({ archived: e.target.value === 'archived' })}
+          className="input text-xs"
+        >
+          <option value="active">Activos</option>
+          <option value="archived">Archivados</option>
+        </select>
+      </div>
 
-        <div>
-          <label htmlFor="filter-favorite" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Favoritos</label>
-          <select
-            id="filter-favorite"
-            value={filters.favorite === true ? 'favorites' : filters.favorite === false ? 'non-favorites' : 'all'}
-            onChange={(e) => {
-              const value = e.target.value === 'favorites' ? true : e.target.value === 'non-favorites' ? false : null
-              onFilterChange({ favorite: value })
-            }}
-            className="input"
-          >
-            <option value="all">Todos</option>
-            <option value="favorites">Solo favoritos</option>
-            <option value="non-favorites">Sin favoritos</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="filter-favorite" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+          Favoritos
+        </label>
+        <select
+          id="filter-favorite"
+          value={filters.favorite === true ? 'favorites' : filters.favorite === false ? 'non-favorites' : 'all'}
+          onChange={(e) => {
+            const value = e.target.value === 'favorites' ? true : e.target.value === 'non-favorites' ? false : null
+            onFilterChange({ favorite: value })
+          }}
+          className="input text-xs"
+        >
+          <option value="all">Todos</option>
+          <option value="favorites">Solo favoritos</option>
+          <option value="non-favorites">Sin favoritos</option>
+        </select>
+      </div>
 
-        <div>
-          <label htmlFor="filter-sort-by" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ordenar por</label>
-          <select id="filter-sort-by" value={filters.sortBy} onChange={(e) => onFilterChange({ sortBy: e.target.value })} className="input">
-            <option value="createdAt">Fecha de creación</option>
-            <option value="title">Título</option>
-            <option value="clickCount">Más visitados</option>
-            <option value="lastVisited">Última visita</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="filter-sort-by" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+          Ordenar por
+        </label>
+        <select
+          id="filter-sort-by"
+          value={filters.sortBy}
+          onChange={(e) => onFilterChange({ sortBy: e.target.value })}
+          className="input text-xs"
+        >
+          <option value="createdAt">Fecha de creación</option>
+          <option value="title">Título</option>
+          <option value="clickCount">Más visitados</option>
+          <option value="lastVisited">Última visita</option>
+        </select>
+      </div>
 
-        <div>
-          <label htmlFor="filter-sort-order" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Orden</label>
-          <select id="filter-sort-order" value={filters.sortOrder} onChange={(e) => onFilterChange({ sortOrder: e.target.value })} className="input">
-            <option value="desc">Descendente</option>
-            <option value="asc">Ascendente</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="filter-sort-order" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+          Orden
+        </label>
+        <select
+          id="filter-sort-order"
+          value={filters.sortOrder}
+          onChange={(e) => onFilterChange({ sortOrder: e.target.value })}
+          className="input text-xs"
+        >
+          <option value="desc">Descendente</option>
+          <option value="asc">Ascendente</option>
+        </select>
+      </div>
 
-        <div className="md:col-span-2">
-          <ExistingTagsMenu
-            label="Filtrar por etiquetas"
-            availableTags={tags}
-            selectedTags={filters.tags || []}
-            onChange={(newTags) => onFilterChange({ tags: newTags })}
-            helperText="Mostrando enlaces que tengan al menos una de las etiquetas seleccionadas."
-          />
-        </div>
+      <div className="md:col-span-1">
+        <ExistingTagsMenu
+          label="Filtrar por etiquetas"
+          availableTags={tags}
+          selectedTags={filters.tags || []}
+          onChange={(newTags) => onFilterChange({ tags: newTags })}
+          helperText="Muestra enlaces que contengan las etiquetas seleccionadas."
+        />
       </div>
     </div>
   </div>
 )
 
 const EmptyLinksState = ({ hasActiveFilters, onOpenForm }) => (
-  <div className="text-center py-12">
-    <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+  <div className="text-center py-16 px-4 border border-dashed border-[var(--border)] rounded-lg bg-[var(--surface-2)]/30">
+    <div className="mx-auto h-16 w-16 text-[var(--muted)] mb-3 flex items-center justify-center">
+      <svg className="w-10 h-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
       </svg>
     </div>
-    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{hasActiveFilters ? 'Sin resultados' : 'No tienes enlaces guardados'}</h3>
-    <p className="text-gray-600 dark:text-gray-300 mb-6">
-      {hasActiveFilters ? 'No hay enlaces que coincidan con tus filtros actuales.' : 'Comienza agregando tu primer enlace para organizarlo mejor.'}
+    <span className="mono text-[10px] text-[var(--accent)] font-semibold uppercase tracking-wider block mb-1">
+      {hasActiveFilters ? 'BÚSQUEDA SIN COINCIDENCIAS' : 'CATÁLOGO VACÍO'}
+    </span>
+    <h3 className="text-lg font-bold font-sans text-[var(--text)] mb-2">
+      {hasActiveFilters ? 'No se encontraron resultados' : 'No tienes enlaces guardados todavía'}
+    </h3>
+    <p className="text-xs text-[var(--muted)] max-w-sm mx-auto mb-6">
+      {hasActiveFilters
+        ? 'Prueba modificando los términos de búsqueda o limpiando los filtros seleccionados.'
+        : 'Guarda tu primer enlace para indexar y organizar tus recursos favoritos con metadata automática.'}
     </p>
     {!hasActiveFilters && (
-      <button onClick={onOpenForm} className="btn-primary btn-md">
-        Agregar primer enlace
+      <button type="button" onClick={onOpenForm} className="btn-primary btn-md">
+        Guardar primer enlace
       </button>
     )}
   </div>
 )
 
-const LinksList = ({ links, viewMode, filters, fetchLinks, onOpenDetail }) => (
-  <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-    {links?.map((link) => (
-      <LinkCard key={link._id} link={link} viewMode={viewMode} mode="full" onUpdate={() => fetchLinks(filters)} onOpenDetail={onOpenDetail} />
-    ))}
-  </div>
-)
+const LinksList = ({ links, viewMode, filters, fetchLinks, onOpenDetail }) => {
+  if (viewMode === 'list') {
+    return (
+      <div className="divide-y divide-[var(--border)] border-t border-b border-[var(--border)]">
+        {links?.map((link) => (
+          <LinkCard
+            key={link._id}
+            link={link}
+            viewMode="list"
+            mode="full"
+            onUpdate={() => fetchLinks(filters)}
+            onOpenDetail={onOpenDetail}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // Masonry multi-column layout
+  return (
+    <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 [column-fill:_balance]">
+      {links?.map((link) => (
+        <LinkCard
+          key={link._id}
+          link={link}
+          viewMode="grid"
+          mode="full"
+          onUpdate={() => fetchLinks(filters)}
+          onOpenDetail={onOpenDetail}
+        />
+      ))}
+    </div>
+  )
+}
 
 const LinksPagination = ({ pagination, onPageChange }) => {
   if (pagination?.totalPages <= 1) return null
 
   return (
-    <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6">
+    <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:px-6 rounded-lg mt-6">
       <div className="flex flex-1 justify-between sm:hidden">
-        <button onClick={() => onPageChange(pagination.currentPage - 1)} disabled={!pagination?.hasPrevPage} className="btn-outline btn-md disabled:opacity-50">
+        <button
+          onClick={() => onPageChange(pagination.currentPage - 1)}
+          disabled={!pagination?.hasPrevPage}
+          className="btn-outline btn-sm"
+        >
           Anterior
         </button>
-        <button onClick={() => onPageChange(pagination.currentPage + 1)} disabled={!pagination?.hasNextPage} className="btn-outline btn-md disabled:opacity-50">
+        <button
+          onClick={() => onPageChange(pagination.currentPage + 1)}
+          disabled={!pagination?.hasNextPage}
+          className="btn-outline btn-sm"
+        >
           Siguiente
         </button>
       </div>
 
-      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between font-mono text-xs text-[var(--muted)]">
         <div>
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Mostrando página <span className="font-medium">{pagination?.currentPage || 1}</span> de <span className="font-medium">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
-          </p>
+          Página <span className="text-[var(--text)] font-semibold">{pagination?.currentPage || 1}</span> de{' '}
+          <span className="text-[var(--text)] font-semibold">{pagination?.totalPages || 1}</span> ({pagination?.totalLinks || 0} enlaces)
         </div>
-        <div>
-          <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm">
-            <button onClick={() => onPageChange(pagination.currentPage - 1)} disabled={!pagination?.hasPrevPage} className="btn-outline btn-sm disabled:opacity-50">
-              Anterior
-            </button>
-            <button onClick={() => onPageChange(pagination.currentPage + 1)} disabled={!pagination?.hasNextPage} className="btn-outline btn-sm disabled:opacity-50 ml-2">
-              Siguiente
-            </button>
-          </nav>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onPageChange(pagination.currentPage - 1)}
+            disabled={!pagination?.hasPrevPage}
+            className="btn-outline btn-sm flex items-center gap-1"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            Anterior
+          </button>
+          <button
+            onClick={() => onPageChange(pagination.currentPage + 1)}
+            disabled={!pagination?.hasNextPage}
+            className="btn-outline btn-sm flex items-center gap-1"
+          >
+            Siguiente
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>
@@ -500,59 +338,61 @@ const LinksPagination = ({ pagination, onPageChange }) => {
 }
 
 const LinkFormModal = ({ isOpen, onClose, onSave }) => {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <button type="button" aria-label="Cerrar modal de nuevo enlace" className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose} />
-
-        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-          <LinkForm onSave={onSave} onCancel={onClose} />
-        </div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-xs overflow-y-auto animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="link-form-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
+      <div
+        className="relative z-10 w-full max-w-xl bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg shadow-2xl p-5 sm:p-6 my-auto max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <LinkForm onSave={onSave} onCancel={onClose} />
       </div>
     </div>
   )
 }
 
 const MyLinks = () => {
-  const [ui, setUi] = useState({
+  const [ui, setUi] = useState(() => ({
     showLinkForm: false,
-    viewMode: 'grid',
+    viewMode: localStorage.getItem('linkstash_view_mode') || 'grid',
     showFilters: false,
     showKeyboardHelp: false
-  })
-  const [detail, setDetail] = useState({
-    selectedLinkId: null,
-    isEditing: false,
-    imageFile: null,
-    form: {
-      title: '',
-      url: '',
-      description: '',
-      imageUrl: '',
-      imagePreview: '',
-      imageFileName: ''
-    }
-  })
+  }))
+  const [selectedLinkId, setSelectedLinkId] = useState(null)
   const { showLinkForm, viewMode, showFilters, showKeyboardHelp } = ui
-  const { selectedLinkId, isEditing, form } = detail
   const searchBarRef = useRef(null)
-  
-  // Usar selectores para asegurar re-renders exactos
-  const isLoading = useLinkStore(state => state.isLoading)
-  const pagination = useLinkStore(state => state.pagination)
-  const filters = useLinkStore(state => state.filters)
-  const fetchLinks = useLinkStore(state => state.fetchLinks)
-  const setFilters = useLinkStore(state => state.setFilters)
-  const updateLink = useLinkStore(state => state.updateLink)
-  const deleteLink = useLinkStore(state => state.deleteLink)
-  const linksById = useLinkStore(state => state.linksById)
-  const linkIds = useLinkStore(state => state.linkIds)
-  const tags = useTagStore(state => state.tags)
-  const fetchTags = useTagStore(state => state.fetchTags)
-  
-  // Computar links basado en cambios de linksById y linkIds
+
+  // Selectors for Zustand linkStore
+  const isLoading = useLinkStore((state) => state.isLoading)
+  const pagination = useLinkStore((state) => state.pagination)
+  const filters = useLinkStore((state) => state.filters)
+  const fetchLinks = useLinkStore((state) => state.fetchLinks)
+  const setFilters = useLinkStore((state) => state.setFilters)
+  const linksById = useLinkStore((state) => state.linksById)
+  const linkIds = useLinkStore((state) => state.linkIds)
+  const tags = useTagStore((state) => state.tags)
+  const fetchTags = useTagStore((state) => state.fetchTags)
+
   const links = useMemo(() => {
     return linkIds.flatMap((id) => {
       const link = linksById[id]
@@ -561,21 +401,15 @@ const MyLinks = () => {
   }, [linkIds, linksById])
 
   const [status, setStatus] = useState({ loadError: '', isUpdating: false })
-  const [reScrapeLink, setReScrapeLink] = useState(null)
   const { loadError, isUpdating } = status
   const selectedLink = selectedLinkId ? linksById[selectedLinkId] : null
 
-  useEffect(() => {
-    if (selectedLinkId && !selectedLink) {
-      setDetail((prev) => ({
-        ...prev,
-        selectedLinkId: null,
-        isEditing: false
-      }))
-    }
-  }, [selectedLinkId, selectedLink])
+  const handleSetViewMode = (mode) => {
+    localStorage.setItem('linkstash_view_mode', mode)
+    setUi((prev) => ({ ...prev, viewMode: mode }))
+  }
 
-  // Integrar atajos de teclado globales
+  // Keyboard shortcuts integration
   useKeyboardShortcuts({
     onSearchFocus: () => {
       searchBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -584,7 +418,7 @@ const MyLinks = () => {
     onHelp: () => setUi((prev) => ({ ...prev, showKeyboardHelp: !prev.showKeyboardHelp }))
   })
 
-  // Cargar enlaces al montar el componente
+  // Initial load
   useEffect(() => {
     let mounted = true
     const initialFetch = async () => {
@@ -598,11 +432,9 @@ const MyLinks = () => {
 
     initialFetch()
     return () => { mounted = false }
-    // Solo ejecutar una vez al montar el componente
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchLinks])
 
-  // Polling inteligente para refrescar enlaces en estado 'processing' (scraping)
+  // Smart polling for links in 'processing' status
   useEffect(() => {
     const hasProcessing = links.some((l) => l.status === 'processing')
     if (!hasProcessing) return
@@ -618,7 +450,7 @@ const MyLinks = () => {
     if (!tags || tags.length === 0) {
       fetchTags()
     }
-  }, [tags, fetchTags])
+  }, [])
 
   const handleSearch = async (query, signal = null) => {
     setStatus((prev) => ({ ...prev, isUpdating: true }))
@@ -657,221 +489,20 @@ const MyLinks = () => {
 
   const handleLinkSaved = async () => {
     setUi((prev) => ({ ...prev, showLinkForm: false }))
-    const res = await fetchLinks({ ...filters, page: 1 }) // Refrescar la primera página
+    const res = await fetchLinks({ ...filters, page: 1 })
     if (res && res.success === false && !res.aborted) {
       setStatus((prev) => ({ ...prev, loadError: res.message || 'Error al cargar enlaces' }))
     }
   }
 
-  const openLinkDetail = (link) => {
-    setDetail({
-      selectedLinkId: link._id,
-      isEditing: false,
-      imageFile: null,
-      form: {
-        title: link.title || '',
-        url: link.url || '',
-        description: link.description || '',
-        tags: normalizeTagSelections(link.tags),
-        imageUrl: link.image || '',
-        imagePreview: link.image || '',
-        imageFileName: ''
-      }
-    })
-  }
-
-  const closeLinkDetail = () => {
-    setDetail((prev) => ({
-      ...prev,
-      selectedLinkId: null,
-      isEditing: false,
-      imageFile: null
-    }))
-  }
-
-  const startDetailEdit = () => {
-    if (!selectedLink) return
-    setDetail((prev) => ({
-      ...prev,
-      isEditing: true,
-      imageFile: null,
-      form: {
-        title: selectedLink.title || '',
-        url: selectedLink.url || '',
-        description: selectedLink.description || '',
-        tags: normalizeTagSelections(selectedLink.tags),
-        imageUrl: selectedLink.image || '',
-        imagePreview: selectedLink.image || '',
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const cancelDetailEdit = () => {
-    if (!selectedLink) {
-      setDetail((prev) => ({ ...prev, isEditing: false }))
-      return
-    }
-
-    setDetail((prev) => ({
-      ...prev,
-      isEditing: false,
-      imageFile: null,
-      form: {
-        title: selectedLink.title || '',
-        url: selectedLink.url || '',
-        description: selectedLink.description || '',
-        tags: normalizeTagSelections(selectedLink.tags),
-        imageUrl: selectedLink.image || '',
-        imagePreview: selectedLink.image || '',
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const handleDetailImageFileChange = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setStatus((prev) => ({ ...prev, loadError: 'El archivo seleccionado no es una imagen válida.' }))
-      return
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setStatus((prev) => ({ ...prev, loadError: 'La imagen no puede superar los 5MB.' }))
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = (loadEvent) => {
-      setDetail((prev) => ({
-        ...prev,
-        imageFile: file,
-        form: {
-          ...prev.form,
-          imageUrl: '',
-          imagePreview: loadEvent.target?.result || '',
-          imageFileName: file.name
-        }
-      }))
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleRestoreDetailImage = () => {
-    setDetail((prev) => ({
-      ...prev,
-      imageFile: null,
-      form: {
-        ...prev.form,
-        imageUrl: selectedLink?.image || '',
-        imagePreview: selectedLink?.image || '',
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const handleClearDetailImage = () => {
-    setDetail((prev) => ({
-      ...prev,
-      imageFile: null,
-      form: {
-        ...prev.form,
-        imageUrl: '',
-        imagePreview: '',
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const handleDetailFormChange = (field, value) => {
-    setDetail((prev) => ({
-      ...prev,
-      form: {
-        ...prev.form,
-        [field]: value
-      }
-    }))
-  }
-
-  const handleDetailImageUrlChange = (value) => {
-    setDetail((prev) => ({
-      ...prev,
-      imageFile: null,
-      form: {
-        ...prev.form,
-        imageUrl: value,
-        imagePreview: value,
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const saveDetailEdit = async () => {
-    if (!selectedLink) return
-
-    const normalizedUrl = normalizeUrl(form.url.trim())
-    if (!isValidUrl(normalizedUrl)) {
-      setStatus((prev) => ({ ...prev, loadError: 'Ingresá una URL válida para guardar cambios.' }))
-      return
-    }
-
-    const payload = {
-      title: form.title.trim(),
-      url: normalizedUrl,
-      description: form.description.trim(),
-      tags: form.tags || selectedLink.tags || [],
-      image: form.imageUrl?.trim() || ''
-    }
-
-    setStatus((prev) => ({ ...prev, isUpdating: true }))
-    const result = detail.imageFile
-      ? await updateLink(selectedLink._id, payload, detail.imageFile, true)
-      : await updateLink(selectedLink._id, payload, null, Boolean(payload.image))
-
-    if (!result?.success) {
-      setStatus((prev) => ({ ...prev, isUpdating: false, loadError: result?.message || 'No se pudo actualizar el enlace.' }))
-      return
-    }
-
-    await fetchLinks({ ...filters, page: pagination.currentPage || 1 })
-    setStatus((prev) => ({ ...prev, isUpdating: false, loadError: '' }))
-    setDetail((prev) => ({
-      ...prev,
-      isEditing: false,
-      imageFile: null,
-      form: {
-        ...prev.form,
-        imageFileName: ''
-      }
-    }))
-  }
-
-  const handleDeleteFromDetail = async () => {
-    if (!selectedLink) return
-    if (!window.confirm('¿Eliminar este enlace? Esta acción no se puede deshacer.')) return
-
-    setStatus((prev) => ({ ...prev, isUpdating: true }))
-    const result = await deleteLink(selectedLink._id)
-    if (!result?.success) {
-      setStatus((prev) => ({ ...prev, isUpdating: false, loadError: result?.message || 'No se pudo eliminar el enlace.' }))
-      return
-    }
-
-    await fetchLinks({ ...filters, page: pagination.currentPage || 1 })
-    setStatus((prev) => ({ ...prev, isUpdating: false, loadError: '' }))
-    closeLinkDetail()
-  }
-
-  // Carga inicial: mostrar skeletons en lugar de spinner
+  // Initial skeleton loader
   if (isLoading && (!links || links.length === 0)) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
           <div>
-            <div className="h-6 bg-gray-200 rounded w-40 animate-pulse" />
-            <div className="h-4 bg-gray-200 rounded w-24 mt-2 animate-pulse" />
+            <div className="h-6 w-36 loading-skeleton" />
+            <div className="h-4 w-24 loading-skeleton mt-2" />
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -886,19 +517,22 @@ const MyLinks = () => {
   return (
     <div className="space-y-6">
       <UpdateIndicator isUpdating={isUpdating} />
+
       <MyLinksHeader
         pagination={pagination}
         viewMode={viewMode}
         onToggleFilters={() => setUi((prev) => ({ ...prev, showFilters: !prev.showFilters }))}
-        onSetViewMode={(nextMode) => setUi((prev) => ({ ...prev, viewMode: nextMode }))}
+        onSetViewMode={handleSetViewMode}
         onOpenForm={() => setUi((prev) => ({ ...prev, showLinkForm: true }))}
+        hasActiveFilters={hasActiveFilters}
       />
 
-      {/* Barra de búsqueda */}
+      {/* Search Bar */}
       <div ref={searchBarRef}>
         <SearchBar key={filters.search} onSearch={handleSearch} defaultValue={filters.search} />
       </div>
 
+      {/* Active filters pill bar */}
       {hasActiveFilters && (
         <ActiveFiltersBar
           filters={filters}
@@ -928,78 +562,64 @@ const MyLinks = () => {
         />
       )}
 
-      {/* Filtros */}
+      {/* Filter Options Panel */}
       {showFilters && <FiltersPanel filters={filters} tags={tags} onFilterChange={handleFilterChange} />}
 
-      {/* Estado de error inline */}
+      {/* Inline error feedback */}
       {loadError && (
-        <div className="card border-red-300 dark:border-red-800">
-          <div className="card-content">
-            <div className="flex items-center justify-between">
-              <p className="text-red-700 dark:text-red-300">{loadError}</p>
-              <button
-                onClick={async () => {
-                  const res = await fetchLinks(filters)
-                  setStatus((prev) => ({
-                    ...prev,
-                    loadError: res && res.success === false ? (res.message || 'Error al cargar enlaces') : ''
-                  }))
-                }}
-                className="btn-outline btn-sm"
-              >
-                Reintentar
-              </button>
-            </div>
-          </div>
+        <div className="p-4 rounded border border-[var(--danger)]/50 bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-between text-xs font-mono">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await fetchLinks(filters)
+              setStatus((prev) => ({
+                ...prev,
+                loadError: res && res.success === false ? (res.message || 'Error al cargar enlaces') : ''
+              }))
+            }}
+            className="btn-outline btn-sm text-[var(--danger)]"
+          >
+            Reintentar
+          </button>
         </div>
       )}
 
-       {/* Lista de enlaces */}
-       {!links || links.length === 0 ? (
-         <EmptyLinksState hasActiveFilters={hasActiveFilters} onOpenForm={() => setUi((prev) => ({ ...prev, showLinkForm: true }))} />
-       ) : (
-         <>
-           <LinksList links={links} viewMode={viewMode} filters={filters} fetchLinks={fetchLinks} onOpenDetail={openLinkDetail} />
-           <LinksPagination pagination={pagination} onPageChange={handlePageChange} />
-         </>
-       )}
+      {/* Links Catalog (Masonry Grid or Dense List) */}
+      {!links || links.length === 0 ? (
+        <EmptyLinksState hasActiveFilters={hasActiveFilters} onOpenForm={() => setUi((prev) => ({ ...prev, showLinkForm: true }))} />
+      ) : (
+        <>
+          <LinksList
+            links={links}
+            viewMode={viewMode}
+            filters={filters}
+            fetchLinks={fetchLinks}
+            onOpenDetail={(link) => setSelectedLinkId(link._id)}
+          />
+          <LinksPagination pagination={pagination} onPageChange={handlePageChange} />
+        </>
+      )}
 
+      {/* Slide-over Detail Inspector */}
       <LinkDetailSheet
         link={selectedLink}
         allTags={tags}
         isOpen={Boolean(selectedLink)}
-        isEditing={isEditing}
-        formState={form}
-        onClose={closeLinkDetail}
-        onStartEdit={startDetailEdit}
-        onCancelEdit={cancelDetailEdit}
-        onDelete={handleDeleteFromDetail}
-        onSave={saveDetailEdit}
-        onFormChange={handleDetailFormChange}
-        onTagsChange={(nextTags) => handleDetailFormChange('tags', nextTags)}
-        onImageUrlChange={handleDetailImageUrlChange}
-        onFileChange={handleDetailImageFileChange}
-        onRestoreImage={handleRestoreDetailImage}
-        onClearImage={handleClearDetailImage}
-        onReScrape={() => setReScrapeLink(selectedLink)}
+        onClose={() => setSelectedLinkId(null)}
+        onUpdate={async () => {
+          await fetchLinks({ ...filters, page: pagination.currentPage || 1 })
+        }}
       />
 
+      {/* Save Link Modal */}
       <LinkFormModal
         isOpen={showLinkForm}
         onClose={() => setUi((prev) => ({ ...prev, showLinkForm: false }))}
         onSave={handleLinkSaved}
       />
 
-      <ReScrapeModal
-        link={reScrapeLink}
-        isOpen={Boolean(reScrapeLink)}
-        onClose={() => setReScrapeLink(null)}
-        onUpdate={async () => {
-          await fetchLinks(filters)
-        }}
-      />
-
-      {/* Keyboard Help Modal */}
+      {/* Keyboard Shortcuts Reference Modal */}
       <KeyboardHelpModal
         isOpen={showKeyboardHelp}
         onClose={() => setUi((prev) => ({ ...prev, showKeyboardHelp: false }))}

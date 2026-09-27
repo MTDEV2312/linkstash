@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import toast from 'react-hot-toast'
+import { User, Lock, Save, KeyRound } from 'lucide-react'
 
 const AccountForm = ({ mode = 'profile' }) => {
   const { user, isLoading, updateProfile, changePassword } = useAuthStore()
@@ -40,11 +41,11 @@ const AccountForm = ({ mode = 'profile' }) => {
       setServerError(null)
       const res = await updateProfile({ username: form.username.trim(), email: form.email.trim() })
       if (res && res.success) {
-        toast.success('Perfil actualizado')
+        toast.success('Perfil actualizado correctamente')
       } else {
         setServerError(res.message || 'Error al actualizar el perfil')
       }
-    } catch (err) {
+    } catch {
       setServerError('Error inesperado al actualizar el perfil')
     } finally {
       setSubmitting(false)
@@ -67,12 +68,12 @@ const AccountForm = ({ mode = 'profile' }) => {
       setServerError(null)
       const res = await changePassword({ currentPassword: passwords.currentPassword, newPassword: passwords.newPassword })
       if (res && res.success) {
-        toast.success('Contraseña actualizada')
+        toast.success('Contraseña actualizada correctamente')
         setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
       } else {
         setServerError(res.message || 'Error al cambiar la contraseña')
       }
-    } catch (err) {
+    } catch {
       setServerError('Error inesperado al cambiar la contraseña')
     } finally {
       setSubmitting(false)
@@ -81,38 +82,67 @@ const AccountForm = ({ mode = 'profile' }) => {
 
   if (mode === 'profile') {
     return (
-      <div className="card p-6">
-        <h3 className="text-lg font-medium  mb-4">Perfil</h3>
-        <form onSubmit={submitProfile}>
-          {serverError && <p className="mb-3 text-sm text-red-600">{serverError}</p>}
-          <label htmlFor="profile-username" className="block mb-2 text-sm font-medium">Nombre de usuario</label>
-          <input
-            id="profile-username"
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            className="input mb-3"
-            disabled={isLoading}
-          />
+      <div className="card p-5 sm:p-6 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xs">
+        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[var(--border)]">
+          <div className="p-2 rounded border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent)]">
+            <User className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="mono text-[9px] text-[var(--accent)] uppercase font-semibold block">
+              IDENTIDAD
+            </span>
+            <h3 className="font-sans font-bold text-base text-[var(--text)] tracking-tight">
+              Perfil de usuario
+            </h3>
+          </div>
+        </div>
 
-          <label htmlFor="profile-email" className="block mb-2 text-sm font-medium">Email</label>
-          <input
-            id="profile-email"
-            name="email"
-            type="email"
-            value={form.email}
-            onChange={handleChange}
-            className="input mb-4"
-            disabled={isLoading}
-          />
+        <form onSubmit={submitProfile} className="space-y-4">
+          {serverError && (
+            <div className="p-3 rounded border border-[var(--danger)]/50 bg-[var(--danger)]/10 text-[var(--danger)] text-xs font-mono">
+              {serverError}
+            </div>
+          )}
 
-          <div className="flex justify-end">
+          <div>
+            <label htmlFor="profile-username" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+              Nombre de usuario
+            </label>
+            <input
+              id="profile-username"
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              className="input font-mono text-xs"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="profile-email" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+              Correo electrónico
+            </label>
+            <input
+              id="profile-email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              className="input font-mono text-xs"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-[var(--border)]">
             <button
               type="submit"
-              className="btn-primary btn-md"
+              className="btn-primary btn-md flex items-center gap-1.5"
               disabled={submitting || isLoading}
             >
-              {submitting ? 'Guardando...' : 'Guardar cambios'}
+              <Save className="w-3.5 h-3.5" />
+              {submitting ? 'Guardando...' : 'Guardar perfil'}
             </button>
           </div>
         </form>
@@ -122,49 +152,84 @@ const AccountForm = ({ mode = 'profile' }) => {
 
   // mode === 'password'
   return (
-    <div className="card p-6">
-      <h3 className="text-lg font-medium  mb-4">Cambiar contraseña</h3>
-      <form onSubmit={submitPassword}>
-        <label htmlFor="current-password" className="block mb-2 text-sm font-medium">Contraseña actual</label>
-        <input
-          id="current-password"
-          name="currentPassword"
-          type="password"
-          value={passwords.currentPassword}
-          onChange={handlePasswordChange}
-          className="input mb-3"
-          disabled={isLoading}
-        />
+    <div className="card p-5 sm:p-6 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xs">
+      <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[var(--border)]">
+        <div className="p-2 rounded border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent)]">
+          <KeyRound className="w-4 h-4" />
+        </div>
+        <div>
+          <span className="mono text-[9px] text-[var(--accent)] uppercase font-semibold block">
+            SEGURIDAD
+          </span>
+          <h3 className="font-sans font-bold text-base text-[var(--text)] tracking-tight">
+            Cambiar contraseña
+          </h3>
+        </div>
+      </div>
 
-        <label htmlFor="new-password" className="block mb-2 text-sm font-medium">Nueva contraseña</label>
-        <input
-          id="new-password"
-          name="newPassword"
-          type="password"
-          value={passwords.newPassword}
-          onChange={handlePasswordChange}
-          className="input mb-3"
-          disabled={isLoading}
-        />
+      <form onSubmit={submitPassword} className="space-y-4">
+        {serverError && (
+          <div className="p-3 rounded border border-[var(--danger)]/50 bg-[var(--danger)]/10 text-[var(--danger)] text-xs font-mono">
+            {serverError}
+          </div>
+        )}
 
-        <label htmlFor="confirm-password" className="block mb-2 text-sm font-medium">Confirmar nueva contraseña</label>
-        <input
-          id="confirm-password"
-          name="confirmPassword"
-          type="password"
-          value={passwords.confirmPassword}
-          onChange={handlePasswordChange}
-          className="input mb-4"
-          disabled={isLoading}
-        />
+        <div>
+          <label htmlFor="current-password" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+            Contraseña actual
+          </label>
+          <input
+            id="current-password"
+            name="currentPassword"
+            type="password"
+            value={passwords.currentPassword}
+            onChange={handlePasswordChange}
+            className="input font-mono text-xs"
+            disabled={isLoading}
+            required
+          />
+        </div>
 
-        <div className="flex justify-end">
+        <div>
+          <label htmlFor="new-password" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+            Nueva contraseña
+          </label>
+          <input
+            id="new-password"
+            name="newPassword"
+            type="password"
+            value={passwords.newPassword}
+            onChange={handlePasswordChange}
+            className="input font-mono text-xs"
+            disabled={isLoading}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="confirm-password" className="mono text-[10px] text-[var(--muted)] uppercase font-semibold block mb-1.5">
+            Confirmar nueva contraseña
+          </label>
+          <input
+            id="confirm-password"
+            name="confirmPassword"
+            type="password"
+            value={passwords.confirmPassword}
+            onChange={handlePasswordChange}
+            className="input font-mono text-xs"
+            disabled={isLoading}
+            required
+          />
+        </div>
+
+        <div className="flex justify-end pt-2 border-t border-[var(--border)]">
           <button
             type="submit"
-            className="btn-primary btn-md"
+            className="btn-primary btn-md flex items-center gap-1.5"
             disabled={submitting || isLoading}
           >
-            {submitting ? 'Actualizando...' : 'Cambiar contraseña'}
+            <Lock className="w-3.5 h-3.5" />
+            {submitting ? 'Actualizando...' : 'Actualizar contraseña'}
           </button>
         </div>
       </form>

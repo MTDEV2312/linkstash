@@ -14,18 +14,19 @@ import {
   Cloud,
   AlertTriangle,
   Loader,
-  RefreshCw
+  RefreshCw,
+  MoreVertical
 } from 'lucide-react'
 
 const DescriptionModal = lazy(() => import('./DescriptionModal'))
 const ReScrapeModal = lazy(() => import('./ReScrapeModal'))
 
 const ModalFallback = () => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
-      <div className="flex items-center gap-2">
-        <Loader className="w-5 h-5 animate-spin text-primary-500" />
-        <span className="text-gray-700 dark:text-gray-300">Cargando...</span>
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg p-6 shadow-2xl">
+      <div className="flex items-center gap-2.5 font-mono text-xs text-[var(--text)]">
+        <Loader className="w-4 h-4 animate-spin text-[var(--accent)]" />
+        <span>Cargando...</span>
       </div>
     </div>
   </div>
@@ -81,47 +82,43 @@ const getContrastTextColor = (hex) => {
   return lum > 0.179 ? '#000' : '#fff'
 }
 
-const CardMenu = ({ link, isOpen, onToggle, onArchive, onReScrape, compact = false }) => (
+const CardMenu = ({ link, isOpen, onToggle, onArchive, onReScrape }) => (
   <div className="relative">
     <button
       onClick={(event) => {
         event.stopPropagation()
         onToggle()
       }}
-      className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
+      className="flex items-center justify-center w-8 h-8 rounded border border-[var(--border)] bg-[var(--surface-2)]/90 text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
       aria-label="Abrir menú"
       aria-expanded={isOpen}
       aria-haspopup="true"
     >
-      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-      </svg>
+      <MoreVertical className="w-4 h-4" />
     </button>
 
     {isOpen && (
-      <div className={`absolute right-0 mt-2 ${compact ? 'w-48' : 'w-48'} bg-white dark:bg-gray-700 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-600`}>
-        <div className="py-1">
-          <button
-            onClick={(event) => {
-              event.stopPropagation()
-              onReScrape?.()
-            }}
-            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-2" />
-            Re-escanear enlace
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation()
-              onArchive()
-            }}
-            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-          >
-            <Archive className="w-3.5 h-3.5 mr-2" />
-            {link.isArchived ? 'Desarchivar' : 'Archivar'}
-          </button>
-        </div>
+      <div className="absolute right-0 mt-1.5 w-44 bg-[var(--surface)] rounded border border-[var(--border-strong)] shadow-xl z-30 py-1 font-mono text-xs animate-fade-in">
+        <button
+          onClick={(event) => {
+            event.stopPropagation()
+            onReScrape?.()
+          }}
+          className="flex items-center w-full px-3 py-2 text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors text-left cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5 mr-2 text-[var(--accent)]" />
+          Re-escanear
+        </button>
+        <button
+          onClick={(event) => {
+            event.stopPropagation()
+            onArchive()
+          }}
+          className="flex items-center w-full px-3 py-2 text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors text-left cursor-pointer"
+        >
+          <Archive className="w-3.5 h-3.5 mr-2 text-[var(--muted)]" />
+          {link.isArchived ? 'Desarchivar' : 'Archivar'}
+        </button>
       </div>
     )}
   </div>
@@ -143,50 +140,74 @@ const TagsBadges = ({ tags, limit, resolveTag }) => {
         return (
           <span
             key={idKey}
-            className="text-xs inline-flex items-center px-2 py-0.5 rounded"
-            style={color ? { backgroundColor: color, color: textColor } : undefined}
+            className="badge-secondary font-mono text-[10px]"
+            style={color ? { backgroundColor: color, color: textColor, borderColor: color } : undefined}
           >
-            {name}
+            #{name}
           </span>
         )
       })}
-      {tags.length > limit && <span className="badge-secondary text-xs">+{tags.length - limit}</span>}
+      {tags.length > limit && (
+        <span className="badge-secondary font-mono text-[9px] opacity-75">
+          +{tags.length - limit}
+        </span>
+      )}
     </>
   )
 }
 
 const MinimalView = ({ link, handleVisit, handleToggleFavorite }) => (
   <article className="card p-3 flex items-center justify-between" role="article" aria-labelledby={`link-${link._id}-title`}>
-    <div className="flex items-center gap-3">
-      <div id={`link-${link._id}-title`} className="text-sm font-medium text-primary-600 truncate max-w-xs">{getDomainFromUrl(link.url)}</div>
+    <div className="flex items-center gap-3 min-w-0">
+      <div id={`link-${link._id}-title`} className="mono text-xs font-semibold text-[var(--text)] truncate max-w-xs">
+        {getDomainFromUrl(link.url)}
+      </div>
       {link.clickCount > 0 && (
-        <div className="text-xs text-gray-500 flex items-center">
-          <Eye className="w-4 h-4 mr-1" />
+        <div className="mono text-[10px] text-[var(--muted)] flex items-center">
+          <Eye className="w-3.5 h-3.5 mr-1 text-[var(--muted)]" />
           {link.clickCount}
         </div>
       )}
     </div>
 
-    <div className="flex items-center gap-2">
-      <button onClick={handleVisit} className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-primary-600 rounded-full transition-colors" title="Visitar enlace" aria-label={`Visitar enlace: ${link.title}`}>
-        <ExternalLink className="w-5 h-5" />
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={handleVisit}
+        className="p-1.5 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+        title="Visitar enlace"
+        aria-label={`Visitar enlace: ${link.title}`}
+      >
+        <ExternalLink className="w-4 h-4" />
       </button>
       <button
         onClick={handleToggleFavorite}
-        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.isFavorite ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+        className={`p-1.5 transition-colors ${link.isFavorite ? 'text-red-500' : 'text-[var(--muted)] hover:text-red-500'}`}
         title={link.isFavorite ? 'Remover de favoritos' : 'Agregar a favoritos'}
         aria-label={link.isFavorite ? `Remover ${link.title} de favoritos` : `Agregar ${link.title} a favoritos`}
         aria-pressed={link.isFavorite}
       >
-        <Heart className={`w-5 h-5 ${link.isFavorite ? 'fill-current' : ''}`} />
+        <Heart className={`w-4 h-4 ${link.isFavorite ? 'fill-current' : ''}`} />
       </button>
     </div>
   </article>
 )
 
-const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, handleReScrape, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const ListView = ({
+  link,
+  isMenuOpen,
+  setIsMenuOpen,
+  handleVisit,
+  handleToggleFavorite,
+  handleToggleArchive,
+  handleReScrape,
+  hasScrapingError,
+  needsDescription,
+  setShowDescriptionModal,
+  resolveTag,
+  onOpenDetail
+}) => (
   <article
-    className="card hover:shadow-md transition-shadow duration-200 cursor-pointer"
+    className="w-full flex items-center justify-between p-3.5 border-b border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer group"
     role="button"
     tabIndex={0}
     aria-labelledby={`link-${link._id}-title`}
@@ -198,91 +219,141 @@ const ListView = ({ link, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFa
       }
     }}
   >
-    <div className="p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-3">
-            <OptimizedImage
-              src={link.image}
-              alt={link.title}
-              width={100}
-              height={100}
-              className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
-              quality={70}
-              isStored={link.imageIsStored}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h3 id={`link-${link._id}-title`} className="text-lg font-semibold text-gray-900 dark:text-white truncate">{link.title}</h3>
-                {link.status === 'processing' && <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full whitespace-nowrap">Procesando...</span>}
-                {hasScrapingError && (
-                  <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-full whitespace-nowrap flex items-center">
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                    Error info
-                  </span>
-                )}
-              </div>
+    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+      {/* Thumbnail */}
+      <div className="w-16 h-12 rounded border border-[var(--border)] overflow-hidden bg-[var(--surface-2)] flex-shrink-0 relative">
+        <OptimizedImage
+          src={link.image}
+          alt={link.title}
+          width={100}
+          height={75}
+          className="w-full h-full object-cover filter saturate-85 group-hover:saturate-100 transition-all"
+          quality={70}
+          isStored={link.imageIsStored}
+        />
+        {link.imageIsStored && (
+          <span className="absolute bottom-0.5 right-0.5 p-0.5 bg-black/70 rounded">
+            <Cloud className="w-2.5 h-2.5 text-[var(--accent)]" />
+          </span>
+        )}
+      </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{link.description || 'Sin descripción'}</p>
-              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{formatDate(link.createdAt)}</span>
-                {link.clickCount > 0 && <span className="flex items-center"><Eye className="w-3 h-3 mr-1" />{link.clickCount} visitas</span>}
-                {link.lastVisited && <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />Última: {formatDateTime(link.lastVisited)}</span>}
-                <span className="text-primary-600 dark:text-primary-400 flex items-center">{link.imageIsStored && <Cloud className="w-3 h-3 mr-1" />}{getDomainFromUrl(link.url)}</span>
-              </div>
-
-              {needsDescription && (
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    setShowDescriptionModal(true)
-                  }}
-                  className="flex items-center mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
-                >
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Agregar descripción
-                </button>
-              )}
-            </div>
-          </div>
-
-          {link.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-3">
-              <TagsBadges tags={link.tags} limit={3} resolveTag={resolveTag} />
-            </div>
+      {/* Main Details */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] text-[var(--muted)] truncate max-w-[200px]">
+            {getDomainFromUrl(link.url)}
+          </span>
+          {link.status === 'processing' && (
+            <span className="badge-primary font-mono text-[9px] py-0">Procesando...</span>
+          )}
+          {hasScrapingError && (
+            <span className="badge-warning font-mono text-[9px] py-0 flex items-center gap-1">
+              <AlertTriangle className="w-2.5 h-2.5" /> Error
+            </span>
+          )}
+          {link.isArchived && (
+            <span className="mono text-[9px] text-[var(--muted)] border border-[var(--border)] px-1 rounded">
+              ARCHIVADO
+            </span>
           )}
         </div>
 
-        <div className="flex items-center space-x-2 ml-4">
+        <h3 id={`link-${link._id}-title`} className="font-sans font-semibold text-sm text-[var(--text)] tracking-tight truncate mt-0.5">
+          {link.title || 'Sin título'}
+        </h3>
+
+        <p className="text-xs text-[var(--muted)] line-clamp-1 max-w-xl hidden sm:block mt-0.5">
+          {link.description || 'Sin descripción disponible'}
+        </p>
+
+        {needsDescription && (
           <button
-            onClick={(event) => {
-              event.stopPropagation()
-              handleToggleFavorite()
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowDescriptionModal(true)
             }}
-            className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+            className="mono text-[9px] text-amber-500 hover:underline flex items-center gap-1 mt-1"
           >
-            <Heart className={`w-5 h-5 ${link.isFavorite ? 'fill-current' : ''}`} />
+            <AlertCircle className="w-2.5 h-2.5" /> Agregar descripción
           </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation()
-              handleVisit()
-            }}
-            className="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-primary-600 rounded-full transition-colors"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} onReScrape={handleReScrape} />
-        </div>
+        )}
       </div>
+
+      {/* Tags */}
+      {link.tags?.length > 0 && (
+        <div className="hidden lg:flex items-center gap-1 max-w-xs overflow-hidden flex-shrink-0">
+          <TagsBadges tags={link.tags} limit={2} resolveTag={resolveTag} />
+        </div>
+      )}
+
+      {/* Monospace Metadata */}
+      <div className="hidden md:flex flex-col items-end mono text-[10px] text-[var(--muted)] flex-shrink-0 pr-4">
+        <span>{formatDate(link.createdAt)}</span>
+        {link.clickCount > 0 && (
+          <span className="flex items-center gap-1">
+            <Eye className="w-3 h-3" /> {link.clickCount}
+          </span>
+        )}
+      </div>
+    </div>
+
+    {/* Actions */}
+    <div className="flex items-center gap-1 flex-shrink-0 pl-2">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          handleToggleFavorite()
+        }}
+        className={`p-2 rounded hover:bg-[var(--surface-2)] transition-colors ${link.isFavorite ? 'text-red-500' : 'text-[var(--muted)] hover:text-red-500'}`}
+        title={link.isFavorite ? 'Remover favorito' : 'Favorito'}
+      >
+        <Heart className={`w-4 h-4 ${link.isFavorite ? 'fill-current' : ''}`} />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          handleVisit()
+        }}
+        className="p-2 rounded hover:bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+        title="Visitar enlace"
+      >
+        <ExternalLink className="w-4 h-4" />
+      </button>
+      <CardMenu
+        link={link}
+        isOpen={isMenuOpen}
+        onToggle={() => setIsMenuOpen((prev) => !prev)}
+        onArchive={handleToggleArchive}
+        onReScrape={handleReScrape}
+      />
     </div>
   </article>
 )
 
-const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, handleToggleFavorite, handleToggleArchive, handleReScrape, hasScrapingError, needsDescription, setShowDescriptionModal, resolveTag, onOpenDetail }) => (
+const GridView = ({
+  link,
+  swipeRef,
+  isMenuOpen,
+  setIsMenuOpen,
+  handleVisit,
+  handleToggleFavorite,
+  handleToggleArchive,
+  handleReScrape,
+  hasScrapingError,
+  needsDescription,
+  setShowDescriptionModal,
+  resolveTag,
+  onOpenDetail
+}) => (
   <div
     ref={swipeRef}
-    className={`card hover:shadow-lg transition-all duration-200 group ${link.status === 'processing' ? 'opacity-75' : ''} cursor-pointer`}
+    className={`break-inside-avoid mb-4 w-full card group overflow-hidden cursor-pointer hover:border-[var(--border-strong)] transition-all duration-180 hover:-translate-y-0.5 ${
+      link.isArchived ? 'opacity-70' : ''
+    }`}
     role="button"
     tabIndex={0}
     aria-labelledby={`link-${link._id}-title`}
@@ -294,93 +365,145 @@ const GridView = ({ link, swipeRef, isMenuOpen, setIsMenuOpen, handleVisit, hand
       }
     }}
   >
-    {link.status === 'processing' && (
-      <div className="absolute top-2 right-2 z-10 flex items-center space-x-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-        <span>Procesando...</span>
-      </div>
-    )}
-
-    <div className="aspect-video overflow-hidden rounded-t-lg">
+    {/* Preview Image with Status badges and overlay */}
+    <div className="relative aspect-video w-full overflow-hidden bg-[var(--surface-2)] border-b border-[var(--border)]">
       <OptimizedImage
         src={link.image}
         alt={link.title}
         width={400}
         height={225}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+        className="w-full h-full object-cover filter saturate-85 group-hover:saturate-100 group-hover:scale-102 transition-all duration-200"
         quality={75}
         isStored={link.imageIsStored}
       />
-    </div>
 
-    <div className="p-4">
-      <div className="flex items-start justify-between mb-2">
-        <h3 id={`link-${link._id}-title`} className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 flex-1">{link.title}</h3>
+      {/* Floating Status Badges */}
+      <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+        {link.status === 'processing' && (
+          <span className="mono text-[9px] bg-black/80 text-[var(--accent)] border border-[var(--accent)]/40 px-2 py-0.5 rounded backdrop-blur-xs flex items-center gap-1.5 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+            PROCESANDO
+          </span>
+        )}
+        {hasScrapingError && (
+          <span className="mono text-[9px] bg-amber-950/80 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded backdrop-blur-xs flex items-center gap-1 font-semibold">
+            <AlertTriangle className="w-3 h-3" /> ERROR SCRAPING
+          </span>
+        )}
+        {link.isArchived && (
+          <span className="mono text-[9px] bg-black/80 text-[var(--muted)] border border-[var(--border)] px-1.5 py-0.5 rounded backdrop-blur-xs">
+            ARCHIVADO
+          </span>
+        )}
+      </div>
+
+      {link.imageIsStored && (
+        <span className="absolute top-2 right-2 mono text-[8px] bg-black/80 text-white border border-white/20 px-1.5 py-0.5 rounded flex items-center gap-1 z-10 backdrop-blur-xs">
+          <Cloud className="w-2.5 h-2.5 text-[var(--accent)]" /> LOCAL
+        </span>
+      )}
+
+      {/* Quick hover action bar */}
+      <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <button
-          onClick={(event) => {
-            event.stopPropagation()
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
             handleToggleFavorite()
           }}
-          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ml-2 ${link.isFavorite ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-red-500'}`}
+          className={`w-7 h-7 rounded border border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-xs flex items-center justify-center transition-colors ${
+            link.isFavorite ? 'text-red-500' : 'text-[var(--text)] hover:text-red-500'
+          }`}
+          title={link.isFavorite ? 'Remover favorito' : 'Favorito'}
         >
-          <Heart className={`w-5 h-5 ${link.isFavorite ? 'fill-current' : ''}`} />
+          <Heart className={`w-3.5 h-3.5 ${link.isFavorite ? 'fill-current' : ''}`} />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleVisit()
+          }}
+          className="w-7 h-7 rounded border border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-xs flex items-center justify-center text-[var(--text)] hover:text-[var(--accent)] transition-colors"
+          title="Visitar enlace"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+        <CardMenu
+          link={link}
+          isOpen={isMenuOpen}
+          onToggle={() => setIsMenuOpen((prev) => !prev)}
+          onArchive={handleToggleArchive}
+          onReScrape={handleReScrape}
+        />
+      </div>
+    </div>
+
+    {/* Body Content */}
+    <div className="p-4 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="mono text-[10px] text-[var(--muted)] truncate max-w-[80%] uppercase font-semibold">
+          {getDomainFromUrl(link.url)}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleToggleFavorite()
+          }}
+          className={`transition-colors ${link.isFavorite ? 'text-red-500' : 'text-[var(--muted)] hover:text-red-500'}`}
+        >
+          <Heart className={`w-4 h-4 ${link.isFavorite ? 'fill-current' : ''}`} />
         </button>
       </div>
 
-      {hasScrapingError && (
-        <div className="mb-2">
-          <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-full whitespace-nowrap flex items-center w-fit">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Error de scraping
-          </span>
-          <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">Mostrando valores predeterminados.</p>
-        </div>
-      )}
+      <h3 id={`link-${link._id}-title`} className="font-sans font-bold text-base text-[var(--text)] tracking-tight line-clamp-2 leading-snug">
+        {link.title || 'Sin título'}
+      </h3>
 
-      <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-3 mb-3">{link.description || (hasScrapingError ? 'Descripción no disponible' : 'Sin descripción')}</p>
-
-      {link.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          <TagsBadges tags={link.tags} limit={2} resolveTag={resolveTag} />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-        <div className="flex items-center space-x-3">
-          <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{formatDate(link.createdAt)}</span>
-          {link.lastVisited && <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{formatDateTime(link.lastVisited)}</span>}
-        </div>
-        {link.clickCount > 0 && <span className="flex items-center"><Eye className="w-3 h-3 mr-1" />{link.clickCount}</span>}
-      </div>
+      <p className="text-xs text-[var(--muted)] line-clamp-3 leading-relaxed">
+        {link.description || (hasScrapingError ? 'Descripción no disponible tras el escaneo.' : 'Sin descripción registrada.')}
+      </p>
 
       {needsDescription && (
         <button
-          onClick={(event) => {
-            event.stopPropagation()
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
             setShowDescriptionModal(true)
           }}
-          className="flex items-center mb-3 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+          className="mono text-[9px] text-amber-500 hover:underline flex items-center gap-1"
         >
-          <AlertCircle className="w-3 h-3 mr-1" />
-          Agregar descripción
+          <AlertCircle className="w-2.5 h-2.5" /> Agregar descripción
         </button>
       )}
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-primary-600 font-medium truncate flex items-center">{link.imageIsStored && <Cloud className="w-3 h-3 mr-1" />}{getDomainFromUrl(link.url)}</span>
+      {/* Tags */}
+      {link.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          <TagsBadges tags={link.tags} limit={3} resolveTag={resolveTag} />
+        </div>
+      )}
 
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={(event) => {
-              event.stopPropagation()
-              handleVisit()
-            }}
-            className="btn-primary btn-sm flex items-center"
-          >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            Visitar
-          </button>
-          <CardMenu link={link} isOpen={isMenuOpen} onToggle={() => setIsMenuOpen((prev) => !prev)} onArchive={handleToggleArchive} onReScrape={handleReScrape} compact />
+      {/* Card Metadata Footer */}
+      <div className="border-t border-[var(--border)] pt-2.5 mt-3 flex items-center justify-between font-mono text-[10px] text-[var(--muted)]">
+        <span className="flex items-center gap-1">
+          <Calendar className="w-3 h-3 text-[var(--muted)]" />
+          {formatDate(link.createdAt)}
+        </span>
+        <div className="flex items-center gap-2">
+          {link.lastVisited && (
+            <span className="hidden sm:flex items-center gap-1" title={`Última visita: ${formatDateTime(link.lastVisited)}`}>
+              <Clock className="w-3 h-3 text-[var(--muted)]" />
+              {formatDate(link.lastVisited)}
+            </span>
+          )}
+          {link.clickCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Eye className="w-3 h-3 text-[var(--muted)]" />
+              {link.clickCount}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -493,10 +616,20 @@ const LinkCard = ({ link, viewMode = 'grid', onUpdate, mode = 'full', onOpenDeta
       {mode !== 'minimal' && (
         <>
           <Suspense fallback={<ModalFallback />}>
-            <DescriptionModal link={link} isOpen={showDescriptionModal} onClose={() => setShowDescriptionModal(false)} onUpdate={onUpdate} />
+            <DescriptionModal
+              link={link}
+              isOpen={showDescriptionModal}
+              onClose={() => setShowDescriptionModal(false)}
+              onUpdate={onUpdate}
+            />
           </Suspense>
           <Suspense fallback={<ModalFallback />}>
-            <ReScrapeModal link={link} isOpen={showReScrapeModal} onClose={() => setShowReScrapeModal(false)} onUpdate={onUpdate} />
+            <ReScrapeModal
+              link={link}
+              isOpen={showReScrapeModal}
+              onClose={() => setShowReScrapeModal(false)}
+              onUpdate={onUpdate}
+            />
           </Suspense>
         </>
       )}
