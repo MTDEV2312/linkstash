@@ -149,6 +149,8 @@ MEJORAS-TECNICAS.md
 test-results/
 frontend/tests
 frontend/tests/e2e
+UI-Redisign/
+
 # InsForge & AI agent skills
 .insforge
 .agent
