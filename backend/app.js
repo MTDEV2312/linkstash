@@ -33,6 +33,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import linkRoutes from './src/routes/linkRoutes.js';
 import tagRoutes from './src/routes/tagRoutes.js';
 import dashboardRoutes from './src/routes/dashboardRoutes.js';
+import docsRoutes from './src/routes/docsRoutes.js';
 
 const logger = getLogger('AppServer');
 const app = express();
@@ -139,8 +140,8 @@ const PORT = process.env.PORT || 5000;
 
 // Carpeta pública para assets (por ejemplo: public/defaults/default-image.svg)
 app.use('/defaults', express.static(path.join(__dirname, 'public', 'defaults')));
-// Documentacion estatica estilo
-app.use('/api-docs', express.static(path.join(__dirname, 'public', 'api-docs')));
+// Documentación OpenAPI y visor interactivo Scalar
+app.use('/api-docs', docsRoutes);
 
 // Rutas
 app.use('/api/auth', authRoutes);

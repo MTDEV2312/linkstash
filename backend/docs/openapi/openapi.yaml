@@ -1,0 +1,1932 @@
+openapi: 3.1.0
+info:
+  title: LinkStash API
+  version: 2.0.0
+  description: >
+    LinkStash REST API for personal bookmark and link management.
+    Provides endpoints for link curation, automatic scraping previews, tag organization,
+    and dashboard metrics. Rate limited globally (default 60 requests per 60 seconds, configurable).
+servers:
+  - url: "{protocol}://{host}:{port}"
+    description: LinkStash API Server
+    variables:
+      protocol:
+        enum:
+          - http
+          - https
+        default: http
+      host:
+        default: localhost
+      port:
+        default: "5000"
+
+paths:
+  /:
+    get:
+      operationId: getApiRoot
+      summary: API root information
+      description: Returns service status, current API version, and a pointer to interactive documentation.
+      responses:
+        "200":
+          description: Service information retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootResponse"
+
+  /health:
+    get:
+      operationId: getHealthStatus
+      summary: Service health check
+      description: Returns health status, uptime, and operational environment metadata. Excluded from global rate limiting.
+      responses:
+        "200":
+          description: Service is healthy and operational.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a new user
+      description: Creates a new user profile with credentials. Returns an authentication token with 7-day lifetime.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "409":
+          description: Username or email already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate user credentials
+      description: Authenticates user using email and password, returning an access token with 7-day lifetime.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "401":
+          description: Invalid email or password credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get current user profile
+      description: Retrieves profile details of the currently authenticated user.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Unauthorized - missing or invalid token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/profile:
+    put:
+      operationId: updateUserProfile
+      summary: Update user profile
+      description: Updates username or email for the authenticated user.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username or email already in use.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/change-password:
+    put:
+      operationId: changeUserPassword
+      summary: Change password
+      description: Changes password for the authenticated user after verifying the current password.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StandardSuccessResponse"
+        "400":
+          description: Validation error or identical password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "401":
+          description: Incorrect current password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links:
+    get:
+      operationId: getLinks
+      summary: List user links
+      description: Retrieves paginated links with optional text search, tag filters, favorite/archive filters, and sorting.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default 1, configurable minimum 1).
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of links per page (default 6, maximum 6, configurable).
+          schema:
+            type: integer
+            default: 6
+            minimum: 1
+            maximum: 6
+        - name: search
+          in: query
+          description: Text search term matching title and description.
+          schema:
+            type: string
+            maxLength: 100
+        - name: tags
+          in: query
+          description: Comma-separated list of tags to filter by.
+          schema:
+            type: string
+        - name: archived
+          in: query
+          description: Filter by archive status (default 'false').
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+        - name: favorite
+          in: query
+          description: Filter by favorite status.
+          schema:
+            type: string
+            enum: ["true", "false", ""]
+            default: ""
+        - name: sortBy
+          in: query
+          description: Field used for ordering results (default 'createdAt').
+          schema:
+            type: string
+            enum: [createdAt, title, lastVisited, clickCount]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sort direction (default 'desc').
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of links retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinksListResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: createLink
+      summary: Create a link
+      description: Alternative endpoint to save a link. If title is omitted, the link is queued for background metadata scraping.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveLinkRequest"
+      responses:
+        "201":
+          description: Link saved immediately with title and default thumbnail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "202":
+          description: Link accepted and enqueued for background scraping.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "400":
+          description: Validation error, invalid URL, or link already saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/save-link:
+    post:
+      operationId: saveLink
+      summary: Save a link with metadata
+      description: Primary endpoint to store a bookmark. If title is omitted, the system enqueues background metadata scraping.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveLinkRequest"
+      responses:
+        "201":
+          description: Link saved immediately.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "202":
+          description: Link accepted and enqueued for background scraping.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "400":
+          description: Validation error, invalid URL, or link already saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/{id}:
+    get:
+      operationId: getLinkById
+      summary: Get link by ID
+      description: Retrieves a single bookmark by its unique identifier.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Link retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateLink
+      summary: Update link details
+      description: Updates title, description, tags, status, or image. Supports JSON payload or multipart/form-data image upload.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLinkJsonRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UpdateLinkMultipartRequest"
+      responses:
+        "200":
+          description: Link updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkItemResponse"
+        "400":
+          description: Validation error or missing upload flags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteLink
+      summary: Delete a link
+      description: Removes a bookmark and decrements associated tag counters. Deletes stored images if present.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Link deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StandardSuccessResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/{id}/scrape-preview:
+    post:
+      operationId: scrapeLinkPreview
+      summary: Scrape link preview in-memory
+      description: Runs real-time scraper on the bookmark target URL to fetch OpenGraph metadata without persisting changes.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Preview metadata scraped successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapePreviewResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (scraper rate limit default 10 requests per minute, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Upstream scraping error or target server unreachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/{id}/click:
+    post:
+      operationId: incrementLinkClickCount
+      summary: Increment click counter
+      description: Records an outbound click for the bookmark and updates the last visited timestamp.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Click recorded and counter incremented.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClickCountResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/{id}/favorite:
+    post:
+      operationId: toggleLinkFavorite
+      summary: Toggle favorite status
+      description: Inverts the favorite flag for the specified bookmark.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Favorite status toggled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToggleFavoriteResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/{id}/archive:
+    post:
+      operationId: toggleLinkArchive
+      summary: Toggle archive status
+      description: Inverts the archived flag for the specified bookmark.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Archive status toggled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToggleArchiveResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/links/batch:
+    post:
+      operationId: batchUpdateLinks
+      summary: Batch operations on links
+      description: Executes bulk operations (delete, archive, unarchive, addTag) on up to 100 links (default maximum 100 items per batch, configurable via MAX_BATCH_SIZE).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchLinksRequest"
+      responses:
+        "200":
+          description: Batch operation executed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchLinksResponse"
+        "400":
+          description: Invalid batch action, batch exceeds size limit, or tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/tags:
+    get:
+      operationId: getTags
+      summary: List user tags
+      description: Retrieves paginated tags for the authenticated user, with search and popularity sorting options.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Search filter for tag name.
+          schema:
+            type: string
+        - name: popular
+          in: query
+          description: Sort by link count descending (default 'false').
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+        - name: all
+          in: query
+          description: Return all tags bypassing pagination (default 'false').
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "false"
+        - name: page
+          in: query
+          description: Page number (default 1, configurable minimum 1).
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Items per page (default 5, maximum 5, configurable).
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 5
+      responses:
+        "200":
+          description: Tags retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagsListResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: createTag
+      summary: Create a tag
+      description: Creates a new categorization tag or returns an existing one if the name is already in use.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTagRequest"
+      responses:
+        "200":
+          description: Existing tag returned (idempotent duplicate prevention).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagItemResponse"
+        "201":
+          description: New tag created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagItemResponse"
+        "400":
+          description: Validation error or invalid tag name format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/tags/stats:
+    get:
+      operationId: getTagStats
+      summary: Get tag aggregate statistics
+      description: Returns aggregated metrics on tag usage, including totals, average links per tag, and maximum links on a tag.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Tag statistics retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagStatsResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/tags/{id}:
+    get:
+      operationId: getTagById
+      summary: Get tag by ID
+      description: Retrieves a specific tag by its unique identifier.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tag unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tag retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagItemResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateTag
+      summary: Update tag details
+      description: Updates the name, hex color, or description of a tag.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tag unique identifier (ObjectId).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTagRequest"
+      responses:
+        "200":
+          description: Tag updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagItemResponse"
+        "400":
+          description: Validation error or duplicate tag name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteTag
+      summary: Delete a tag
+      description: Removes a tag if its link count is zero. Fails if the tag is currently assigned to bookmarks.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tag unique identifier (ObjectId).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tag deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StandardSuccessResponse"
+        "400":
+          description: Tag cannot be deleted because it is still in use by bookmarks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      summary: Get dashboard overview metrics
+      description: Returns aggregated overview data including total links, favorites, archives, clicks, tags, recent items, and popular domains in a single query.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Dashboard overview retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverviewResponse"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (default 60 requests per 60 seconds, configurable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token obtained from registration or login. Lifetime is set by auth provider (default 7 days).
+
+  schemas:
+    RootResponse:
+      type: object
+      required:
+        - success
+        - message
+        - version
+        - timestamp
+        - documentation
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: LinkStash API funcionando correctamente
+        version:
+          type: string
+          example: 2.0.0
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+        documentation:
+          type: string
+          example: /api-docs
+
+    HealthResponse:
+      type: object
+      required:
+        - success
+        - status
+        - message
+        - timestamp
+        - uptime
+        - environment
+      properties:
+        success:
+          type: boolean
+          example: true
+        status:
+          type: string
+          example: healthy
+        message:
+          type: string
+          example: LinkStash API está funcionando
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+        uptime:
+          type: number
+          description: Server process uptime in seconds.
+          example: 3600.5
+        environment:
+          type: string
+          description: Operating environment mode name.
+          example: development
+
+    StandardSuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operación realizada exitosamente
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Mensaje descriptivo del error
+        errorCode:
+          type: string
+          example: RESOURCE_ERROR
+        field:
+          type: string
+          example: email
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error de validación
+        errorCode:
+          type: string
+          example: VALIDATION_ERROR
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              message:
+                type: string
+                example: Debes proporcionar un email válido
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: "^[a-zA-Z0-9_-]+$"
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 50
+          pattern: "^(?=.*[A-Za-z])(?=.*\\d).+$"
+          example: SecurePass123
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: SecurePass123
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: "^[a-zA-Z0-9_-]+$"
+          example: new_username
+        email:
+          type: string
+          format: email
+          example: new_email@example.com
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          example: CurrentPass123
+        newPassword:
+          type: string
+          minLength: 6
+          maxLength: 50
+          pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{6,}$"
+          example: NewStr0ng!Pass
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - email
+      properties:
+        id:
+          type: string
+          example: 60d5ecb8b392d7158c8b4567
+        supabaseId:
+          type: string
+          example: 4a2d8e40-a158-40a2-94f4-5f53267bd0f9
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+
+    AuthSuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Inicio de sesión exitoso
+        data:
+          type: object
+          required:
+            - token
+            - user
+            - expiresIn
+          properties:
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            user:
+              $ref: "#/components/schemas/User"
+            expiresIn:
+              type: string
+              example: 7d
+
+    UserProfileResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Perfil obtenido
+        data:
+          type: object
+          required:
+            - user
+          properties:
+            user:
+              $ref: "#/components/schemas/User"
+
+    Link:
+      type: object
+      required:
+        - _id
+        - userId
+        - url
+        - title
+      properties:
+        _id:
+          type: string
+          example: 60d5ecb8b392d7158c8b4568
+        userId:
+          type: string
+          example: 4a2d8e40-a158-40a2-94f4-5f53267bd0f9
+        url:
+          type: string
+          format: uri
+          example: https://github.com
+        title:
+          type: string
+          example: "GitHub: Let's build from here"
+        description:
+          type: string
+          example: GitHub is where over 100 million developers shape the future of software.
+        image:
+          type: string
+          example: https://github.githubassets.com/images/modules/open_graph/github-logo.png
+        imagePublicId:
+          type: string
+          example: defaults/default-image.svg
+        imageIsStored:
+          type: boolean
+          example: false
+        needsDescription:
+          type: boolean
+          example: false
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["coding", "git"]
+        isFavorite:
+          type: boolean
+          example: false
+        isArchived:
+          type: boolean
+          example: false
+        clickCount:
+          type: integer
+          example: 3
+        lastVisited:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-01-02T12:00:00.000Z"
+        status:
+          type: string
+          enum: [processing, completed, failed]
+          example: completed
+        scrapingError:
+          type: string
+          nullable: true
+          example: null
+        scrapingErrorType:
+          type: string
+          nullable: true
+          enum: [RATE_LIMIT_ERROR, BLOCKED_ERROR, CONNECTION_ERROR, SCRAPING_ERROR, null]
+          example: null
+        scrapingAttempts:
+          type: integer
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+
+    SaveLinkRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://github.com
+        title:
+          type: string
+          maxLength: 200
+          example: GitHub
+        description:
+          type: string
+          maxLength: 500
+          example: Development platform
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 30
+          example: ["coding", "git"]
+
+    UpdateLinkJsonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          example: Updated Title
+        description:
+          type: string
+          maxLength: 500
+          example: Updated Description
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+          example: ["tech", "updates"]
+        image:
+          type: string
+          example: https://example.com/image.png
+        uploadToStorage:
+          type: boolean
+          example: false
+        isFavorite:
+          type: boolean
+          example: true
+        isArchived:
+          type: boolean
+          example: false
+
+    UpdateLinkMultipartRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Updated Title
+        description:
+          type: string
+          example: Updated Description
+        tags:
+          type: string
+          description: Tag name or comma-separated tags.
+          example: tech
+        image:
+          type: string
+          format: binary
+          description: Image binary file (maximum 5MB).
+        uploadToStorage:
+          type: string
+          enum: ["true", "false"]
+          description: Must be 'true' when uploading binary files.
+          example: "true"
+        isFavorite:
+          type: boolean
+          example: true
+        isArchived:
+          type: boolean
+          example: false
+
+    Pagination:
+      type: object
+      required:
+        - currentPage
+        - totalPages
+        - totalLinks
+        - hasNextPage
+        - hasPrevPage
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 3
+        totalLinks:
+          type: integer
+          example: 15
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPrevPage:
+          type: boolean
+          example: false
+
+    LinksListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - links
+            - pagination
+          properties:
+            links:
+              type: array
+              items:
+                $ref: "#/components/schemas/Link"
+            pagination:
+              $ref: "#/components/schemas/Pagination"
+
+    LinkItemResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Enlace guardado exitosamente
+        data:
+          type: object
+          required:
+            - link
+          properties:
+            link:
+              $ref: "#/components/schemas/Link"
+
+    ScrapePreviewResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - title
+            - description
+            - image
+            - siteName
+            - favicon
+            - url
+          properties:
+            title:
+              type: string
+              example: Scraped Page Title
+            description:
+              type: string
+              example: Summary metadata parsed from OpenGraph tags.
+            image:
+              type: string
+              example: https://example.com/og-image.jpg
+            siteName:
+              type: string
+              example: Example Site
+            favicon:
+              type: string
+              example: https://example.com/favicon.ico
+            url:
+              type: string
+              example: https://example.com
+
+    ClickCountResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Contador actualizado
+        data:
+          type: object
+          required:
+            - clickCount
+          properties:
+            clickCount:
+              type: integer
+              example: 6
+
+    ToggleFavoriteResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Enlace añadido a favoritos
+        data:
+          type: object
+          required:
+            - isFavorite
+          properties:
+            isFavorite:
+              type: boolean
+              example: true
+
+    ToggleArchiveResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Enlace archivado exitosamente
+        data:
+          type: object
+          required:
+            - archived
+          properties:
+            archived:
+              type: boolean
+              example: true
+
+    BatchLinksRequest:
+      type: object
+      required:
+        - action
+        - linkIds
+      properties:
+        action:
+          type: string
+          enum: [delete, archive, unarchive, addTag]
+          example: archive
+        linkIds:
+          type: array
+          items:
+            type: string
+          description: List of bookmark IDs (maximum 100 items per batch, configurable via MAX_BATCH_SIZE).
+          example: ["60d5ecb8b392d7158c8b4568", "60d5ecb8b392d7158c8b4569"]
+        tag:
+          type: string
+          description: Required when action is addTag. Must be an existing tag.
+          example: read-later
+
+    BatchLinksResponse:
+      type: object
+      required:
+        - success
+        - modified
+        - action
+      properties:
+        success:
+          type: boolean
+          example: true
+        modified:
+          type: integer
+          example: 2
+        action:
+          type: string
+          example: archive
+
+    Tag:
+      type: object
+      required:
+        - id
+        - name
+        - color
+        - linkCount
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: 60d5ecb8b392d7158c8b4570
+        name:
+          type: string
+          example: development
+        color:
+          type: string
+          example: "#3B82F6"
+        description:
+          type: string
+          example: Software engineering resources
+        linkCount:
+          type: integer
+          example: 8
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00.000Z"
+
+    CreateTagRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 30
+          pattern: "^[a-záéíóúñüa-z0-9\\s\\-_.]+$"
+          example: programming
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          default: "#3B82F6"
+          example: "#3B82F6"
+        description:
+          type: string
+          maxLength: 100
+          example: Coding articles and tutorials
+
+    UpdateTagRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 30
+          pattern: "^[a-záéíóúñüa-z0-9\\s\\-_.]+$"
+          example: coding
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          example: "#10B981"
+        description:
+          type: string
+          maxLength: 100
+          example: Updated description
+
+    TagPagination:
+      type: object
+      required:
+        - currentPage
+        - totalPages
+        - totalTags
+        - itemsPerPage
+        - hasNextPage
+        - hasPrevPage
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 2
+        totalTags:
+          type: integer
+          example: 8
+        itemsPerPage:
+          type: integer
+          example: 5
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPrevPage:
+          type: boolean
+          example: false
+
+    TagsListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - tags
+            - pagination
+          properties:
+            tags:
+              type: array
+              items:
+                $ref: "#/components/schemas/Tag"
+            pagination:
+              $ref: "#/components/schemas/TagPagination"
+
+    TagItemResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Etiqueta creada exitosamente
+        data:
+          type: object
+          required:
+            - tag
+          properties:
+            tag:
+              $ref: "#/components/schemas/Tag"
+
+    TagStats:
+      type: object
+      required:
+        - totalTags
+        - totalLinks
+        - avgLinksPerTag
+        - mostUsedTag
+      properties:
+        totalTags:
+          type: integer
+          example: 12
+        totalLinks:
+          type: integer
+          example: 45
+        avgLinksPerTag:
+          type: number
+          example: 3.75
+        mostUsedTag:
+          type: integer
+          example: 14
+
+    TagStatsResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - stats
+          properties:
+            stats:
+              $ref: "#/components/schemas/TagStats"
+
+    DashboardSummary:
+      type: object
+      required:
+        - totalLinks
+        - favorites
+        - archived
+        - totalClicks
+        - needsDescription
+      properties:
+        totalLinks:
+          type: integer
+          example: 24
+        favorites:
+          type: integer
+          example: 7
+        archived:
+          type: integer
+          example: 3
+        totalClicks:
+          type: integer
+          example: 89
+        needsDescription:
+          type: integer
+          example: 2
+
+    PopularDomain:
+      type: object
+      required:
+        - domain
+        - count
+      properties:
+        domain:
+          type: string
+          example: github.com
+        count:
+          type: integer
+          example: 10
+
+    DashboardOverviewResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - summary
+            - topTags
+            - recentLinks
+            - popularDomains
+          properties:
+            summary:
+              $ref: "#/components/schemas/DashboardSummary"
+            topTags:
+              type: array
+              items:
+                $ref: "#/components/schemas/Tag"
+            recentLinks:
+              type: array
+              items:
+                $ref: "#/components/schemas/Link"
+            popularDomains:
+              type: array
+              items:
+                $ref: "#/components/schemas/PopularDomain"

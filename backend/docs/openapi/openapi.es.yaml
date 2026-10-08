@@ -1,0 +1,256 @@
+info:
+  title: LinkStash API
+  description: >
+    API REST de LinkStash para la gestión personal de marcadores y enlaces.
+    Provee endpoints para organización de enlaces, extracción automática de metadatos,
+    etiquetas y métricas del panel de control. Con límite de peticiones global (por defecto 60 peticiones por 60 segundos, configurable).
+
+paths:
+  /:
+    get:
+      operationId: getApiRoot
+      summary: Información raíz de la API
+      description: Retorna el estado del servicio, versión actual y enlace a la documentación interactiva.
+
+  /health:
+    get:
+      operationId: getHealthStatus
+      summary: Verificación de estado del servicio
+      description: Retorna el estado de operatividad, tiempo de actividad (uptime) y entorno de ejecución. Excluido del límite global de peticiones.
+
+  /api/auth/register:
+    post:
+      operationId: registerUser
+      summary: Registrar un nuevo usuario
+      description: Crea una nueva cuenta de usuario con credenciales. Retorna un token de autenticación con vigencia de 7 días.
+
+  /api/auth/login:
+    post:
+      operationId: loginUser
+      summary: Autenticar credenciales de usuario
+      description: Inicia sesión utilizando correo electrónico y contraseña. Retorna un token de acceso con vigencia de 7 días.
+
+  /api/auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Obtener perfil del usuario actual
+      description: Obtiene la información del perfil del usuario actualmente autenticado.
+
+  /api/auth/profile:
+    put:
+      operationId: updateUserProfile
+      summary: Actualizar perfil de usuario
+      description: Actualiza el nombre de usuario o correo electrónico del usuario autenticado.
+
+  /api/auth/change-password:
+    put:
+      operationId: changeUserPassword
+      summary: Cambiar contraseña
+      description: Actualiza la contraseña del usuario autenticado previa verificación de la contraseña actual.
+
+  /api/links:
+    get:
+      operationId: getLinks
+      summary: Listar enlaces del usuario
+      description: Retorna una lista paginada de marcadores con opciones de búsqueda de texto, filtro por etiquetas, favoritos, archivados y ordenamiento.
+    post:
+      operationId: createLink
+      summary: Crear un enlace
+      description: Endpoint alternativo para guardar un enlace. Si no se envía título, se encola la extracción de metadatos en segundo plano.
+
+  /api/links/save-link:
+    post:
+      operationId: saveLink
+      summary: Guardar enlace con metadatos
+      description: Endpoint principal para registrar un marcador. Si se omite el título, se encola la extracción de metadatos en segundo plano.
+
+  /api/links/{id}:
+    get:
+      operationId: getLinkById
+      summary: Obtener enlace por ID
+      description: Obtiene los detalles de un marcador específico mediante su identificador único.
+    put:
+      operationId: updateLink
+      summary: Actualizar detalles del enlace
+      description: Actualiza título, descripción, etiquetas, estado o imagen. Permite cuerpo en formato JSON o subida de archivo multipart/form-data.
+    delete:
+      operationId: deleteLink
+      summary: Eliminar enlace
+      description: Elimina un marcador y decrementa los contadores de las etiquetas asociadas. Elimina la imagen almacenada si corresponde.
+
+  /api/links/{id}/scrape-preview:
+    post:
+      operationId: scrapeLinkPreview
+      summary: Obtener vista previa de metadatos en memoria
+      description: Ejecuta el scraper en tiempo real sobre la URL del enlace para obtener metadatos OpenGraph sin persistir cambios en base de datos.
+
+  /api/links/{id}/click:
+    post:
+      operationId: incrementLinkClickCount
+      summary: Incrementar contador de clics
+      description: Registra un clic hacia el enlace externo y actualiza la fecha de última visita.
+
+  /api/links/{id}/favorite:
+    post:
+      operationId: toggleLinkFavorite
+      summary: Alternar estado de favorito
+      description: Cambia el estado de favorito del enlace entre activo e inactivo.
+
+  /api/links/{id}/archive:
+    post:
+      operationId: toggleLinkArchive
+      summary: Alternar estado de archivado
+      description: Cambia el estado de archivado del enlace entre archivado y activo.
+
+  /api/links/batch:
+    post:
+      operationId: batchUpdateLinks
+      summary: Operaciones por lote sobre enlaces
+      description: Ejecuta acciones en masa (delete, archive, unarchive, addTag) sobre hasta 100 enlaces (límite por defecto de 100 elementos por lote, configurable mediante MAX_BATCH_SIZE).
+
+  /api/tags:
+    get:
+      operationId: getTags
+      summary: Listar etiquetas del usuario
+      description: Obtiene las etiquetas del usuario autenticado de forma paginada o completa, con opciones de búsqueda y orden por popularidad.
+    post:
+      operationId: createTag
+      summary: Crear una etiqueta
+      description: Crea una nueva etiqueta de clasificación o retorna la existente si ya se encuentra registrada para el usuario.
+
+  /api/tags/stats:
+    get:
+      operationId: getTagStats
+      summary: Obtener estadísticas agregadas de etiquetas
+      description: Retorna métricas globales de uso de etiquetas, incluyendo totales, promedio de enlaces por etiqueta y etiqueta más utilizada.
+
+  /api/tags/{id}:
+    get:
+      operationId: getTagById
+      summary: Obtener etiqueta por ID
+      description: Retorna los detalles de una etiqueta específica mediante su identificador único.
+    put:
+      operationId: updateTag
+      summary: Actualizar detalles de la etiqueta
+      description: Actualiza el nombre, color hexadecimal o descripción de una etiqueta existente.
+    delete:
+      operationId: deleteTag
+      summary: Eliminar una etiqueta
+      description: Elimina una etiqueta si no tiene enlaces asignados. Falla con error 400 si la etiqueta aún está asociada a enlaces.
+
+  /api/dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      summary: Obtener resumen métrico del panel de control
+      description: Retorna en una sola consulta el resumen consolidado de enlaces, favoritos, archivados, clics, etiquetas principales, enlaces recientes y dominios populares.
+
+components:
+  schemas:
+    RootResponse:
+      title: Respuesta raíz de la API
+      description: Información general sobre el servicio y enlaces a documentación.
+    HealthResponse:
+      title: Respuesta de estado de salud
+      description: Datos de diagnóstico y disponibilidad operativa del servidor.
+    StandardSuccessResponse:
+      title: Respuesta de éxito estándar
+      description: Confirmación de operación completada exitosamente.
+    ErrorResponse:
+      title: Respuesta de error general
+      description: Formato estandarizado de error con mensaje descriptivo y código de error.
+    ValidationErrorResponse:
+      title: Respuesta de error de validación
+      description: Detalles de errores detectados en campos del cuerpo o parámetros de consulta.
+    RegisterRequest:
+      title: Solicitud de registro de usuario
+      description: Datos requeridos para dar de alta una nueva cuenta en la plataforma.
+    LoginRequest:
+      title: Solicitud de inicio de sesión
+      description: Credenciales de acceso para autenticación.
+    UpdateProfileRequest:
+      title: Solicitud de actualización de perfil
+      description: Modificaciones al nombre de usuario o correo electrónico.
+    ChangePasswordRequest:
+      title: Solicitud de cambio de contraseña
+      description: Contraseña actual y nueva contraseña segura.
+    User:
+      title: Modelo de usuario
+      description: Perfil público del usuario en la plataforma.
+    AuthSuccessResponse:
+      title: Respuesta de autenticación exitosa
+      description: Token JWT y perfil de usuario autenticado.
+    UserProfileResponse:
+      title: Respuesta de perfil de usuario
+      description: Datos del perfil del usuario autenticado.
+    Link:
+      title: Modelo de enlace
+      description: Marcador guardado con sus metadatos y estado de scraping.
+    SaveLinkRequest:
+      title: Solicitud para guardar enlace
+      description: Parámetros necesarios para registrar un nuevo marcador.
+    UpdateLinkJsonRequest:
+      title: Solicitud de actualización de enlace (JSON)
+      description: Campos editables de un enlace en formato JSON.
+    UpdateLinkMultipartRequest:
+      title: Solicitud de actualización de enlace (Multipart)
+      description: Campos editables de un enlace con soporte para archivo binario de imagen.
+    Pagination:
+      title: Paginación de enlaces
+      description: Metadatos de navegación para listas paginadas de enlaces.
+    LinksListResponse:
+      title: Respuesta de lista de enlaces
+      description: Lista paginada de marcadores del usuario.
+    LinkItemResponse:
+      title: Respuesta de elemento de enlace
+      description: Detalles del enlace guardado o actualizado.
+    ScrapePreviewResponse:
+      title: Respuesta de vista previa de scraping
+      description: Metadatos extraídos de la página web de destino en memoria.
+    ClickCountResponse:
+      title: Respuesta de conteo de clics
+      description: Total actualizado de clics registrados hacia el enlace.
+    ToggleFavoriteResponse:
+      title: Respuesta de alternancia de favorito
+      description: Nuevo estado de favorito del enlace.
+    ToggleArchiveResponse:
+      title: Respuesta de alternancia de archivo
+      description: Nuevo estado de archivado del enlace.
+    BatchLinksRequest:
+      title: Solicitud de operación por lote
+      description: Acción a ejecutar en masa sobre un conjunto de marcadores.
+    BatchLinksResponse:
+      title: Respuesta de operación por lote
+      description: Resumen de enlaces modificados en la operación en lote.
+    Tag:
+      title: Modelo de etiqueta
+      description: Etiqueta de organización de enlaces con contador de uso.
+    CreateTagRequest:
+      title: Solicitud de creación de etiqueta
+      description: Datos para crear una nueva etiqueta de clasificación.
+    UpdateTagRequest:
+      title: Solicitud de actualización de etiqueta
+      description: Modificación de atributos de una etiqueta existente.
+    TagPagination:
+      title: Paginación de etiquetas
+      description: Metadatos de navegación para listado paginado de etiquetas.
+    TagsListResponse:
+      title: Respuesta de lista de etiquetas
+      description: Colección de etiquetas organizadas del usuario.
+    TagItemResponse:
+      title: Respuesta de elemento de etiqueta
+      description: Datos de la etiqueta creada o actualizada.
+    TagStats:
+      title: Métricas agregadas de etiquetas
+      description: Resumen estadístico sobre el uso de etiquetas.
+    TagStatsResponse:
+      title: Respuesta de estadísticas de etiquetas
+      description: Métricas agregadas de etiquetas del usuario.
+    DashboardSummary:
+      title: Resumen general del panel
+      description: Métricas consolidadas de enlaces, favoritos, archivos y clics.
+    PopularDomain:
+      title: Dominio popular
+      description: Dominio web frecuente y cantidad de enlaces guardados.
+    DashboardOverviewResponse:
+      title: Respuesta de visión general del panel
+      description: Datos agregados para la vista principal del panel de control.
