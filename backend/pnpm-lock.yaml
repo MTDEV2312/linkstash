@@ -10,22 +10,22 @@ importers:
     dependencies:
       '@scalar/api-reference':
         specifier: 1.25.0
-        version: 1.25.0(debug@4.4.3(supports-color@5.5.0))(postcss@8.5.29)(supports-color@5.5.0)(tailwindcss@4.3.3)
+        version: 1.25.0(postcss@8.5.29)(tailwindcss@4.3.3)
       '@supabase/supabase-js':
         specifier: 2.112.3
         version: 2.112.3
       axios:
         specifier: 1.18.0
-        version: 1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)
+        version: 1.18.0
       bullmq:
         specifier: 5.66.1
-        version: 5.66.1(supports-color@5.5.0)
+        version: 5.66.1
       cheerio:
         specifier: 1.0.0-rc.12
         version: 1.0.0-rc.12
       compression:
         specifier: ^1.7.4
-        version: 1.8.1(supports-color@5.5.0)
+        version: 1.8.1
       cors:
         specifier: 2.8.5
         version: 2.8.5
@@ -34,16 +34,16 @@ importers:
         version: 16.3.1
       express:
         specifier: 4.22.1
-        version: 4.22.1(supports-color@5.5.0)
+        version: 4.22.1
       express-rate-limit:
         specifier: ^6.7.0
-        version: 6.11.2(express@4.22.1(supports-color@5.5.0))
+        version: 6.11.2(express@4.22.1)
       helmet:
         specifier: ^7.1.0
         version: 7.2.0
       ioredis:
         specifier: 5.8.2
-        version: 5.8.2(supports-color@5.5.0)
+        version: 5.8.2
       ipaddr.js:
         specifier: 2.2.0
         version: 2.2.0
@@ -55,7 +55,7 @@ importers:
         version: 9.0.2
       mongoose:
         specifier: 7.8.7
-        version: 7.8.7(supports-color@5.5.0)
+        version: 7.8.7
       multer:
         specifier: 2.1.1
         version: 2.1.1
@@ -503,6 +503,11 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
@@ -1528,8 +1533,8 @@ packages:
   property-information@7.2.0:
     resolution: {integrity: sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg==}
 
-  proxy-addr@2.0.7:
-    resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
+  proxy-addr@2.0.8:
+    resolution: {integrity: sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==}
     engines: {node: '>= 0.10'}
 
   proxy-from-env@2.1.0:
@@ -2158,13 +2163,13 @@ snapshots:
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.13
 
-  '@scalar/api-client@2.0.53(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tailwindcss@4.3.3)':
+  '@scalar/api-client@2.0.53(tailwindcss@4.3.3)':
     dependencies:
       '@headlessui/tailwindcss': 0.2.2(tailwindcss@4.3.3)
       '@headlessui/vue': 1.7.23(vue@3.5.43)
-      '@scalar/components': 0.12.34(supports-color@5.5.0)
+      '@scalar/components': 0.12.34
       '@scalar/draggable': 0.1.4
-      '@scalar/oas-utils': 0.2.34(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(vue@3.5.43)
+      '@scalar/oas-utils': 0.2.34(vue@3.5.43)
       '@scalar/object-utils': 1.1.7(vue@3.5.43)
       '@scalar/openapi-parser': 0.7.2
       '@scalar/themes': 0.9.25
@@ -2173,7 +2178,7 @@ snapshots:
       '@scalar/use-toasts': 0.7.5
       '@scalar/use-tooltip': 1.0.2
       '@vueuse/core': 10.11.1(vue@3.5.43)
-      axios: 1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)
+      axios: 1.18.0
       cva: 1.0.0-beta.1
       fuse.js: 7.5.0
       js-cookie: 3.0.8
@@ -2191,14 +2196,14 @@ snapshots:
       - tailwindcss
       - typescript
 
-  '@scalar/api-reference@1.25.0(debug@4.4.3(supports-color@5.5.0))(postcss@8.5.29)(supports-color@5.5.0)(tailwindcss@4.3.3)':
+  '@scalar/api-reference@1.25.0(postcss@8.5.29)(tailwindcss@4.3.3)':
     dependencies:
       '@floating-ui/vue': 1.1.11(vue@3.5.43)
       '@headlessui/vue': 1.7.23(vue@3.5.43)
-      '@scalar/api-client': 2.0.53(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tailwindcss@4.3.3)
-      '@scalar/code-highlight': 0.0.10(supports-color@5.5.0)
-      '@scalar/components': 0.12.34(supports-color@5.5.0)
-      '@scalar/oas-utils': 0.2.34(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(vue@3.5.43)
+      '@scalar/api-client': 2.0.53(tailwindcss@4.3.3)
+      '@scalar/code-highlight': 0.0.10
+      '@scalar/components': 0.12.34
+      '@scalar/oas-utils': 0.2.34(vue@3.5.43)
       '@scalar/openapi-parser': 0.7.2
       '@scalar/snippetz': 0.1.6
       '@scalar/themes': 0.9.25
@@ -2208,7 +2213,7 @@ snapshots:
       '@unhead/schema': 1.11.20
       '@unhead/vue': 1.11.20(vue@3.5.43)
       '@vueuse/core': 10.11.1(vue@3.5.43)
-      axios: 1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)
+      axios: 1.18.0
       fuse.js: 7.5.0
       github-slugger: 2.0.0
       httpsnippet-lite: 3.0.5
@@ -2225,7 +2230,7 @@ snapshots:
       - tailwindcss
       - typescript
 
-  '@scalar/code-highlight@0.0.10(supports-color@5.5.0)':
+  '@scalar/code-highlight@0.0.10':
     dependencies:
       hast-util-to-text: 4.0.2
       highlight.js: 11.12.0
@@ -2238,8 +2243,8 @@ snapshots:
       rehype-raw: 7.0.0
       rehype-sanitize: 6.0.0
       rehype-stringify: 10.0.1
-      remark-gfm: 4.0.1(supports-color@5.5.0)
-      remark-parse: 11.0.0(supports-color@5.5.0)
+      remark-gfm: 4.0.1
+      remark-parse: 11.0.0
       remark-rehype: 11.1.2
       remark-stringify: 11.0.0
       unified: 11.0.5
@@ -2247,12 +2252,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@scalar/components@0.12.34(supports-color@5.5.0)':
+  '@scalar/components@0.12.34':
     dependencies:
       '@floating-ui/utils': 0.2.12
       '@floating-ui/vue': 1.1.11(vue@3.5.43)
       '@headlessui/vue': 1.7.23(vue@3.5.43)
-      '@scalar/code-highlight': 0.0.10(supports-color@5.5.0)
+      '@scalar/code-highlight': 0.0.10
       '@vueuse/core': 10.11.1(vue@3.5.43)
       cva: 1.0.0-beta.1
       nanoid: 5.1.16
@@ -2270,12 +2275,12 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@scalar/oas-utils@0.2.34(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(vue@3.5.43)':
+  '@scalar/oas-utils@0.2.34(vue@3.5.43)':
     dependencies:
       '@scalar/object-utils': 1.1.7(vue@3.5.43)
       '@scalar/themes': 0.9.25
       '@scalar/types': 0.0.1
-      axios: 1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)
+      axios: 1.18.0
       nanoid: 5.1.16
       yaml: 2.9.1
       zod: 3.25.76
@@ -2299,7 +2304,7 @@ snapshots:
     dependencies:
       ajv: 8.20.0
       ajv-draft-04: 1.0.0(ajv@8.20.0)
-      ajv-formats: 3.0.1
+      ajv-formats: 3.0.1(ajv@8.20.0)
       jsonpointer: 5.0.1
       leven: 4.1.0
       yaml: 2.9.1
@@ -2588,9 +2593,9 @@ snapshots:
       mime-types: 2.1.35
       negotiator: 0.6.3
 
-  agent-base@6.0.2(supports-color@5.5.0):
+  agent-base@6.0.2:
     dependencies:
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -2598,8 +2603,8 @@ snapshots:
     optionalDependencies:
       ajv: 8.20.0
 
-  ajv-formats@3.0.1:
-    dependencies:
+  ajv-formats@3.0.1(ajv@8.20.0):
+    optionalDependencies:
       ajv: 8.20.0
 
   ajv@8.20.0:
@@ -2626,11 +2631,11 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios@1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0):
+  axios@1.18.0:
     dependencies:
-      follow-redirects: 1.16.0(debug@4.4.3(supports-color@5.5.0))
+      follow-redirects: 1.16.0
       form-data: 4.0.6
-      https-proxy-agent: 5.0.1(supports-color@5.5.0)
+      https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
     transitivePeerDependencies:
       - debug
@@ -2642,11 +2647,11 @@ snapshots:
 
   binary-extensions@2.3.0: {}
 
-  body-parser@1.20.6(supports-color@5.5.0):
+  body-parser@1.20.6:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
-      debug: 2.6.9(supports-color@5.5.0)
+      debug: 2.6.9
       depd: 2.0.0
       destroy: 1.2.0
       http-errors: 2.0.1
@@ -2676,10 +2681,10 @@ snapshots:
 
   buffer-from@1.1.2: {}
 
-  bullmq@5.66.1(supports-color@5.5.0):
+  bullmq@5.66.1:
     dependencies:
       cron-parser: 4.9.0
-      ioredis: 5.8.2(supports-color@5.5.0)
+      ioredis: 5.8.2
       msgpackr: 1.11.5
       node-abort-controller: 3.1.1
       semver: 7.7.3
@@ -2782,11 +2787,11 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  compression@1.8.1(supports-color@5.5.0):
+  compression@1.8.1:
     dependencies:
       bytes: 3.1.2
       compressible: 2.0.18
-      debug: 2.6.9(supports-color@5.5.0)
+      debug: 2.6.9
       negotiator: 0.6.4
       on-headers: 1.1.0
       safe-buffer: 5.2.1
@@ -2842,11 +2847,9 @@ snapshots:
     dependencies:
       clsx: 2.0.0
 
-  debug@2.6.9(supports-color@5.5.0):
+  debug@2.6.9:
     dependencies:
       ms: 2.0.0
-    optionalDependencies:
-      supports-color: 5.5.0
 
   debug@3.2.7(supports-color@5.5.0):
     dependencies:
@@ -2854,11 +2857,9 @@ snapshots:
     optionalDependencies:
       supports-color: 5.5.0
 
-  debug@4.4.3(supports-color@5.5.0):
+  debug@4.4.3:
     dependencies:
       ms: 2.1.3
-    optionalDependencies:
-      supports-color: 5.5.0
 
   decode-named-character-reference@1.3.0:
     dependencies:
@@ -2948,25 +2949,25 @@ snapshots:
 
   etag@1.8.1: {}
 
-  express-rate-limit@6.11.2(express@4.22.1(supports-color@5.5.0)):
+  express-rate-limit@6.11.2(express@4.22.1):
     dependencies:
-      express: 4.22.1(supports-color@5.5.0)
+      express: 4.22.1
 
-  express@4.22.1(supports-color@5.5.0):
+  express@4.22.1:
     dependencies:
       accepts: 1.3.8
       array-flatten: 1.1.1
-      body-parser: 1.20.6(supports-color@5.5.0)
+      body-parser: 1.20.6
       content-disposition: 0.5.4
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.0.7
-      debug: 2.6.9(supports-color@5.5.0)
+      debug: 2.6.9
       depd: 2.0.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 1.3.2(supports-color@5.5.0)
+      finalhandler: 1.3.2
       fresh: 0.5.2
       http-errors: 2.0.1
       merge-descriptors: 1.0.3
@@ -2974,12 +2975,12 @@ snapshots:
       on-finished: 2.4.1
       parseurl: 1.3.3
       path-to-regexp: 0.1.13
-      proxy-addr: 2.0.7
+      proxy-addr: 2.0.8
       qs: 6.14.2
       range-parser: 1.2.1
       safe-buffer: 5.2.1
-      send: 0.19.2(supports-color@5.5.0)
-      serve-static: 1.16.3(supports-color@5.5.0)
+      send: 0.19.2
+      serve-static: 1.16.3
       setprototypeof: 1.2.0
       statuses: 2.0.2
       type-is: 1.6.18
@@ -3000,9 +3001,9 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  finalhandler@1.3.2(supports-color@5.5.0):
+  finalhandler@1.3.2:
     dependencies:
-      debug: 2.6.9(supports-color@5.5.0)
+      debug: 2.6.9
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -3016,9 +3017,7 @@ snapshots:
 
   fn.name@1.1.0: {}
 
-  follow-redirects@1.16.0(debug@4.4.3(supports-color@5.5.0)):
-    optionalDependencies:
-      debug: 4.4.3(supports-color@5.5.0)
+  follow-redirects@1.16.0: {}
 
   form-data@4.0.6:
     dependencies:
@@ -3247,10 +3246,10 @@ snapshots:
       statuses: 2.0.2
       toidentifier: 1.0.1
 
-  https-proxy-agent@5.0.1(supports-color@5.5.0):
+  https-proxy-agent@5.0.1:
     dependencies:
-      agent-base: 6.0.2(supports-color@5.5.0)
-      debug: 4.4.3(supports-color@5.5.0)
+      agent-base: 6.0.2
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3270,11 +3269,11 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  ioredis@5.8.2(supports-color@5.5.0):
+  ioredis@5.8.2:
     dependencies:
       '@ioredis/commands': 1.4.0
       cluster-key-slot: 1.1.2
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3
       denque: 2.1.0
       lodash.defaults: 4.2.0
       lodash.isarguments: 3.1.0
@@ -3418,14 +3417,14 @@ snapshots:
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
 
-  mdast-util-from-markdown@2.1.0(supports-color@5.5.0):
+  mdast-util-from-markdown@2.1.0:
     dependencies:
       '@types/mdast': 4.0.4
       '@types/unist': 3.0.3
       decode-named-character-reference: 1.3.0
       devlop: 1.1.0
       mdast-util-to-string: 4.0.0
-      micromark: 4.0.3(supports-color@5.5.0)
+      micromark: 4.0.3
       micromark-util-decode-numeric-character-reference: 2.0.2
       micromark-util-decode-string: 2.0.1
       micromark-util-normalize-identifier: 2.0.1
@@ -3443,51 +3442,51 @@ snapshots:
       mdast-util-find-and-replace: 3.0.3
       micromark-util-character: 2.1.1
 
-  mdast-util-gfm-footnote@2.1.0(supports-color@5.5.0):
+  mdast-util-gfm-footnote@2.1.0:
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       mdast-util-to-markdown: 2.2.0
       micromark-util-normalize-identifier: 2.0.1
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-strikethrough@2.0.1(supports-color@5.5.0):
+  mdast-util-gfm-strikethrough@2.0.1:
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-table@2.0.0(supports-color@5.5.0):
+  mdast-util-gfm-table@2.0.0:
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       markdown-table: 3.0.4
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-task-list-item@2.0.0(supports-color@5.5.0):
+  mdast-util-gfm-task-list-item@2.0.0:
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm@3.1.0(supports-color@5.5.0):
+  mdast-util-gfm@3.1.0:
     dependencies:
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       mdast-util-gfm-autolink-literal: 2.0.1
-      mdast-util-gfm-footnote: 2.1.0(supports-color@5.5.0)
-      mdast-util-gfm-strikethrough: 2.0.1(supports-color@5.5.0)
-      mdast-util-gfm-table: 2.0.0(supports-color@5.5.0)
-      mdast-util-gfm-task-list-item: 2.0.0(supports-color@5.5.0)
+      mdast-util-gfm-footnote: 2.1.0
+      mdast-util-gfm-strikethrough: 2.0.1
+      mdast-util-gfm-table: 2.0.0
+      mdast-util-gfm-task-list-item: 2.0.0
       mdast-util-to-markdown: 2.2.0
     transitivePeerDependencies:
       - supports-color
@@ -3710,10 +3709,10 @@ snapshots:
 
   micromark-util-types@2.0.3: {}
 
-  micromark@4.0.3(supports-color@5.5.0):
+  micromark@4.0.3:
     dependencies:
       '@types/debug': 4.1.13
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3
       decode-named-character-reference: 1.3.0
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.4
@@ -3760,13 +3759,13 @@ snapshots:
     optionalDependencies:
       '@mongodb-js/saslprep': 1.4.13
 
-  mongoose@7.8.7(supports-color@5.5.0):
+  mongoose@7.8.7:
     dependencies:
       bson: 5.5.1
       kareem: 2.5.1
       mongodb: 5.9.2
       mpath: 0.9.0
-      mquery: 5.0.0(supports-color@5.5.0)
+      mquery: 5.0.0
       ms: 2.1.3
       sift: 16.0.1
     transitivePeerDependencies:
@@ -3779,9 +3778,9 @@ snapshots:
 
   mpath@0.9.0: {}
 
-  mquery@5.0.0(supports-color@5.5.0):
+  mquery@5.0.0:
     dependencies:
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3907,7 +3906,7 @@ snapshots:
 
   property-information@7.2.0: {}
 
-  proxy-addr@2.0.7:
+  proxy-addr@2.0.8:
     dependencies:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
@@ -4006,21 +4005,21 @@ snapshots:
       hast-util-to-html: 9.0.5
       unified: 11.0.5
 
-  remark-gfm@4.0.1(supports-color@5.5.0):
+  remark-gfm@4.0.1:
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-gfm: 3.1.0(supports-color@5.5.0)
+      mdast-util-gfm: 3.1.0
       micromark-extension-gfm: 3.0.0
-      remark-parse: 11.0.0(supports-color@5.5.0)
+      remark-parse: 11.0.0
       remark-stringify: 11.0.0
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
-  remark-parse@11.0.0(supports-color@5.5.0):
+  remark-parse@11.0.0:
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.1.0(supports-color@5.5.0)
+      mdast-util-from-markdown: 2.1.0
       micromark-util-types: 2.0.3
       unified: 11.0.5
     transitivePeerDependencies:
@@ -4052,9 +4051,9 @@ snapshots:
 
   semver@7.8.5: {}
 
-  send@0.19.2(supports-color@5.5.0):
+  send@0.19.2:
     dependencies:
-      debug: 2.6.9(supports-color@5.5.0)
+      debug: 2.6.9
       depd: 2.0.0
       destroy: 1.2.0
       encodeurl: 2.0.0
@@ -4070,12 +4069,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  serve-static@1.16.3(supports-color@5.5.0):
+  serve-static@1.16.3:
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 0.19.2(supports-color@5.5.0)
+      send: 0.19.2
     transitivePeerDependencies:
       - supports-color
 
