@@ -37,7 +37,7 @@
     "ipaddr.js": "2.2.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "9.0.2",
-    "mongoose": "7.8.7",
+    "mongoose": "7.8.13",
     "multer": "2.1.1",
     "winston": "^3.11.0",
     "yaml": "^2.7.0"
@@ -48,7 +48,7 @@
   "overrides": {
     "axios": "1.18.0",
     "express": "4.22.1",
-    "mongoose": "7.8.7",
+    "mongoose": "7.8.13",
     "body-parser": "1.20.4",
     "cookie": "0.7.0",
     "path-to-regexp": "0.1.13",
