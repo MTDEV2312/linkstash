@@ -166,7 +166,7 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'LinkStash API funcionando correctamente',
-    version: '2.0.0',
+    version: '2.0.1',
     timestamp: new Date().toISOString(),
     documentation: '/api-docs'
   });
