@@ -8,10 +8,15 @@ const cache = {
 const TTL_MS = parseInt(import.meta.env.VITE_DASHBOARD_CACHE_TTL_MS || '10000', 10) // 10s por defecto
 
 class DashboardService {
-  async getOverview() {
+  invalidateCache() {
+    cache.overview = null
+    cache.timestamp = 0
+  }
+
+  async getOverview({ force = false } = {}) {
     try {
       const now = Date.now()
-      if (cache.overview && (now - cache.timestamp) < TTL_MS) {
+      if (!force && cache.overview && (now - cache.timestamp) < TTL_MS) {
         const res = cache.overview
         // marcar origen
         res.__fromCache = true

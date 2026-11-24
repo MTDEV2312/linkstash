@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import LinkForm from '../components/LinkForm'
+import LinkFormModal from '../components/LinkFormModal'
 import LinkCard from '../components/LinkCard'
 import TagCard from '../components/TagCard'
 import dashboardService from '../services/dashboardService'
@@ -40,13 +40,13 @@ const Dashboard = () => {
 
   const handleLinkSaved = () => {
     setShowLinkForm(false)
-    loadData()
+    loadData({ force: true })
   }
 
-  const loadData = async () => {
+  const loadData = async ({ force = false } = {}) => {
     setLoading(true)
     try {
-      const res = await dashboardService.getOverview()
+      const res = await dashboardService.getOverview({ force })
       if (res && res.success) {
         setDashboardData({
           summary: res.data.summary || null,
@@ -83,6 +83,7 @@ const Dashboard = () => {
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowLinkForm(true)}
             className="btn-primary btn-md flex items-center gap-1.5"
           >
@@ -190,7 +191,7 @@ const Dashboard = () => {
                 </div>
               )}
               {!loading && recentLinks?.map(link => (
-                <LinkCard key={link._id} link={link} mode="minimal" onUpdate={loadData} />
+                <LinkCard key={link._id} link={link} mode="minimal" onUpdate={() => loadData({ force: true })} />
               ))}
             </div>
           </div>
@@ -198,25 +199,11 @@ const Dashboard = () => {
       </div>
 
       {/* Save Link Modal */}
-      {showLinkForm && (
-        <div className="fixed inset-0 z-50 overflow-y-auto animate-fade-in">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <button
-              type="button"
-              aria-label="Cerrar modal de nuevo enlace"
-              className="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm cursor-pointer"
-              onClick={() => setShowLinkForm(false)}
-            />
-            
-            <div className="inline-block align-bottom bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <LinkForm 
-                onSave={handleLinkSaved}
-                onCancel={() => setShowLinkForm(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <LinkFormModal
+        isOpen={showLinkForm}
+        onClose={() => setShowLinkForm(false)}
+        onSave={handleLinkSaved}
+      />
     </div>
   )
 }
